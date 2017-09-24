@@ -17,7 +17,8 @@ setuptools.setup(
     license = "MIT",
     keywords = "nhl",
     url = "https://github.com/muneebalam/scrapenhl2",
-    packages=['numpy', 'scipy', 'matplotlib', 'seaborn', 'pandas'],
+    packages=['scrapenhl2', 'docs', 'tests'],
+    install_requires=['numpy', 'scipy', 'matplotlib', 'seaborn', 'pandas', 'feather'],
     long_description=read('README.rst'),
     classifiers=[
         "Development Status :: 2 - Pre-Alpha",
