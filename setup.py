@@ -16,11 +16,14 @@ setuptools.setup(
     description = ("scrapenhl2 is a python package for scraping and manipulating NHL data pulled from the NHL website."),
     license = "MIT",
     keywords = "nhl",
-    #url = "",
+    url = "https://github.com/muneebalam/scrapenhl2",
     packages=['numpy', 'scipy', 'matplotlib', 'seaborn', 'pandas'],
     long_description=read('README.rst'),
     classifiers=[
         "Development Status :: 2 - Pre-Alpha",
-        "License :: MIT License",
+        'Intended Audience :: Science/Research',
+        "License :: OSI Approved :: MIT License",
+        'Programming Language :: Python :: 3'
     ],
+
 )
