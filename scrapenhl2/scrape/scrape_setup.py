@@ -14,6 +14,8 @@ import os.path
 import urllib.request
 import urllib.error
 import datetime
+import numpy as np
+
 
 def _get_current_season():
     """
@@ -23,11 +25,12 @@ def _get_current_season():
     season = datetime.datetime.now().year - 1
     if datetime.datetime.now().month >= 9:
         season += 1
-    return(season)
+    return season
 
 
 def get_current_season():
     """
+    Returns the current season.
     :return: The current season variable (generated at import from _get_current_season)
     """
     return _CURRENT_SEASON
@@ -38,11 +41,12 @@ def _get_base_dir():
     Returns the base directory (two directories up from __file__)
     :return: the base directory
     """
-    return '../../' # (os.path.join(*(__file__.split('/')[:-2])))
+    return '../../'  # Formerly (os.path.join(*(__file__.split('/')[:-2])))
 
 
 def get_base_dir():
     """
+    Returns the base directory of this package.
     :return: the base directory (generated at import from _get_base_dir)
     """
     return _BASE_DIR
@@ -62,15 +66,17 @@ def _check_create_folder(*args):
 def _create_folders_and_files():
     """
     Creates folders for data storage if needed:
-        /scrape/data/raw/pbp/[seasons]/
-        /scrape/data/raw/toi/[seasons]/
-        /scrape/data/parsed/pbp/[seasons]/
-        /scrape/data/parsed/toi/[seasons]/
-        /scrape/data/teams/pbp/[seasons]/
-        /scrape/data/teams/toi/[seasons]/
-        /scrape/data/other/
+
+    - /scrape/data/raw/pbp/[seasons]/
+    - /scrape/data/raw/toi/[seasons]/
+    - /scrape/data/parsed/pbp/[seasons]/
+    - /scrape/data/parsed/toi/[seasons]/
+    - /scrape/data/teams/pbp/[seasons]/
+    - /scrape/data/teams/toi/[seasons]/
+    - /scrape/data/other/
+
     Also creates team IDs file and season schedule files if they don't exist already.
-    :return: Nothing
+    :return: nothing
     """
     # ------- Raw -------
     for season in range(2005, _CURRENT_SEASON + 1):
@@ -107,8 +113,8 @@ def _create_folders_and_files():
     if not os.path.exists(get_player_ids_filename()):
         generate_player_ids_file()
 
-    #if not os.path.exists(get_player_log_filename()):
-        #generate_player_log_file()
+    if not os.path.exists(get_player_log_filename()):
+        generate_player_log_file()
 
 
 def get_game_raw_pbp_filename(season, game):
@@ -397,7 +403,9 @@ def _try_to_access_dict(base_dct, *keys):
         for key in keys:
             temp = temp[key]
         return temp
-    except KeyError:
+    except KeyError: # for string keys
+        return None
+    except IndexError: # for array indices
         return None
 
 
@@ -475,12 +483,29 @@ def generate_season_schedule_file(season, force_overwrite=True):
                        'Home': hids,
                        'HomeScore': hscores,
                        'Venue': venues})
+
     df.loc[:, 'Season'] = season
-    df.loc[:, 'HomeCoach'] = 'N/A'  # Tried to set this to None earlier, but Arrow couldn't handle it, so 'N/A' it is
-    df.loc[:, 'RoadCoach'] = 'N/A'
-    df.loc[:, 'Result'] = 'N/A'
-    df.loc[:, 'PBPStatus'] = 'Not scraped'
-    df.loc[:, 'TOIStatus'] = 'Not scraped'
+
+    # Last step: we fill in some info from the pbp. If current schedule already exists, fill in that info.
+    if os.path.exists(get_season_schedule_filename(season)):
+        # only final games--this way pbp status and toistatus will be ok.
+        cur_season = get_season_schedule(season).query('Status == "Final"')
+        cur_season = cur_season[['Season', 'Game', 'HomeCoach', 'RoadCoach', 'Result', 'PBPStatus', 'TOIStatus']]
+        df = df.merge(cur_season, how='left', on=['Season', 'Game'])
+
+        # Fill in NAs
+        df.loc[:, 'Season'] = df.Season.fillna(season)
+        df.loc[:, 'HomeCoach'] = df.HomeCoach.fillna('N/A')
+        df.loc[:, 'RoadCoach'] = df.RoadCoach.fillna('N/A')
+        df.loc[:, 'Result'] = df.Result.fillna('N/A')
+        df.loc[:, 'PBPStatus'] = df.PBPStatus.fillna('Not scraped')
+        df.loc[:, 'TOIStatus'] = df.TOIStatus.fillna('Not scraped')
+    else:
+        df.loc[:, 'HomeCoach'] = 'N/A'  # Tried to set this to None earlier, but Arrow couldn't handle it, so 'N/A'
+        df.loc[:, 'RoadCoach'] = 'N/A'
+        df.loc[:, 'Result'] = 'N/A'
+        df.loc[:, 'PBPStatus'] = 'Not scraped'
+        df.loc[:, 'TOIStatus'] = 'Not scraped'
 
     _write_season_schedule(df, season, force_overwrite)
 
@@ -520,7 +545,7 @@ def _write_season_schedule(df, season, force_overwrite):
     A helper method that writes the season schedule file to disk (in feather format for fast read/write)
     :param df: the season schedule datafraome
     :param season: the season
-    :param force_overwrite: bool. If True, generates entire file from scratch.
+    :param force_overwrite: bool. If True, overwrites entire file.
     If False, only redoes when not Final previously.'
     :return: Nothing
     """
@@ -567,6 +592,55 @@ def generate_player_ids_file():
     write_player_ids_file(df)
 
 
+def generate_player_log_file():
+    """
+    Run this when no player log file exists already. This is for getting the datatypes right. Adds Alex Ovechkin
+    in Game 1 vs Pittsburgh in 2016-2017.
+    :return: nothing
+    """
+    df = pd.DataFrame({'ID': [8471214],  # Player ID (Ovi)
+                       'Team': [15],  # Team (WSH)
+                       'Status': ['P'],  # P for played, S for scratch.  # TODO can I do healthy vs injured?
+                       'Season': [2016],  # Season (2016-17)
+                       'Game': [30221]})  # Game (G1 vs PIT)
+    if os.path.exists(get_player_log_filename()):
+        print('Warning: overwriting existing player log with default, one-line df!')
+    write_player_log_file(df)
+
+
+def write_player_log_file(df):
+    """
+    Writes the given dataframe to file as the player log filename
+    :param df: pandas dataframe
+    :return: nothing
+    """
+    feather.write_dataframe(df, get_player_log_filename())
+
+
+def get_player_log_file():
+    """
+    Returns the player log file from memory.
+    :return: dataframe, the log
+    """
+    return _PLAYER_LOG
+
+
+def _get_player_log_file():
+    """
+    Returns the player log file, reading from file. This is stored as a feather file for fast read/write.
+    :return: dataframe from /scrape/data/other/PLAYER_LOG.feather
+    """
+    return feather.read_dataframe(get_player_log_filename())
+
+
+def get_player_log_filename():
+    """
+    Returns the player log filename.
+    :return: str, /scrape/data/other/PLAYER_LOG.feather
+    """
+    return os.path.join(get_other_data_folder(), 'PLAYER_LOG.feather')
+
+
 def get_player_ids_file():
     """
     Returns the player information file. This is stored as a feather file for fast read/write.
@@ -582,32 +656,34 @@ def _get_player_ids_file():
     """
     return feather.read_dataframe(get_player_ids_filename())
 
+
 def get_player_info_from_url(playerid):
     """
-    Gets ID, Name, Hand, Pos, and DOB from the NHL API.
+    Gets ID, Name, Hand, Pos, DOB, Height, Weight, and Nationality from the NHL API.
     :param playerid: int, the player id
-    :return: dict with player ID, name, handedness, position, and DoB
+    :return: dict with player ID, name, handedness, position, etc
     """
     with urllib.request.urlopen(get_player_url(playerid)) as reader:
         page = reader.read().decode('latin-1')
     data = json.loads(page)
 
     info = {}
-    vars = {'ID': ['people', 0, 'id'],
-            'Name': ['people', 0, 'fullName'],
-            'Hand': ['people', 0, 'shootsCatches'],
-            'Pos': ['people', 0, 'primaryPosition', 'code'],
-            'DOB': ['people', 0, 'birthDate'],
-            'Height': ['people', 0, 'height'],
-            'Weight': ['people', 0, 'weight'],
-            'Nationality': ['people', 0, 'nationality']}
-    for key, val in vars.items():
+    vars_to_get = {'ID': ['people', 0, 'id'],
+                   'Name': ['people', 0, 'fullName'],
+                   'Hand': ['people', 0, 'shootsCatches'],
+                   'Pos': ['people', 0, 'primaryPosition', 'code'],
+                   'DOB': ['people', 0, 'birthDate'],
+                   'Height': ['people', 0, 'height'],
+                   'Weight': ['people', 0, 'weight'],
+                   'Nationality': ['people', 0, 'nationality']}
+    for key, val in vars_to_get.items():
         info[key] = _try_to_access_dict(data, *val)
 
     # Remove the space in the middle of height
     if info['Height'] is not None:
         info['Height'] = info['Height'].replace(' ', '')
     return info
+
 
 def update_player_ids_file(playerids, force_overwrite=False):
     """
@@ -638,8 +714,8 @@ def update_player_ids_file(playerids, force_overwrite=False):
     else:
         to_scrape = playerids
         current_players = current_players.merge(pd.DataFrame({'ID': playerids}),
-                                                how = 'outer',
-                                                on = 'ID')
+                                                how='outer',
+                                                on='ID')
         current_players = current_players.query('_merge == "left_only"').drop('_merge', axis=1)
     if len(to_scrape) == 0:
         return
@@ -659,18 +735,66 @@ def update_player_ids_file(playerids, force_overwrite=False):
     write_player_ids_file(pd.concat([df, current_players]))
     global _PLAYERS
     _PLAYERS = _get_player_ids_file()
-    #print(len(_PLAYERS.groupby('ID').count().query('Name >= 2')))
+    # print(len(_PLAYERS.groupby('ID').count().query('Name >= 2'))) # not getting duplicates, so I think we're okay
+
+
+def update_player_log_file(playerids, seasons, games, teams, statuses):
+    """
+    Updates the player log file with given players. The player log file notes which players played in which games
+    and whether they were scratched or played.
+    :param playerids: int or str or list of int
+    :param seasons: int, the season, or list of int the same length as playerids
+    :param games: int, the game, or list of int the same length as playerids
+    :param teams: str or int, the team, or list of int the same length as playerids
+    :param statuses: str, or list of str the same length as playerids
+    :return: nothing
+    """
+
+    # Change everything to lists first if need be
+    if isinstance(playerids, int) or isinstance(playerids, str):
+        playerids = player_as_id(playerids)
+        playerids = [playerids]
+    if isinstance(seasons, int) or isinstance(games, np.int64):
+        seasons = [seasons for _ in range(len(playerids))]
+    if isinstance(games, int) or isinstance(games, np.int64):
+        games = [games for _ in range(len(playerids))]
+    if isinstance(teams, int) or isinstance(teams, str) or isinstance(teams, np.int64):
+        teams = team_as_id(teams)
+        teams = [teams for _ in range(len(playerids))]
+    if isinstance(statuses, str):
+        statuses = [statuses for _ in range(len(playerids))]
+
+    df = pd.DataFrame({'ID': playerids,  # Player ID
+                       'Team': teams,  # Team
+                       'Status': statuses,  # P for played, S for scratch.
+                       'Season': seasons,  # Season
+                       'Game': games})  # Game
+    if len(get_player_log_file()) == 1:
+        # In this case, the only entry is our original entry for Ovi, that sets the datatypes properly
+        write_player_log_file(df)
+    else:
+        write_player_log_file(pd.concat([get_player_log_file(), df]))
+    global _PLAYER_LOG
+    _PLAYER_LOG = _get_player_log_file()
+
 
 def rescrape_player(playerid):
     """
     If you notice that a player name, position, etc, is outdated, call this method on their ID. It will
     re-scrape their data from the NHL API.
-    :param playerid: int, their ID
+    :param playerid: int, their ID. Also accepts str, their name.
     :return: nothing
     """
+    playerid = player_as_id(playerid)
+    update_player_ids_file(playerid, True)
 
 
 def write_player_ids_file(df):
+    """
+    Writes the given dataframe to disk as the player ids mapping.
+    :param df: pandas dataframe, player ids file
+    :return: nothing
+    """
     feather.write_dataframe(df, get_player_ids_filename())
 
 
@@ -680,7 +804,7 @@ def team_as_id(team):
     :param team: int, or str
     :return: int, the team ID
     """
-    if isinstance(team, int):
+    if isinstance(team, int) or isinstance(team, np.int64):
         return team
     elif isinstance(team, str):
         df = get_team_info_file().filter('Team == "{0:s}" | Abbreviation == "{0:s}"'.format(team))
@@ -698,18 +822,18 @@ def team_as_id(team):
         return None
 
 
-def team_as_str(team, abbrevation=True):
+def team_as_str(team, abbreviation=True):
     """
     A helper method. If team entered is str, returns that. If team is int, returns string name of that team.
     :param team: int, or str
     :param abbreviation: bool, whether to return 3-letter abbreviation or full name
     :return: str, the team name
     """
-    col_to_access = 'Abbreviation' if abbrevation else 'Name'
+    col_to_access = 'Abbreviation' if abbreviation else 'Name'
     
     if isinstance(team, str):
         return team
-    elif isinstance(team, int):
+    elif isinstance(team, int) or isinstance(team, np.int64):
         df = get_team_info_file().filter('ID == {0:d}'.format(team))
         if len(df) == 0:
             print('Could not find name for {0:d}'.format(team))
@@ -719,7 +843,7 @@ def team_as_str(team, abbrevation=True):
         else:
             print('Multiple results when searching for {0:d}; returning first result'.format(team))
             print(df)
-            return df.iloc[0, abbrevation]
+            return df.iloc[0, abbreviation]
     else:
         print('Specified wrong type for team: {0:s}'.format(type(team)))
         return None
@@ -731,7 +855,7 @@ def player_as_id(player):
     :param player: int, or str
     :return: int, the player ID
     """
-    if isinstance(player, int):
+    if isinstance(player, int) or isinstance(player, np.int64):
         return player
     elif isinstance(player, str):
         df = get_player_ids_file().filter('Name == "{0:s}"'.format(player)).sort_values('Count', ascending=False)
@@ -768,7 +892,7 @@ def player_as_str(player):
     """
     if isinstance(player, str):
         return player
-    elif isinstance(player, int):
+    elif isinstance(player, int) or isinstance(player, np.int64):
         df = get_team_info_file().filter('ID == {0:d}'.format(player)).sort_values('Count', ascending=False)
         if len(df) == 0:
             print('Could not find name for {0:d}'.format(player))
@@ -786,15 +910,81 @@ def player_as_str(player):
 
 def refresh_schedules():
     """
-
+    Reloads schedules to memory. Use this after updating schedule file on disk, because get_season_schedule()
+    loads from memory.
     :return: nothing
     """
     global _SCHEDULES
     _SCHEDULES = {season: _get_season_schedule(season) for season in range(2005, _CURRENT_SEASON + 1)}
+
+
+def get_game_data_from_schedule(season, game):
+    """
+    This is a helper method that uses the schedule file to isolate information for current game
+    (e.g. teams involved, coaches, venue, score, etc.)
+    :param season: int, the season
+    :param game: int, the game
+    :return: dict of game data
+    """
+
+    schedule_item = get_season_schedule(season).query('Game == {0:d}'.format(game)).to_dict(orient='series')
+    # The output format of above was {colname: np.array[vals]}. Change to {colname: val}
+    schedule_item = {k: v.values[0] for k, v in schedule_item.items()}
+    return schedule_item
+
+
+def _update_schedule_with_coaches(season, game, homecoach, roadcoach):
+    """
+    Updates the season schedule file with given coaches' names (which are listed 'N/A' at schedule generation)
+    :param season: int, the season
+    :param game: int, the game
+    :param homecoach: str, the home coach name
+    :param roadcoach: str, the road coach name
+    :return:
+    """
+
+    # Replace coaches with N/A if None b/c feather has trouble with mixed datatypes. Need str here.
+    if homecoach is None:
+        homecoach = 'N/A'
+    if roadcoach is None:
+        roadcoach = 'N/A'
+
+    # Edit relevant schedule files
+    df = get_season_schedule(season)
+    df.loc[df.Game == game, 'HomeCoach'] = homecoach
+    df.loc[df.Game == game, 'RoadCoach'] = roadcoach
+
+    # Write to file and refresh schedule in memory
+    _write_season_schedule(df, season, True)
+    refresh_schedules()
+
+
+def _update_schedule_with_result(season, game, result):
+    """
+    Updates the season schedule file with game result (which are listed 'N/A' at schedule generation)
+    :param season: int, the season
+    :param game: int, the game
+    :param result: str, the result from home team perspective
+    :return:
+    """
+
+    # Replace coaches with N/A if None b/c feather has trouble with mixed datatypes. Need str here.
+    if result is None:
+        result = 'N/A'
+
+    # Edit relevant schedule files
+    df = get_season_schedule(season)
+    df.loc[df.Game == game, 'Result'] = result
+
+    # Write to file and refresh schedule in memory
+    _write_season_schedule(df, season, True)
+    refresh_schedules()
+
 
 _CURRENT_SEASON = _get_current_season()
 _BASE_DIR = _get_base_dir()
 _create_folders_and_files()
 _TEAMS = _get_team_info_file()
 _PLAYERS = _get_player_ids_file()
+_PLAYER_LOG = _get_player_log_file()
 _SCHEDULES = {season: _get_season_schedule(season) for season in range(2005, _CURRENT_SEASON + 1)}
