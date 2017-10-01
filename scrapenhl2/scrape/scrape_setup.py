@@ -192,7 +192,7 @@ def get_other_data_folder():
 def get_season_raw_pbp_folder(season):
     """
     Returns the folder containing raw pbp for given season
-    :param: season: int, current season
+    :param season: int, current season
     :return: /scrape/data/raw/pbp/[season]/
     """
     return os.path.join(get_raw_data_folder(), 'pbp', str(season))
@@ -201,7 +201,7 @@ def get_season_raw_pbp_folder(season):
 def get_season_raw_toi_folder(season):
     """
     Returns the folder containing raw toi for given season
-    :param: season: int, current season
+    :param season: int, current season
     :return: /scrape/data/raw/toi/[season]/
     """
     return os.path.join(get_raw_data_folder(), 'toi', str(season))
@@ -210,7 +210,7 @@ def get_season_raw_toi_folder(season):
 def get_season_parsed_pbp_folder(season):
     """
     Returns the folder containing parsed pbp for given season
-    :param: season: int, current season
+    :param season: int, current season
     :return: /scrape/data/parsed/pbp/[season]/
     """
     return os.path.join(get_parsed_data_folder(), 'pbp', str(season))
@@ -219,7 +219,7 @@ def get_season_parsed_pbp_folder(season):
 def get_season_parsed_toi_folder(season):
     """
     Returns the folder containing parsed toi for given season
-    :param: season: int, current season
+    :param season: int, current season
     :return: /scrape/data/raw/toi/[season]/
     """
     return os.path.join(get_parsed_data_folder(), 'toi', str(season))
@@ -228,7 +228,7 @@ def get_season_parsed_toi_folder(season):
 def get_season_team_pbp_folder(season):
     """
     Returns the folder containing team pbp logs for given season
-    :param: season: int, current season
+    :param season: int, current season
     :return: /scrape/data/teams/pbp/[season]/
     """
     return os.path.join(get_team_data_folder(), 'pbp', str(season))
@@ -237,7 +237,7 @@ def get_season_team_pbp_folder(season):
 def get_season_team_toi_folder(season):
     """
     Returns the folder containing team toi logs for given season
-    :param: season: int, current season
+    :param season: int, current season
     :return: /scrape/data/teams/toi/[season]/
     """
     return os.path.join(get_team_data_folder(), 'toi', str(season))
@@ -270,7 +270,7 @@ def get_team_info_file():
 def write_team_info_file(df):
     """
     Writes the team information file. This is stored as a feather file for fast read/write.
-    :param : df: the (team information) dataframe to write to file
+    :param df: the (team information) dataframe to write to file
     """
     feather.write_dataframe(df, get_team_info_filename())
 
@@ -403,9 +403,9 @@ def _try_to_access_dict(base_dct, *keys):
         for key in keys:
             temp = temp[key]
         return temp
-    except KeyError: # for string keys
+    except KeyError:  # for string keys
         return None
-    except IndexError: # for array indices
+    except IndexError:  # for array indices
         return None
 
 

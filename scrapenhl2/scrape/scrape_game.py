@@ -398,6 +398,7 @@ def update_schedule_with_result(pbp, season, game):
     """
 
     gameinfo = scrape_setup.get_game_data_from_schedule(season, game)
+    result = None  # In case they have the same score. Like 2006 10009 has incomplete data, shows 0-0
 
     # If game is not final yet, don't do anything
     if gameinfo['Status'] != 'Final':
@@ -418,7 +419,7 @@ def update_schedule_with_result(pbp, season, game):
                 result = 'SOW'
             elif gameinfo['RoadScore'] > gameinfo['HomeScore']:
                 result = 'SOL'
-        if finalplayperiod[-2:] == 'OT':
+        elif finalplayperiod[-2:] == 'OT':
             if gameinfo['HomeScore'] > gameinfo['RoadScore']:
                 result = 'OTW'
             elif gameinfo['RoadScore'] > gameinfo['HomeScore']:
@@ -430,9 +431,6 @@ def update_schedule_with_result(pbp, season, game):
                 result = 'L'
 
     scrape_setup._update_schedule_with_result(season, game, result)
-
-
-
 
 
 def update_schedule_with_coaches(pbp, season, game):
@@ -528,5 +526,5 @@ def autoupdate(season=None):
         print('Done with', season, game, "(final)")
 
 if __name__ == "__main__":
-    for season in range(2005, 2018):
+    for season in range(2006, 2018):
         autoupdate(season)
