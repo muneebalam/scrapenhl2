@@ -55,11 +55,7 @@ def scrape_game_toi(season, game, force_overwrite=False):
         return False
 
     # Use the season schedule file to get the home and road team names
-    schedule_item = scrape_setup.get_season_schedule(season) \
-        .query('Game == {0:d}'.format(game)) \
-        .to_dict(orient='series')
-    # The output format of above was {colname: np.array[vals]}. Change to {colname: val}
-    schedule_item = {k: v.values[0] for k, v in schedule_item.items()}
+    schedule_item = scrape_setup.get_game_from_schedule(season, game)
 
     url = scrape_setup.get_shift_url(season, game)
     with urllib.request.urlopen(url) as reader:
@@ -67,6 +63,7 @@ def scrape_game_toi(season, game, force_overwrite=False):
     save_raw_toi(page, season, game)
     # time.sleep(1)
 
+    # It's most efficient to parse with page in memory, but for sake of simplicity will do it later
     #toi = read_toi_from_page(page)
     return True
 
@@ -157,10 +154,44 @@ def update_team_pbp(newdata, season, team, perspective='same'):
     pass
 def update_team_toi(newdata, season, team, perspective='same'):
     pass
-def update_player_logs(season, game, playerids):
-    pass
-def update_season_schedule_gamesscraped(season, game, status='Scraped'):
-    pass
+
+
+def update_player_logs_from_page(pbp, season, game):
+    """
+    Takes the game play by play and adds players to the master player log file, noting that they were on the roster
+    for this game, which team they played for, and their status (P for played, S for scratch).
+    :param season: int, the season
+    :param game: int, the game
+    :param pbp: json, the pbp of the game
+    :return: nothing
+    """
+
+    # Get players who played, and scratches, from boxscore
+    home_played = scrape_setup._try_to_access_dict(pbp, 'liveData', 'boxscore', 'teams', 'home', 'players')
+    road_played = scrape_setup._try_to_access_dict(pbp, 'liveData', 'boxscore', 'teams', 'away', 'players')
+    home_scratches = scrape_setup._try_to_access_dict(pbp, 'liveData', 'boxscore', 'teams', 'home', 'scratches')
+    road_scratches = scrape_setup._try_to_access_dict(pbp, 'liveData', 'boxscore', 'teams', 'away', 'scratches')
+
+    # Played are both dicts, so make them lists
+    home_played = [int(pid[2:]) for pid in home_played]
+    road_played = [int(pid[2:]) for pid in road_played]
+
+    # Played may include scratches, so make sure to remove them
+    home_played = list(set(home_played).difference(set(home_scratches)))
+    road_played = list(set(road_played).difference(set(road_scratches)))
+
+    # Get home and road names
+    gameinfo = scrape_setup.get_game_data_from_schedule(season, game)
+
+    # Update player logs
+    scrape_setup.update_player_log_file(home_played, season, game, gameinfo['Home'], 'P')
+    scrape_setup.update_player_log_file(home_scratches, season, game, gameinfo['Home'], 'S')
+    scrape_setup.update_player_log_file(road_played, season, game, gameinfo['Road'], 'P')
+    scrape_setup.update_player_log_file(road_scratches, season, game, gameinfo['Road'], 'S')
+
+    # TODO: One issue is we do not see goalies (and maybe skaters) who dressed but did not play. How can this be fixed?
+
+
 def read_shifts_from_json(data, homename = None, roadname = None):
 
     if len(data) == 0:
@@ -264,7 +295,7 @@ def read_events_from_page(pbp):
     season : int
         The season of the game. 2007-08 would be 2007.
     game : int
-        The game id. This can range from 20001 to 21230 for regular season, and 30111 to 30417 for playoffs.
+        The game id. This can range from 20001 to 21230 for regular season (pre-VGK), and 30111 to 30417 for playoffs.
         The preseason, all-star game, Olympics, and World Cup also have game IDs that can be provided.
     Returns
     --------
@@ -326,17 +357,19 @@ def read_events_from_page(pbp):
 
 def update_player_ids_from_page(pbp):
     """
-
-    :param pbp:
-    :return:
+    Reads the list of players listed in the game file and adds to the player IDs file if they are not there already.
+    :param pbp: json, the raw pbp
+    :return: nothing
     """
     players = pbp['gameData']['players'] # yields the subdictionary with players
     ids = [key[2:] for key in players] # keys are format "ID[PlayerID]"; pull that PlayerID part
     scrape_setup.update_player_ids_file(ids)
 
+
 def parse_game_pbp(season, game, force_overwrite=False):
     """
-
+    Reads the raw pbp from file, updates player IDs, updates player logs, and parses the JSON to a pandas DF
+    and writes to file. Also updates team logs accordingly.
     :param season: int, the season
     :param game: int, the game
     :param force_overwrite: bool. If True, will execute. If False, executes only if file does not exist yet.
@@ -348,7 +381,74 @@ def parse_game_pbp(season, game, force_overwrite=False):
 
     rawpbp = open_raw_pbp(season, game)
     update_player_ids_from_page(rawpbp)
+    update_player_logs_from_page(rawpbp, season, game)
+    update_schedule_with_coaches(rawpbp, season, game)
+    update_schedule_with_result(rawpbp, season, game)
     #parsedpbp = read_events_from_page(rawpbp)
+    return True
+
+
+def update_schedule_with_result(pbp, season, game):
+    """
+    Uses the PbP to update results for this game.
+    :param pbp: json, the pbp for this game
+    :param season: int, the season
+    :param game: int, the game
+    :return: nothing
+    """
+
+    gameinfo = scrape_setup.get_game_data_from_schedule(season, game)
+
+    # If game is not final yet, don't do anything
+    if gameinfo['Status'] != 'Final':
+        return False
+
+    # If one team one by at least two, we know it was a regulation win
+    if gameinfo['HomeScore'] >= gameinfo['RoadScore'] + 2:
+        result = 'W'
+    elif gameinfo['RoadScore'] >= gameinfo['HomeScore'] + 2:
+        result = 'L'
+    else:
+        # Check for the final period
+        finalplayperiod = scrape_setup._try_to_access_dict(pbp, 'liveData', 'linescore', 'currentPeriodOrdinal')
+
+        # Identify SO vs OT vs regulation
+        if finalplayperiod == 'SO':
+            if gameinfo['HomeScore'] > gameinfo['RoadScore']:
+                result = 'SOW'
+            elif gameinfo['RoadScore'] > gameinfo['HomeScore']:
+                result = 'SOL'
+        if finalplayperiod[-2:] == 'OT':
+            if gameinfo['HomeScore'] > gameinfo['RoadScore']:
+                result = 'OTW'
+            elif gameinfo['RoadScore'] > gameinfo['HomeScore']:
+                result = 'OTL'
+        else:
+            if gameinfo['HomeScore'] > gameinfo['RoadScore']:
+                result = 'W'
+            elif gameinfo['RoadScore'] > gameinfo['HomeScore']:
+                result = 'L'
+
+    scrape_setup._update_schedule_with_result(season, game, result)
+
+
+
+
+
+def update_schedule_with_coaches(pbp, season, game):
+    """
+    Uses the PbP to update coach info for this game.
+    :param pbp: json, the pbp for this game
+    :param season: int, the season
+    :param game: int, the game
+    :return: nothing
+    """
+
+    homecoach = scrape_setup._try_to_access_dict(pbp, 'liveData', 'boxscore', 'teams', 'home',
+                                                 'coaches', 0, 'person', 'fullName')
+    roadcoach = scrape_setup._try_to_access_dict(pbp, 'liveData', 'boxscore', 'teams', 'away',
+                                                 'coaches', 0, 'person', 'fullName')
+    scrape_setup._update_schedule_with_coaches(season, game, homecoach, roadcoach)
 
 
 def parse_game_toi(season, game, force_overwrite=False):
@@ -359,14 +459,15 @@ def parse_game_toi(season, game, force_overwrite=False):
     :param force_overwrite: bool. If True, will execute. If False, executes only if file does not exist yet.
     :return: nothing
     """
-    pass
+    return False
 
 
 def autoupdate(season=None):
     """
-
-    :param season: int, the season
-    :return:
+    Run this method to update local data. It reads the schedule file for given season and scrapes and parses
+    previously unscraped games that have gone final or are in progress.
+    :param season: int, the season. If None (default), will do current season
+    :return: nothing
     """
     if season is None:
         season = scrape_setup.get_current_season()
@@ -376,32 +477,56 @@ def autoupdate(season=None):
     # First, for all games that were in progress during last scrape, scrape again and parse again
     inprogress = sch.query('Status == "In Progress"')
     inprogressgames = inprogress.Game.values
+    inprogressgames.sort()
     for game in inprogressgames:
         scrape_game_pbp(season, game, True)
         scrape_game_toi(season, game, True)
         parse_game_pbp(season, game, True)
         parse_game_toi(season, game, True)
-        print('Done with', season, game)
+        print('Done with', season, game, "(previously in progress)")
 
     # Update schedule to get current status
     scrape_setup.generate_season_schedule_file(season)
     scrape_setup.refresh_schedules()
     sch = scrape_setup.get_season_schedule(season)
 
+    # Now, for games currently in progress, scrape.
+    # But no need to force-overwrite. We handled games previously in progress above.
+    # Games newly in progress will be written to file here.
+    games = sch.query('Status == "In Progress"')
+    games = games.Game.values
+    games.sort()
+    for game in inprogressgames:
+        scrape_game_pbp(season, game, False)
+        scrape_game_toi(season, game, False)
+        parse_game_pbp(season, game, False)
+        parse_game_toi(season, game, False)
+        print('Done with', season, game, "(in progress)")
+
     # Now, for any games that are final, run scrape_game, but don't force_overwrite
     games = sch.query('Status == "Final"')
     games = games.Game.values
+    games.sort()
     for game in games:
-        _ = scrape_game_pbp(season, game, False)
-        parse_game_pbp(season, game, True)
-        scrape_setup._update_schedule_with_pbp_scrape(season, game)
-        _ = scrape_game_toi(season, game, False)
-        parse_game_toi(season, game, True)
-        scrape_setup._update_schedule_with_toi_scrape(season, game)
+        try:
+            _ = scrape_game_pbp(season, game, False)
+            scrape_setup._update_schedule_with_pbp_scrape(season, game)
+            parse_game_pbp(season, game, True)
+        except urllib.error.HTTPError as he:
+            print('Could not access pbp url for', season, game, he)
+        except urllib.error.URLError as ue:
+            print('Could not access pbp url for', season, game, ue)
+        try:
+            _ = scrape_game_toi(season, game, False)
+            scrape_setup._update_schedule_with_toi_scrape(season, game)
+            parse_game_toi(season, game, True)
+        except urllib.error.HTTPError as he:
+            print('Could not access toi url for', season, game, he)
+        except urllib.error.URLError as ue:
+            print('Could not access toi url for', season, game, ue)
 
-        print('Done with', season, game)
+        print('Done with', season, game, "(final)")
 
-    # TODO: Also parse games
-
-
-autoupdate(2016)
+if __name__ == "__main__":
+    for season in range(2005, 2018):
+        autoupdate(season)
