@@ -1,247 +1,166 @@
-import scrapenhl_globals
+import scrape_setup
+import os
 import os.path
+import feather
+import pandas as pd
+import json
+import urllib.request
+import urllib.error
+import datetime
+import zlib
+import numpy as np
+import time
 
-def get_url(season, game):
+def scrape_game_pbp(season, game, force_overwrite=False):
     """
-    Returns the NHL API url to scrape.
-    Parameters
-    -----------
-    season : int
-        The season of the game. 2007-08 would be 2007.
-    game : int
-        The game id. This can range from 20001 to 21230 for regular season, and 30111 to 30417 for playoffs.
-        The preseason, all-star game, Olympics, and World Cup also have game IDs that can be provided.
-    Returns
-    --------
-    str
-        URL to scrape, http://statsapi.web.nhl.com/api/v1/game/[season]0[game]/feed/live
+    This method scrapes the pbp for the given game. It formats it nicely and saves in a compressed format to disk.
+    :param season: int, the season
+    :param game: int, the game
+    :param force_overwrite: bool. If file exists already, won't scrape again
+    :return: bool, False if not scraped, else True
     """
-    return 'http://statsapi.web.nhl.com/api/v1/game/{0:d}0{1:d}/feed/live'.format(season, game)
+    filename = scrape_setup.get_game_raw_pbp_filename(season, game)
+    if not force_overwrite and os.path.exists(filename):
+        return False
 
-def get_shift_url(season, game):
+    # Use the season schedule file to get the home and road team names
+    # schedule_item = scrape_setup.get_season_schedule(season) \
+    #    .query('Game == {0:d}'.format(game)) \
+    #    .to_dict(orient = 'series')
+    # The output format of above was {colname: np.array[vals]}. Change to {colname: val}
+    # schedule_item = {k: v.values[0] for k, v in schedule_item.items()}
+
+    url = scrape_setup.get_game_url(season, game)
+    with urllib.request.urlopen(url) as reader:
+        page = reader.read()
+    save_raw_pbp(page, season, game)
+    # time.sleep(1)
+
+    # It's most efficient to parse with page in memory, but for sake of simplicity will do it later
+    # pbp = read_pbp_events_from_page(page)
+    # update_team_logs(pbp, season, schedule_item['Home'])
+    return True
+
+
+def scrape_game_toi(season, game, force_overwrite=False):
     """
-    Returns the NHL API shifts url to scrape.
-    Parameters
-    -----------
-    season : int
-        The season of the game. 2007-08 would be 2007.
-    game : int
-        The game id. This can range from 20001 to 21230 for regular season, and 30111 to 30417 for playoffs.
-        The preseason, all-star game, Olympics, and World Cup also have game IDs that can be provided.
-    Returns
-    --------
-    str
-        http://www.nhl.com/stats/rest/shiftcharts?cayenneExp=gameId=[season]0[game]
+    This method scrapes the toi for the given game. It formats it nicely and saves in a compressed format to disk.
+    :param season: int, the season
+    :param game: int, the game
+    :param force_overwrite: bool. If file exists already, won't scrape again
+    :return: nothing
     """
-    return 'http://www.nhl.com/stats/rest/shiftcharts?cayenneExp=gameId={0:d}0{1:d}'.format(season, game)
+    filename = scrape_setup.get_game_raw_toi_filename(season, game)
+    if not force_overwrite and os.path.exists(filename):
+        return False
 
-def get_json_save_filename(season, game):
+    # Use the season schedule file to get the home and road team names
+    schedule_item = scrape_setup.get_season_schedule(season) \
+        .query('Game == {0:d}'.format(game)) \
+        .to_dict(orient='series')
+    # The output format of above was {colname: np.array[vals]}. Change to {colname: val}
+    schedule_item = {k: v.values[0] for k, v in schedule_item.items()}
+
+    url = scrape_setup.get_shift_url(season, game)
+    with urllib.request.urlopen(url) as reader:
+        page = reader.read()
+    save_raw_toi(page, season, game)
+    # time.sleep(1)
+
+    #toi = read_toi_from_page(page)
+    return True
+
+
+def save_raw_pbp(page, season, game):
     """
-    Returns the algorithm-determined save file name of the json accessed online.
-    Parameters
-    -----------
-    season : int
-        The season of the game. 2007-08 would be 2007.
-    game : int
-        The game id. This can range from 20001 to 21230 for regular season, and 30111 to 30417 for playoffs.
-        The preseason, all-star game, Olympics, and World Cup also have game IDs that can be provided.
-    Returns
-    --------
-    str
-        file name, SAVE_FOLDER/Season/Game.zlib
+    Takes the bytes page containing pbp information and saves to disk as a compressed zlib.
+    :param page: bytes. str(page) would yield a string version of the json pbp
+    :param season: int, the season
+    :param game: int, the game
+    :return: nothing
     """
-    return os.path.join(scrapenhl_globals.SAVE_FOLDER, season, '{0:d}.zlib'.format(game))
+    page2 = zlib.compress(page, level=9)
+    filename = scrape_setup.get_game_raw_pbp_filename(season, game)
+    w = open(filename, 'wb')
+    w.write(page2)
+    w.close()
 
-def get_shift_save_filename(season, game):
+
+def save_parsed_pbp(pbp, season, game):
     """
-    Returns the algorithm-determined save file name of the shift json accessed online.
-    Parameters
-    -----------
-    season : int
-        The season of the game. 2007-08 would be 2007.
-    game : int
-        The game id. This can range from 20001 to 21230 for regular season, and 30111 to 30417 for playoffs.
-        The preseason, all-star game, Olympics, and World Cup also have game IDs that can be provided.
-    Returns
-    --------
-    str
-        file name, SAVE_FOLDER/Season/Game_shifts.zlib
+    Saves the pandas dataframe containing pbp information to disk as an HDF5.
+    :param pbp: df, a pandas dataframe with the pbp of the game
+    :param season: int, the season
+    :param game: int, the game
+    :return: nothing
     """
-    return os.path.join(scrapenhl_globals.SAVE_FOLDER, season, '{0:d}_shifts.zlib'.format(game))
+    pbp.to_hdf(scrape_setup.get_game_parsed_pbp_filename(season, game),
+               key = 'P{0:d}0{1:d}'.format(season, game),
+               mode='w', complib='zlib')
 
-def get_parsed_save_filename(season, game):
+
+def save_parsed_toi(toi, season, game):
     """
-    Returns the algorithm-determined save file name of the parsed pbp file.
-    Parameters
-    -----------
-    season : int
-        The season of the game. 2007-08 would be 2007.
-    game : int
-        The game id. This can range from 20001 to 21230 for regular season, and 30111 to 30417 for playoffs.
-        The preseason, all-star game, Olympics, and World Cup also have game IDs that can be provided.
-    Returns
-    --------
-    str
-        file name, SAVE_FOLDER/Season/Game_parsed.zlib
+    Saves the pandas dataframe containing shift information to disk as an HDF5.
+    :param toi: df, a pandas dataframe with the shifts of the game
+    :param season: int, the season
+    :param game: int, the game
+    :return: nothing
     """
-    return os.path.join(scrapenhl_globals.SAVE_FOLDER, season, '{0:d}_parsed.hdf5'.format(game))
+    toi.to_hdf(scrape_setup.get_game_parsed_toi_filename(season, game),
+               key = 'T{0:d}0{1:d}'.format(season, game),
+               mode='w', complib='zlib')
 
-def get_parsed_shifts_save_filename(season, game):
+
+def save_raw_toi(page, season, game):
     """
-    Returns the algorithm-determined save file name of the parsed toi file.
-    Parameters
-    -----------
-    season : int
-        The season of the game. 2007-08 would be 2007.
-    game : int
-        The game id. This can range from 20001 to 21230 for regular season, and 30111 to 30417 for playoffs.
-        The preseason, all-star game, Olympics, and World Cup also have game IDs that can be provided.
-    Returns
-    --------
-    str
-        file name, SAVE_FOLDER/Season/Game_shifts_parsed.zlib
+    Takes the bytes page containing shift information and saves to disk as a compressed zlib.
+    :param page: bytes. str(page) would yield a string version of the json shifts
+    :param season: int, the season
+    :param game: int, the game
+    :return: nothing
     """
-    return os.path.join(scrapenhl_globals.SAVE_FOLDER, season, '{0:d}_shifts_parsed.hdf5'.format(game))
+    page2 = zlib.compress(page, level=9)
+    filename = scrape_setup.get_game_raw_toi_filename(season, game)
+    w = open(filename, 'wb')
+    w.write(page2)
+    w.close()
 
-def scrape_game(season, game, force_overwrite = False):
+
+def open_raw_pbp(season, game):
     """
-    Scrapes and saves game files in compressed (zlib) format
-    Parameters
-    -----------
-    season : int
-        The season of the game. 2007-08 would be 2007.
-    game : int
-        The game id. This can range from 20001 to 21230 for regular season, and 30111 to 30417 for playoffs.
-        The preseason, all-star game, Olympics, and World Cup also have game IDs that can be provided.
-    force_overwrite : bool
-        If True, will overwrite previously raw html files. If False, will not scrape if files already found.
-    Returns
-    -------
-    bool
-        A boolean indicating whether the NHL API was queried.
+    Loads the compressed json file containing this game's play by play from disk.
+    :param season: int, the season
+    :param game: int, the game
+    :return: json, the json pbp
     """
-    query = False
+    with open(scrape_setup.get_game_raw_pbp_filename(season, game), 'rb') as reader:
+        page = reader.read()
+    return json.loads(str(zlib.decompress(page).decode('latin-1')))
 
-    import os.path
-    url = get_url(season, game)
-    filename = get_json_save_filename(season, game)
-    if force_overwrite or not os.path.exists(filename):
-        import urllib.request
-        try:
-            query = True
-            with urllib.request.urlopen(url) as reader:
-                page = reader.read()
-        except Exception as e:
-            if game < 30111:
-                print('Error reading pbp url for', season, game, e, e.args)
-                page = bytes('', encoding = 'latin-1')
-        if True:#game < 30111:
-            import zlib
-            page2 = zlib.compress(page, level=9)
-            w = open(filename, 'wb')
-            w.write(page2)
-            w.close()
 
-    url = get_shift_url(season, game)
-    filename = get_shift_save_filename(season, game)
-    if force_overwrite or not os.path.exists(filename):
-        import urllib.request
-        try:
-            query = True
-            with urllib.request.urlopen(url) as reader:
-                page = reader.read()
-        except Exception as e:
-            if game < 30111:
-                print('Error reading shift url for', season, game, e, e.args)
-                page = bytes('', encoding='latin-1')
-        if True:#game < 30111:
-            import zlib
-            page2 = zlib.compress(page, level=9)
-            w = open(filename, 'wb')
-            w.write(page2)
-            w.close()
-
-    return query
-
-def parse_game(season, game, force_overwrite = False):
+def open_raw_toi(season, game):
     """
-    Reads this game's zlib file from disk and parses into a friendlier format, then saves again to disk in zlib.
-    This method also updates the global player id and game log files, and writes any updates to disk.
-    Parameters
-    -----------
-    season : int
-        The season of the game. 2007-08 would be 2007.
-    game : int
-        The game id. This can range from 20001 to 21230 for regular season, and 30111 to 30417 for playoffs.
-        The preseason, all-star game, Olympics, and World Cup also have game IDs that can be provided.
-    force_overwrite : bool
-        If True, will overwrite previously raw html files. If False, will not scrape if files already found.
+    Loads the compressed json file containing this game's shifts from disk.
+    :param season: int, the season
+    :param game: int, the game
+    :return: json, the json shifts
     """
-    import os.path
-    import zlib
-    import json
-    import pandas as pd
-    filename = get_parsed_save_filename(season, game)
-    if ((force_overwrite or not os.path.exists(filename)) and os.path.exists(get_json_save_filename(season, game))):
-        r = open(get_json_save_filename(season, game), 'rb')
-        page = r.read()
-        r.close()
+    with open(scrape_setup.get_game_raw_toi_filename(season, game), 'rb') as reader:
+        page = reader.read()
+    return json.loads(str(zlib.decompress(page).decode('latin-1')))
 
-        page = zlib.decompress(page)
-        try:
-            data = json.loads(page.decode('latin-1'))
 
-            teamdata = data['liveData']['boxscore']['teams']
-
-            update_team_ids_from_json(teamdata)
-            update_player_ids_from_json(teamdata)
-            update_quick_gamelog_from_json(data)
-
-            events = read_events_from_json(data['liveData']['plays']['allPlays'])
-
-            if events is not None:
-                events.to_hdf(filename, key='Game{0:d}0{1:d}'.format(season, game), mode='w',
-                              complevel=9, complib='zlib')
-
-            #pbp_compressed = zlib.compress(bytes(events, encoding = 'latin-1'), level=9)
-            #w = open(filename, 'wb')
-            #w.write(pbp_compressed)
-            #w.close()
-        except json.JSONDecodeError:
-            pass
-
-    filename = get_parsed_shifts_save_filename(season, game)
-    basic_gamelog = scrapenhl_globals.get_quick_gamelog_file()
-    if ((force_overwrite or not os.path.exists(filename)) and os.path.exists(get_shift_save_filename(season, game))):
-        r = open(get_shift_save_filename(season, game), 'rb')
-        page = r.read()
-        r.close()
-
-        page = zlib.decompress(page)
-        try:
-            data = json.loads(page.decode('latin-1'))
-
-            try:
-                thisgamedata = basic_gamelog.query('Season == {0:d} & Game == {1:d}'.format(season, game))
-                rname = thisgamedata['Away'].iloc[0]
-                hname = thisgamedata['Home'].iloc[0]
-            except Exception as e:
-                hname = None
-                rname = None
-
-            shifts = read_shifts_from_json(data['data'], hname, rname)
-
-            if shifts is not None:
-                #shifts = ''
-                #shifts_compressed = zlib.compress(shifts, level=9)
-                #w = open(filename, 'wb')
-                #w.write(shifts_compressed)
-                #w.close()
-                shifts.to_hdf(filename, key = 'Game{0:d}0{1:d}'.format(season, game), mode = 'w',
-                              complevel = 9, complib = 'zlib')
-        except json.JSONDecodeError:
-            pass
-
+def update_team_logs(newdata, season, team, perspective='same'):
+    pass
+def update_team_pbp(newdata, season, team, perspective='same'):
+    pass
+def update_team_toi(newdata, season, team, perspective='same'):
+    pass
+def update_player_logs(season, game, playerids):
+    pass
+def update_season_schedule_gamesscraped(season, game, status='Scraped'):
+    pass
 def read_shifts_from_json(data, homename = None, roadname = None):
 
     if len(data) == 0:
@@ -336,174 +255,8 @@ def read_shifts_from_json(data, homename = None, roadname = None):
 
     return(toi)
 
-def update_team_ids_from_json(teamdata):
-    import urllib.request
-    import json
-    import pandas as pd
 
-    hid = teamdata['home']['team']['id']
-    team_ids = scrapenhl_globals.get_team_id_file()
-    if hid not in team_ids.ID.values:
-        url = 'https://statsapi.web.nhl.com{0:s}'.format(teamdata['home']['team']['link'])
-        with urllib.request.urlopen(url) as reader:
-            page = reader.read()
-        teaminfo = json.loads(page.decode('latin-1'))
-        hid = teaminfo['teams'][0]['id']
-        habbrev = teaminfo['teams'][0]['abbreviation']
-        hname = teaminfo['teams'][0]['name']
-
-        df = pd.DataFrame({'ID': [hid], 'Abbreviation': [habbrev], 'Name': [hname]})
-        team_ids = pd.concat([team_ids, df])
-        scrapenhl_globals.write_team_id_file(team_ids)
-
-    rid = teamdata['away']['team']['id']
-    if rid not in team_ids.ID.values:
-        url = 'https://statsapi.web.nhl.com{0:s}'.format(teamdata['away']['team']['link'])
-        with urllib.request.urlopen(url) as reader:
-            page = reader.read()
-        teaminfo = json.loads(page.decode('latin-1'))
-        rid = teaminfo['teams'][0]['id']
-        rabbrev = teaminfo['teams'][0]['abbreviation']
-        rname = teaminfo['teams'][0]['name']
-
-        df = pd.DataFrame({'ID': [rid], 'Abbreviation': [rabbrev], 'Name': [rname]})
-        team_ids = pd.concat([team_ids, df])
-        scrapenhl_globals.write_team_id_file(team_ids)
-
-def update_player_ids_from_json(teamdata):
-    """
-    Creates a data frame of player data from current game's json[liveData][boxscore] to update player ids.
-    This method reads player ids, names, handedness, team, position, and number, and full joins to player ids.
-    If there are any changes to player ids, the dataframe gets written to disk again.
-    Parameters
-    -----------
-    teamdata : dict
-        A json dict that is the result of api_page['liveData']['boxscore']['teams']
-    """
-    team_ids = scrapenhl_globals.get_team_id_file()
-    rteam = team_ids.query('ID == ' + str(teamdata['away']['team']['id']))
-    rabbrev = rteam['Abbreviation'].iloc[0]
-    hteam = team_ids.query('ID == ' + str(teamdata['home']['team']['id']))
-    habbrev = hteam['Abbreviation'].iloc[0]
-
-    awayplayers = teamdata['away']['players']
-    homeplayers = teamdata['home']['players']
-
-    numplayers = len(awayplayers) + len(homeplayers)
-    ids = ['' for i in range(numplayers)]
-    names = ['' for i in range(numplayers)]
-    teams = ['' for i in range(numplayers)]
-    positions = ['' for i in range(numplayers)]
-    nums = [-1 for i in range(numplayers)]
-    handedness = ['' for i in range(numplayers)]
-
-    for i, (pid, pdata) in enumerate(awayplayers.items()):
-        idnum = pid[2:]
-        name = pdata['person']['fullName']
-        try:
-            hand = pdata['person']['shootsCatches']
-        except KeyError:
-            hand = 'N/A'
-        try:
-            num = pdata['jerseyNumber']
-            if num == '':
-                raise KeyError
-            else:
-                num = int(num)
-        except KeyError:
-            num = -1
-        pos = pdata['position']['code']
-
-        ids[i] = idnum
-        names[i] = name
-        teams[i] = rabbrev
-        positions[i] = pos
-        nums[i] = num
-        handedness[i] = hand
-
-    for i, (pid, pdata) in enumerate(homeplayers.items()):
-        idnum = pid[2:]
-        name = pdata['person']['fullName']
-        try:
-            hand = pdata['person']['shootsCatches']
-        except KeyError:
-            hand = 'N/A'
-        try:
-            num = pdata['jerseyNumber']
-            if num == '':
-                raise KeyError
-            else:
-                num = int(num)
-        except KeyError:
-            num = -1
-        pos = pdata['position']['code']
-
-        ids[i + len(awayplayers)] = idnum
-        names[i + len(awayplayers)] = name
-        teams[i + len(awayplayers)] = habbrev
-        positions[i + len(awayplayers)] = pos
-        nums[i + len(awayplayers)] = num
-        handedness[i + len(awayplayers)] = hand
-
-    import pandas as pd
-    gamedf = pd.DataFrame({'ID': ids,
-                           'Name': names,
-                           'Team': teams,
-                           'Pos': positions,
-                           '#': nums,
-                           'Hand': handedness})
-    gamedf['Count'] = 1
-
-    player_ids = scrapenhl_globals.get_player_id_file()
-
-    player_ids = pd.concat([player_ids, gamedf]) \
-        .groupby(['ID', 'Name', 'Team', 'Pos', '#', 'Hand']).sum().reset_index()
-
-    scrapenhl_globals.write_player_id_file(player_ids)
-
-def update_quick_gamelog_from_json(data):
-    """
-    Creates a data frame of basic game data from current game's json to update global BASIC_GAMELOG.
-    This method reads the season, game, date and time, venue, and team names, coaches, anc scores, joining to
-    BASIC_GAMELOG.
-    If there are any changes to BASIC_GAMELOG, the dataframe gets written to disk again.
-    Parameters
-    -----------
-    data : dict
-        The full json dict from the api_page
-    """
-    season = int(str(data['gameData']['game']['pk'])[:4])
-    game = int(str(data['gameData']['game']['pk'])[4:])
-    datetime = data['gameData']['datetime']['dateTime']
-    try:
-        venue = data['gameData']['venue']['name']
-    except KeyError:
-        venue = 'N/A'
-    team_ids = scrapenhl_globals.get_team_id_file()
-    hname = team_ids.query('ID == ' + str(data['gameData']['teams']['home']['id']))
-    hname = hname['Abbreviation'].iloc[0]
-    rname = team_ids.query('ID == ' + str(data['gameData']['teams']['away']['id']))
-    rname = rname['Abbreviation'].iloc[0]
-    try:
-        hcoach = data['liveData']['boxscore']['teams']['home']['coaches'][0]['person']['fullName']
-    except IndexError:
-        hcoach = 'N/A'
-    try:
-        rcoach = data['liveData']['boxscore']['teams']['away']['coaches'][0]['person']['fullName']
-    except IndexError:
-        rcoach = 'N/A'
-    hscore = data['liveData']['boxscore']['teams']['home']['teamStats']['teamSkaterStats']['goals']
-    rscore = data['liveData']['boxscore']['teams']['away']['teamStats']['teamSkaterStats']['goals']
-
-    import pandas as pd
-    gamedf = pd.DataFrame({'Season': [season], 'Game': [game], 'Datetime': [datetime], 'Venue': [venue],
-                           'Home': [hname], 'HomeCoach': [hcoach], 'HomeScore': [hscore],
-                           'Away': [rname], 'AwayCoach': [rcoach], 'AwayScore': [rscore]})
-    basic_gamelog = scrapenhl_globals.get_quick_gamelog_file()
-    basic_gamelog = pd.concat([basic_gamelog, gamedf]).drop_duplicates()
-    scrapenhl_globals.write_quick_gamelog_file(basic_gamelog)
-
-def read_events_from_json(pbp):
+def read_events_from_page(pbp):
     """
     Returns the NHL API url to scrape.
     Parameters
@@ -518,9 +271,6 @@ def read_events_from_json(pbp):
     pandas df
         Dataframe of the game's play by play data
     """
-
-    import numpy as np
-    import pandas as pd
 
     index = [i for i in range(len(pbp))]
     period = [-1 for i in range(len(pbp))]
@@ -572,3 +322,86 @@ def read_events_from_json(pbp):
                           'Team': team, 'Actor': p1, 'ActorRole': p1role, 'Recipient': p2, 'RecipientRole': p2role,
                           'XY': xy, 'Note': note})
     return pbpdf
+
+
+def update_player_ids_from_page(pbp):
+    """
+
+    :param pbp:
+    :return:
+    """
+    players = pbp['gameData']['players'] # yields the subdictionary with players
+    ids = [key[2:] for key in players] # keys are format "ID[PlayerID]"; pull that PlayerID part
+    scrape_setup.update_player_ids_file(ids)
+
+def parse_game_pbp(season, game, force_overwrite=False):
+    """
+
+    :param season: int, the season
+    :param game: int, the game
+    :param force_overwrite: bool. If True, will execute. If False, executes only if file does not exist yet.
+    :return: True if parsed, False if not
+    """
+    filename = scrape_setup.get_game_raw_pbp_filename(season, game)
+    if not force_overwrite and os.path.exists(filename):
+        return False
+
+    rawpbp = open_raw_pbp(season, game)
+    update_player_ids_from_page(rawpbp)
+    #parsedpbp = read_events_from_page(rawpbp)
+
+
+def parse_game_toi(season, game, force_overwrite=False):
+    """
+
+    :param season: int, the season
+    :param game: int, the game
+    :param force_overwrite: bool. If True, will execute. If False, executes only if file does not exist yet.
+    :return: nothing
+    """
+    pass
+
+
+def autoupdate(season=None):
+    """
+
+    :param season: int, the season
+    :return:
+    """
+    if season is None:
+        season = scrape_setup.get_current_season()
+
+    sch = scrape_setup.get_season_schedule(season)
+
+    # First, for all games that were in progress during last scrape, scrape again and parse again
+    inprogress = sch.query('Status == "In Progress"')
+    inprogressgames = inprogress.Game.values
+    for game in inprogressgames:
+        scrape_game_pbp(season, game, True)
+        scrape_game_toi(season, game, True)
+        parse_game_pbp(season, game, True)
+        parse_game_toi(season, game, True)
+        print('Done with', season, game)
+
+    # Update schedule to get current status
+    scrape_setup.generate_season_schedule_file(season)
+    scrape_setup.refresh_schedules()
+    sch = scrape_setup.get_season_schedule(season)
+
+    # Now, for any games that are final, run scrape_game, but don't force_overwrite
+    games = sch.query('Status == "Final"')
+    games = games.Game.values
+    for game in games:
+        _ = scrape_game_pbp(season, game, False)
+        parse_game_pbp(season, game, True)
+        scrape_setup._update_schedule_with_pbp_scrape(season, game)
+        _ = scrape_game_toi(season, game, False)
+        parse_game_toi(season, game, True)
+        scrape_setup._update_schedule_with_toi_scrape(season, game)
+
+        print('Done with', season, game)
+
+    # TODO: Also parse games
+
+
+autoupdate(2016)
