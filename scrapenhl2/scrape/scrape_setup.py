@@ -38,7 +38,7 @@ def _get_base_dir():
     Returns the base directory (two directories up from __file__)
     :return: the base directory
     """
-    return(os.path.join(*__file__.split('/')[:-2]))
+    return '../../' # (os.path.join(*(__file__.split('/')[:-2])))
 
 
 def get_base_dir():
@@ -104,15 +104,21 @@ def _create_folders_and_files():
         # But original creation first time you start up in a new season is automatic, here.
         # When we autoupdate season date, we need to make sure to re-access this file and add in new entries
 
+    if not os.path.exists(get_player_ids_filename()):
+        generate_player_ids_file()
+
+    #if not os.path.exists(get_player_log_filename()):
+        #generate_player_log_file()
+
 
 def get_game_raw_pbp_filename(season, game):
     """
     Returns the filename of the raw pbp folder
     :param season: int, current season
     :param game: int, game
-    :return: /scrape/data/raw/pbp/[season]/[game].JSON
+    :return: /scrape/data/raw/pbp/[season]/[game].zlib
     """
-    return os.path.join(get_season_raw_pbp_folder(season), str(game) + '.json')
+    return os.path.join(get_season_raw_pbp_folder(season), str(game) + '.zlib')
 
 
 def get_game_raw_toi_filename(season, game):
@@ -120,9 +126,9 @@ def get_game_raw_toi_filename(season, game):
     Returns the filename of the raw toi folder
     :param season: int, current season
     :param game: int, game
-    :return:  /scrape/data/raw/toi/[season]/[game].JSON
+    :return:  /scrape/data/raw/toi/[season]/[game].zlib
     """
-    return os.path.join(get_season_raw_toi_folder(season), str(game) + '.json')
+    return os.path.join(get_season_raw_toi_folder(season), str(game) + '.zlib')
 
 
 def get_game_parsed_pbp_filename(season, game):
@@ -132,7 +138,7 @@ def get_game_parsed_pbp_filename(season, game):
     :param game: int, game
     :return: /scrape/data/parsed/pbp/[season]/[game].zlib
     """
-    return os.path.join(get_season_parsed_pbp_folder(season), str(game) + '.zlib')
+    return os.path.join(get_season_parsed_pbp_folder(season), str(game) + '.h5')
 
 
 def get_game_parsed_toi_filename(season, game):
@@ -142,7 +148,7 @@ def get_game_parsed_toi_filename(season, game):
     :param game: int, game
     :return: /scrape/data/parsed/toi/[season]/[game].zlib
     """
-    return os.path.join(get_season_parsed_toi_folder(season), str(game) + '.zlib')
+    return os.path.join(get_season_parsed_toi_folder(season), str(game) + '.h5')
 
 
 def get_raw_data_folder():
@@ -150,7 +156,7 @@ def get_raw_data_folder():
     Returns the folder containing raw data
     :return: /scrape/data/raw/
     """
-    return os.path.join('scrape', 'data', 'raw')
+    return os.path.join('data', 'raw')
 
 
 def get_parsed_data_folder():
@@ -158,7 +164,7 @@ def get_parsed_data_folder():
     Returns the folder containing parsed data
     :return: /scrape/data/parsed/
     """
-    return os.path.join('scrape', 'data', 'parsed')
+    return os.path.join('data', 'parsed')
 
 
 def get_team_data_folder():
@@ -166,7 +172,7 @@ def get_team_data_folder():
     Returns the folder containing team log data
     :return: /scrape/data/teams/
     """
-    return os.path.join('scrape', 'data', 'teams')
+    return os.path.join('data', 'teams')
 
 
 def get_other_data_folder():
@@ -174,7 +180,7 @@ def get_other_data_folder():
     Returns the folder containing other data
     :return: /scrape/data/other/
     """
-    return os.path.join('scrape', 'data', 'other')
+    return os.path.join('data', 'other')
 
 
 def get_season_raw_pbp_folder(season):
@@ -239,12 +245,20 @@ def get_team_info_filename():
     return os.path.join(get_other_data_folder(), 'TEAM_INFO.feather')
 
 
-def get_team_info_file():
+def _get_team_info_file():
     """
     Returns the team information file. This is stored as a feather file for fast read/write.
     :return: file from /scrape/data/other/TEAM_INFO.feather
     """
     return feather.read_dataframe(get_team_info_filename())
+
+
+def get_team_info_file():
+    """
+    Returns the team information file. This is stored as a feather file for fast read/write.
+    :return: file from /scrape/data/other/TEAM_INFO.feather
+    """
+    return _TEAMS
 
 
 def write_team_info_file(df):
@@ -266,7 +280,12 @@ def get_team_info_url(teamid):
 
 def generate_team_ids_file(limit=110):
     """
-    Reads all team id URLs and stores information to disk
+    Reads all team id URLs and stores information to disk. Has the following information:
+
+    - ID: int
+    - Abbreviation: str (three letters)
+    - Name: str (full name)
+
     :param limit: int. Tries every team ID from 1 to limit (inclusive)
     :return: nothing
     """
@@ -320,6 +339,16 @@ def get_game_url(season, game):
     return 'https://statsapi.web.nhl.com/api/v1/game/{0:d}0{1:d}/feed/live'.format(season, game)
 
 
+def get_shift_url(season, game):
+    """
+    Gets the url for a page containing shift information for specified game from NHL API.
+    :param season: int, the season
+    :param game: int, the game
+    :return : str, http://www.nhl.com/stats/rest/shiftcharts?cayenneExp=gameId=[season]0[game]
+    """
+    return 'http://www.nhl.com/stats/rest/shiftcharts?cayenneExp=gameId={0:d}0{1:d}'.format(season, game)
+
+
 def get_player_url(playerid):
     """
     Gets the url for a page containing information for specified player from NHL API.
@@ -339,6 +368,15 @@ def get_season_schedule_filename(season):
 
 
 def get_season_schedule(season):
+    """
+    Gets the the season's schedule file. Stored as a feather file for fast read/write
+    :param season: int, the season
+    :return: file from /scrape/data/other/[season]_schedule.feather
+    """
+    return _SCHEDULES[season]
+
+
+def _get_season_schedule(season):
     """
     Gets the the season's schedule file. Stored as a feather file for fast read/write
     :param season: int, the season
@@ -408,13 +446,13 @@ def generate_season_schedule_file(season, force_overwrite=True):
         try:
             date = _try_to_access_dict(datejson, 'date')
             for gamejson in datejson['games']:
-                game = _try_to_access_dict(gamejson, 'gamePk')
+                game = int(str(_try_to_access_dict(gamejson, 'gamePk'))[-5:])
                 gametype = _try_to_access_dict(gamejson, 'gameType')
                 status = _try_to_access_dict(gamejson, 'status', 'detailedState')
                 vid = _try_to_access_dict(gamejson, 'teams', 'away', 'team', 'id')
-                vscore = _try_to_access_dict(gamejson, 'teams', 'away', 'score')
+                vscore = int(_try_to_access_dict(gamejson, 'teams', 'away', 'score'))
                 hid = _try_to_access_dict(gamejson, 'teams', 'home', 'team', 'id')
-                hscore = _try_to_access_dict(gamejson, 'teams', 'home', 'score')
+                hscore = int(_try_to_access_dict(gamejson, 'teams', 'home', 'score'))
                 venue = _try_to_access_dict(gamejson, 'venue', 'name')
 
                 dates.append(date)
@@ -449,6 +487,34 @@ def generate_season_schedule_file(season, force_overwrite=True):
     print('Done generating schedule for', season)
 
 
+def _update_schedule_with_pbp_scrape(season, game):
+    """
+    Updates the schedule file saying that specified game's pbp has been scraped.
+    :param season: int, the season
+    :param game: int, the game
+    :return: nothing
+    """
+    df = get_season_schedule(season)
+    df.loc[df.Game == game, "PBPStatus"] = "Scraped"
+    _write_season_schedule(df, season, True)
+    global _SCHEDULES
+    _SCHEDULES[season] = df
+
+
+def _update_schedule_with_toi_scrape(season, game):
+    """
+    Updates the schedule file saying that specified game's toi has been scraped.
+    :param season: int, the season
+    :param game: int, the game
+    :return: nothing
+    """
+    df = get_season_schedule(season)
+    df.loc[df.Game == game, "TOIStatus"] = "Scraped"
+    _write_season_schedule(df, season, True)
+    global _SCHEDULES
+    _SCHEDULES[season] = df
+
+
 def _write_season_schedule(df, season, force_overwrite):
     """
     A helper method that writes the season schedule file to disk (in feather format for fast read/write)
@@ -461,7 +527,7 @@ def _write_season_schedule(df, season, force_overwrite):
     if force_overwrite:  # Easy--just write it
         feather.write_dataframe(df, get_season_schedule_filename(season))
     else:  # Only write new games/previously unfinished games
-        olddf = feather.read_dataframe(get_season_schedule_filename(season))
+        olddf = get_season_schedule(season)
         olddf = olddf.query('Status != "Final"')
 
         # TODO: Maybe in the future set status for games partially scraped as "partial" or something
@@ -473,6 +539,262 @@ def _write_season_schedule(df, season, force_overwrite):
         feather.write_dataframe(newdf, get_season_schedule_filename(season))
 
 
+def get_player_ids_filename():
+    return os.path.join(get_other_data_folder(), 'PLAYER_INFO.feather')
+
+
+def generate_player_ids_file():
+    """
+    Creates a dataframe with these columns:
+    
+    - ID: int, player ID
+    - Name: str, player name
+    - DOB: str, date of birth
+    - Hand: char, R or L
+    - Pos: char, one of C/R/L/D/G
+
+    It will be populated with Alex Ovechkin to start.
+    :return: nothing 
+    """
+    df = pd.DataFrame({'ID': [8471214],
+                       'Name': ['Alex Ovechkin'],
+                       'DOB': ['1985-09-17'],
+                       'Hand': ['R'],
+                       'Pos': ['L'],
+                       'Height': ["6'3\""],
+                       'Weight': [235],
+                       'Nationality': ['RUS']})
+    write_player_ids_file(df)
+
+
+def get_player_ids_file():
+    """
+    Returns the player information file. This is stored as a feather file for fast read/write.
+    :return: /scrape/data/other/PLAYER_INFO.feather
+    """
+    return _PLAYERS
+
+
+def _get_player_ids_file():
+    """
+    Runs at startup to read the player information file. This is stored as a feather file for fast read/write.
+    :return: /scrape/data/other/PLAYER_INFO.feather
+    """
+    return feather.read_dataframe(get_player_ids_filename())
+
+def get_player_info_from_url(playerid):
+    """
+    Gets ID, Name, Hand, Pos, and DOB from the NHL API.
+    :param playerid: int, the player id
+    :return: dict with player ID, name, handedness, position, and DoB
+    """
+    with urllib.request.urlopen(get_player_url(playerid)) as reader:
+        page = reader.read().decode('latin-1')
+    data = json.loads(page)
+
+    info = {}
+    vars = {'ID': ['people', 0, 'id'],
+            'Name': ['people', 0, 'fullName'],
+            'Hand': ['people', 0, 'shootsCatches'],
+            'Pos': ['people', 0, 'primaryPosition', 'code'],
+            'DOB': ['people', 0, 'birthDate'],
+            'Height': ['people', 0, 'height'],
+            'Weight': ['people', 0, 'weight'],
+            'Nationality': ['people', 0, 'nationality']}
+    for key, val in vars.items():
+        info[key] = _try_to_access_dict(data, *val)
+
+    # Remove the space in the middle of height
+    if info['Height'] is not None:
+        info['Height'] = info['Height'].replace(' ', '')
+    return info
+
+def update_player_ids_file(playerids, force_overwrite=False):
+    """
+    Adds these entries to player IDs file if need be.
+    :param playerids: a list of IDs
+    :param force_overwrite: bool. If True, will re-scrape data for all player ids. If False, only new ones.
+    :return: nothing
+    """
+    # In case we get just one number
+    if isinstance(playerids, int):
+        playerids = [playerids]
+
+    ids = []
+    names = []
+    hands = []
+    pos = []
+    dobs = []
+    heights = []
+    weights = []
+    nationalities = []
+
+    current_players = get_player_ids_file()
+
+    if not force_overwrite:
+        # Pull only ones we don't have already
+        newdf = pd.DataFrame({'ID': [int(x) for x in playerids]})
+        to_scrape = set(newdf.ID).difference(current_players.ID)
+    else:
+        to_scrape = playerids
+        current_players = current_players.merge(pd.DataFrame({'ID': playerids}),
+                                                how = 'outer',
+                                                on = 'ID')
+        current_players = current_players.query('_merge == "left_only"').drop('_merge', axis=1)
+    if len(to_scrape) == 0:
+        return
+    for playerid in to_scrape:
+        playerinfo = get_player_info_from_url(playerid)
+        ids.append(playerinfo['ID'])
+        names.append(playerinfo['Name'])
+        hands.append(playerinfo['Hand'])
+        pos.append(playerinfo['Pos'])
+        dobs.append(playerinfo['DOB'])
+        weights.append(playerinfo['Weight'])
+        heights.append(playerinfo['Height'])
+        nationalities.append(playerinfo['Nationality'])
+    df = pd.DataFrame({'ID': ids, 'Name': names, 'DOB': dobs, 'Hand': hands, 'Pos': pos,
+                       'Weight': weights, 'Height': heights, 'Nationality': nationalities})
+    df.loc[:, 'ID'] = pd.to_numeric(df.ID).astype(int)
+    write_player_ids_file(pd.concat([df, current_players]))
+    global _PLAYERS
+    _PLAYERS = _get_player_ids_file()
+    #print(len(_PLAYERS.groupby('ID').count().query('Name >= 2')))
+
+def rescrape_player(playerid):
+    """
+    If you notice that a player name, position, etc, is outdated, call this method on their ID. It will
+    re-scrape their data from the NHL API.
+    :param playerid: int, their ID
+    :return: nothing
+    """
+
+
+def write_player_ids_file(df):
+    feather.write_dataframe(df, get_player_ids_filename())
+
+
+def team_as_id(team):
+    """
+    A helper method. If team entered is int, returns that. If team is str, returns integer id of that team.
+    :param team: int, or str
+    :return: int, the team ID
+    """
+    if isinstance(team, int):
+        return team
+    elif isinstance(team, str):
+        df = get_team_info_file().filter('Team == "{0:s}" | Abbreviation == "{0:s}"'.format(team))
+        if len(df) == 0:
+            print('Could not find ID for {0:s}'.format(team))
+            return None
+        elif len(df) == 1:
+            return df.iloc[0, "ID"]
+        else:
+            print('Multiple results when searching for {0:s}; returning first result'.format(team))
+            print(df)
+            return df.iloc[0, "ID"]
+    else:
+        print('Specified wrong type for team: {0:s}'.format(type(team)))
+        return None
+
+
+def team_as_str(team, abbrevation=True):
+    """
+    A helper method. If team entered is str, returns that. If team is int, returns string name of that team.
+    :param team: int, or str
+    :param abbreviation: bool, whether to return 3-letter abbreviation or full name
+    :return: str, the team name
+    """
+    col_to_access = 'Abbreviation' if abbrevation else 'Name'
+    
+    if isinstance(team, str):
+        return team
+    elif isinstance(team, int):
+        df = get_team_info_file().filter('ID == {0:d}'.format(team))
+        if len(df) == 0:
+            print('Could not find name for {0:d}'.format(team))
+            return None
+        elif len(df) == 1:
+            return df.iloc[0, col_to_access]
+        else:
+            print('Multiple results when searching for {0:d}; returning first result'.format(team))
+            print(df)
+            return df.iloc[0, abbrevation]
+    else:
+        print('Specified wrong type for team: {0:s}'.format(type(team)))
+        return None
+    
+    
+def player_as_id(player):
+    """
+    A helper method. If player entered is int, returns that. If player is str, returns integer id of that player.
+    :param player: int, or str
+    :return: int, the player ID
+    """
+    if isinstance(player, int):
+        return player
+    elif isinstance(player, str):
+        df = get_player_ids_file().filter('Name == "{0:s}"'.format(player)).sort_values('Count', ascending=False)
+        if len(df) == 0:
+            print('Could not find exact match for for {0:s}; trying exact substring match'.format(player))
+            df = get_player_ids_file()
+            df = df[df.Name.str.contains(player)].sort_values('Count', ascending=False)
+            if len(df) == 0:
+                print('Could not find exact substring match; trying fuzzy matching')
+                # TODO fuzzy match
+                return None
+            elif len(df) == 1:
+                return df.iloc[0, 'ID']
+            else:
+                print('Multiple results when searching for {0:s}; returning first result'.format(player))
+                print(df)
+                return df.iloc[0, "ID"]
+        elif len(df) == 1:
+            return df.iloc[0, "ID"]
+        else:
+            print('Multiple results when searching for {0:s}; returning first result'.format(player))
+            print(df)
+            return df.iloc[0, "ID"]
+    else:
+        print('Specified wrong type for player: {0:s}'.format(type(player)))
+        return None
+
+
+def player_as_str(player):
+    """
+    A helper method. If player entered is str, returns that. If player is int, returns string name of that player.
+    :param player: int, or str
+    :return: str, the player name
+    """
+    if isinstance(player, str):
+        return player
+    elif isinstance(player, int):
+        df = get_team_info_file().filter('ID == {0:d}'.format(player)).sort_values('Count', ascending=False)
+        if len(df) == 0:
+            print('Could not find name for {0:d}'.format(player))
+            return None
+        elif len(df) == 1:
+            return df.iloc[0, "Name"]
+        else:
+            print('Multiple results when searching for {0:d}; returning first result'.format(player))
+            print(df)
+            return df.iloc[0, "Name"]
+    else:
+        print('Specified wrong type for team: {0:d}'.format(type(player)))
+        return None
+
+
+def refresh_schedules():
+    """
+
+    :return: nothing
+    """
+    global _SCHEDULES
+    _SCHEDULES = {season: _get_season_schedule(season) for season in range(2005, _CURRENT_SEASON + 1)}
+
 _CURRENT_SEASON = _get_current_season()
 _BASE_DIR = _get_base_dir()
 _create_folders_and_files()
+_TEAMS = _get_team_info_file()
+_PLAYERS = _get_player_ids_file()
+_SCHEDULES = {season: _get_season_schedule(season) for season in range(2005, _CURRENT_SEASON + 1)}
