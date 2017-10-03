@@ -391,22 +391,29 @@ def _get_season_schedule(season):
     return feather.read_dataframe(get_season_schedule_filename(season))
 
 
-def _try_to_access_dict(base_dct, *keys):
+def try_to_access_dict(base_dct, *keys, **kwargs):
     """
     A helper method that accesses base_dct using keys, one-by-one. Returns None if a key does not exist.
     :param base_dct: dict, a dictionary
     :param keys: str, int, or other valid dict keys
+    :param kwargs: can specify default using kwarg default_return=0, for example.
     :return: base_dct[key1][key2][key3]... or None if a key is not in the dictionary
     """
     temp = base_dct
+    default_return = None
+    for k, v in kwargs.items():
+        default_return = v
+
     try:
         for key in keys:
             temp = temp[key]
         return temp
     except KeyError:  # for string keys
-        return None
+        return default_return
     except IndexError:  # for array indices
-        return None
+        return default_return
+    except TypeError:  # might not be a dictionary or list
+        return default_return
 
 
 def generate_season_schedule_file(season, force_overwrite=True):
@@ -452,16 +459,16 @@ def generate_season_schedule_file(season, force_overwrite=True):
     page2 = json.loads(page)
     for datejson in page2['dates']:
         try:
-            date = _try_to_access_dict(datejson, 'date')
+            date = try_to_access_dict(datejson, 'date')
             for gamejson in datejson['games']:
-                game = int(str(_try_to_access_dict(gamejson, 'gamePk'))[-5:])
-                gametype = _try_to_access_dict(gamejson, 'gameType')
-                status = _try_to_access_dict(gamejson, 'status', 'detailedState')
-                vid = _try_to_access_dict(gamejson, 'teams', 'away', 'team', 'id')
-                vscore = int(_try_to_access_dict(gamejson, 'teams', 'away', 'score'))
-                hid = _try_to_access_dict(gamejson, 'teams', 'home', 'team', 'id')
-                hscore = int(_try_to_access_dict(gamejson, 'teams', 'home', 'score'))
-                venue = _try_to_access_dict(gamejson, 'venue', 'name')
+                game = int(str(try_to_access_dict(gamejson, 'gamePk'))[-5:])
+                gametype = try_to_access_dict(gamejson, 'gameType')
+                status = try_to_access_dict(gamejson, 'status', 'detailedState')
+                vid = try_to_access_dict(gamejson, 'teams', 'away', 'team', 'id')
+                vscore = int(try_to_access_dict(gamejson, 'teams', 'away', 'score'))
+                hid = try_to_access_dict(gamejson, 'teams', 'home', 'team', 'id')
+                hscore = int(try_to_access_dict(gamejson, 'teams', 'home', 'score'))
+                venue = try_to_access_dict(gamejson, 'venue', 'name')
 
                 dates.append(date)
                 games.append(game)
@@ -510,9 +517,9 @@ def generate_season_schedule_file(season, force_overwrite=True):
     _write_season_schedule(df, season, force_overwrite)
 
     print('Done generating schedule for', season)
+    
 
-
-def _update_schedule_with_pbp_scrape(season, game):
+def update_schedule_with_pbp_scrape(season, game):
     """
     Updates the schedule file saying that specified game's pbp has been scraped.
     :param season: int, the season
@@ -526,7 +533,7 @@ def _update_schedule_with_pbp_scrape(season, game):
     _SCHEDULES[season] = df
 
 
-def _update_schedule_with_toi_scrape(season, game):
+def update_schedule_with_toi_scrape(season, game):
     """
     Updates the schedule file saying that specified game's toi has been scraped.
     :param season: int, the season
@@ -677,7 +684,7 @@ def get_player_info_from_url(playerid):
                    'Weight': ['people', 0, 'weight'],
                    'Nationality': ['people', 0, 'nationality']}
     for key, val in vars_to_get.items():
-        info[key] = _try_to_access_dict(data, *val)
+        info[key] = try_to_access_dict(data, *val)
 
     # Remove the space in the middle of height
     if info['Height'] is not None:
@@ -933,7 +940,7 @@ def get_game_data_from_schedule(season, game):
     return schedule_item
 
 
-def _update_schedule_with_coaches(season, game, homecoach, roadcoach):
+def update_schedule_with_coaches(season, game, homecoach, roadcoach):
     """
     Updates the season schedule file with given coaches' names (which are listed 'N/A' at schedule generation)
     :param season: int, the season
@@ -959,7 +966,7 @@ def _update_schedule_with_coaches(season, game, homecoach, roadcoach):
     refresh_schedules()
 
 
-def _update_schedule_with_result(season, game, result):
+def update_schedule_with_result(season, game, result):
     """
     Updates the season schedule file with game result (which are listed 'N/A' at schedule generation)
     :param season: int, the season
