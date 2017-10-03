@@ -1,15 +1,14 @@
 import scrape_setup
 import os
 import os.path
-import feather
 import pandas as pd
 import json
 import urllib.request
 import urllib.error
-import datetime
 import zlib
 import numpy as np
 import time
+
 
 def scrape_game_pbp(season, game, force_overwrite=False):
     """
@@ -54,9 +53,6 @@ def scrape_game_toi(season, game, force_overwrite=False):
     if not force_overwrite and os.path.exists(filename):
         return False
 
-    # Use the season schedule file to get the home and road team names
-    schedule_item = scrape_setup.get_game_from_schedule(season, game)
-
     url = scrape_setup.get_shift_url(season, game)
     with urllib.request.urlopen(url) as reader:
         page = reader.read()
@@ -64,7 +60,7 @@ def scrape_game_toi(season, game, force_overwrite=False):
     # time.sleep(1)
 
     # It's most efficient to parse with page in memory, but for sake of simplicity will do it later
-    #toi = read_toi_from_page(page)
+    # toi = read_toi_from_page(page)
     return True
 
 
@@ -92,7 +88,7 @@ def save_parsed_pbp(pbp, season, game):
     :return: nothing
     """
     pbp.to_hdf(scrape_setup.get_game_parsed_pbp_filename(season, game),
-               key = 'P{0:d}0{1:d}'.format(season, game),
+               key='P{0:d}0{1:d}'.format(season, game),
                mode='w', complib='zlib')
 
 
@@ -105,7 +101,7 @@ def save_parsed_toi(toi, season, game):
     :return: nothing
     """
     toi.to_hdf(scrape_setup.get_game_parsed_toi_filename(season, game),
-               key = 'T{0:d}0{1:d}'.format(season, game),
+               key='T{0:d}0{1:d}'.format(season, game),
                mode='w', complib='zlib')
 
 
@@ -148,11 +144,15 @@ def open_raw_toi(season, game):
     return json.loads(str(zlib.decompress(page).decode('latin-1')))
 
 
-def update_team_logs(newdata, season, team, perspective='same'):
+def update_team_logs(newdata, season, game):
     pass
-def update_team_pbp(newdata, season, team, perspective='same'):
+
+
+def update_team_pbp(newdata, season, game, team):
     pass
-def update_team_toi(newdata, season, team, perspective='same'):
+
+
+def update_team_toi(newdata, season, game, team):
     pass
 
 
@@ -167,10 +167,10 @@ def update_player_logs_from_page(pbp, season, game):
     """
 
     # Get players who played, and scratches, from boxscore
-    home_played = scrape_setup._try_to_access_dict(pbp, 'liveData', 'boxscore', 'teams', 'home', 'players')
-    road_played = scrape_setup._try_to_access_dict(pbp, 'liveData', 'boxscore', 'teams', 'away', 'players')
-    home_scratches = scrape_setup._try_to_access_dict(pbp, 'liveData', 'boxscore', 'teams', 'home', 'scratches')
-    road_scratches = scrape_setup._try_to_access_dict(pbp, 'liveData', 'boxscore', 'teams', 'away', 'scratches')
+    home_played = scrape_setup.try_to_access_dict(pbp, 'liveData', 'boxscore', 'teams', 'home', 'players')
+    road_played = scrape_setup.try_to_access_dict(pbp, 'liveData', 'boxscore', 'teams', 'away', 'players')
+    home_scratches = scrape_setup.try_to_access_dict(pbp, 'liveData', 'boxscore', 'teams', 'home', 'scratches')
+    road_scratches = scrape_setup.try_to_access_dict(pbp, 'liveData', 'boxscore', 'teams', 'away', 'scratches')
 
     # Played are both dicts, so make them lists
     home_played = [int(pid[2:]) for pid in home_played]
@@ -192,166 +192,238 @@ def update_player_logs_from_page(pbp, season, game):
     # TODO: One issue is we do not see goalies (and maybe skaters) who dressed but did not play. How can this be fixed?
 
 
-def read_shifts_from_json(data, homename = None, roadname = None):
-
-    if len(data) == 0:
+def read_shifts_from_page(rawtoi, season, game):
+    """
+    
+    :param rawtoi:
+    :param season: int, the season
+    :param game: int, the game
+    :return: 
+    """
+    toi = rawtoi['data']
+    if len(toi) == 0:
         return
-    ids = ['' for i in range(len(data))]
-    periods = [0 for i in range(len(data))]
-    starts = ['0:00' for i in range(len(data))]
-    ends = ['0:00' for i in range(len(data))]
-    teams = ['' for i in range(len(data))]
-    durations = [0 for i in range(len(data))]
+    ids = ['' for _ in range(len(toi))]
+    periods = [0 for _ in range(len(toi))]
+    starts = ['0:00' for _ in range(len(toi))]
+    ends = ['0:00' for _ in range(len(toi))]
+    teams = ['' for _ in range(len(toi))]
+    durations = [0 for _ in range(len(toi))]
 
-    for i, dct in enumerate(data):
-        ids[i] = dct['playerId']
-        periods[i] = dct['period']
-        starts[i] = dct['startTime']
-        ends[i] = dct['endTime']
-        durations[i] = dct['duration']
-        teams[i] = dct['teamAbbrev']
+    for i, dct in enumerate(toi):
+        ids[i] = scrape_setup.try_to_access_dict(dct, 'playerId', default_return='')
+        periods[i] = scrape_setup.try_to_access_dict(dct, 'period', default_return=0)
+        starts[i] = scrape_setup.try_to_access_dict(dct, 'startTime', default_return='0:00')
+        ends[i] = scrape_setup.try_to_access_dict(dct, 'endTime', default_return='0:00')
+        durations[i] = scrape_setup.try_to_access_dict(dct, 'duration', default_return=0)
+        teams[i] = scrape_setup.try_to_access_dict(dct, 'teamId', default_return='')
 
-    ### Seems like home players come first
-    if homename is None:
-        homename = teams[0]
-        for i in range(len(teams) - 1, 0, -1):
-            if not teams[i] == homename:
-                roadname = teams[i]
-                break
+    gameinfo = scrape_setup.get_game_data_from_schedule(season, game)
 
     startmin = [x[:x.index(':')] for x in starts]
     startsec = [x[x.index(':') + 1:] for x in starts]
     starttimes = [1200 * (p-1) + 60 * int(m) + int(s) for p, m, s in zip(periods, startmin, startsec)]
     endmin = [x[:x.index(':')] for x in ends]
     endsec = [x[x.index(':') + 1:] for x in ends]
-    ### There is an extra -1 in endtimes to avoid overlapping start/end
+    # There is an extra -1 in endtimes to avoid overlapping start/end
     endtimes = [1200 * (p - 1) + 60 * int(m) + int(s) - 1 for p, m, s in zip(periods, endmin, endsec)]
 
     durationtime = [e - s for s, e in zip(starttimes, endtimes)]
 
-    import pandas as pd
     df = pd.DataFrame({'PlayerID': ids, 'Period': periods, 'Start': starttimes, 'End': endtimes,
                        'Team': teams, 'Duration': durationtime})
     df.loc[df.End < df.Start, 'End'] = df.End + 1200
     tempdf = df[['PlayerID', 'Start', 'End', 'Team', 'Duration']]
-    tempdf = tempdf.assign(Time = tempdf.Start)
-    #print(tempdf.head(20))
+    tempdf = tempdf.assign(Time=tempdf.Start)
+    # print(tempdf.head(20))
+
+    # Let's filter out goalies for now. We can add them back in later.
+    # This will make it easier to get the strength later
+    pids = scrape_setup.get_player_ids_file()
+    tempdf = tempdf.merge(pids[['ID', 'Pos']], how='left', left_on='PlayerID', right_on='ID')
 
     toi = pd.DataFrame({'Time': [i for i in range(0, max(df.End) + 1)]})
 
+    # This is a hacky way to fill in times between shift start and end: increment tempdf by one, filter, and join
+    # TODO find a better way
     toidfs = []
     while len(tempdf.index) > 0:
-        temptoi = toi.merge(tempdf, how = 'inner', on = 'Time')
+        temptoi = toi.merge(tempdf, how='inner', on='Time')
         toidfs.append(temptoi)
 
-        tempdf = tempdf.assign(Time = tempdf.Time + 1)
+        tempdf = tempdf.assign(Time=tempdf.Time + 1)
         tempdf = tempdf.query('Time <= End')
 
     tempdf = pd.concat(toidfs)
-    tempdf = tempdf.sort_values(by = 'Time')
+    tempdf = tempdf.sort_values(by='Time')
 
-    ### Append team name to start of columns by team
-    hdf = tempdf.query('Team == "' + homename + '"')
-    hdf2 = hdf.groupby('Time').rank()
-    hdf2 = hdf2.rename(columns = {'PlayerID': 'rank'})
+    goalies = tempdf[tempdf.Pos == 'G'].drop({'ID', 'Pos'}, axis=1)
+    tempdf = tempdf[tempdf.Pos != 'G'].drop({'ID', 'Pos'}, axis=1)
+
+    # Append team name to start of columns by team
+    home = str(gameinfo['Home'])
+    road = str(gameinfo['Road'])
+
+    # Goalies
+    # Let's assume we get only one goalie per second per team.
+    # TODO: flag if there are multiple listed and pick only one
+    goalies.loc[:, 'GTeam'] = goalies.Team.apply(lambda x: 'HG' if str(x) == home else 'RG')
+    goalies2 = goalies[['Time', 'PlayerID', 'GTeam']] \
+        .pivot(index='Time', columns='GTeam', values='PlayerID') \
+        .reset_index()  # TODO: duplicate entries in index error.
+
+    # Home
+    hdf = tempdf.query('Team == "' + home + '"')
+    hdf2 = hdf.groupby('Time').rank(method='first')
+    hdf2 = hdf2.rename(columns={'PlayerID': 'rank'})
     hdf2.loc[:, 'rank'] = hdf2['rank'].apply(lambda x: int(x))
-    hdf.loc[:, 'rank'] = homename + hdf2['rank'].astype('str')
+    hdf.loc[:, 'rank'] = 'H' + hdf2['rank'].astype('str')
 
-    rdf = tempdf.query('Team == "' + roadname + '"')
-    rdf2 = rdf.groupby('Time').rank()
+    rdf = tempdf.query('Team == "' + road + '"')
+    rdf2 = rdf.groupby('Time').rank(method='first')
     rdf2 = rdf2.rename(columns={'PlayerID': 'rank'})
     rdf2.loc[:, 'rank'] = rdf2['rank'].apply(lambda x: int(x))
-    rdf.loc[:, 'rank'] = roadname + rdf2['rank'].astype('str')
+    rdf.loc[:, 'rank'] = 'R' + rdf2['rank'].astype('str')
 
-    ### Occasionally bad entries make duplicates on time and rank. Take one with longer duration
-
-    tokeep = hdf.sort_values(by = 'Duration', ascending = False)
+    # Occasionally bad entries make duplicates on time and rank. Take one with longer duration
+    tokeep = hdf.sort_values(by='Duration', ascending=False)
     tokeep = tokeep.groupby(['Time', 'PlayerID']).first()
-    tokeep.reset_index(inplace = True)
-    hdf = hdf.merge(tokeep, how = 'inner', on = ['Time', 'PlayerID', 'Start', 'End', 'Team', 'rank'])
+    tokeep.reset_index(inplace=True)
+    hdf = hdf.merge(tokeep, how='inner', on=['Time', 'PlayerID', 'Start', 'End', 'Team', 'rank'])
 
     tokeep = rdf.sort_values(by='Duration', ascending=False)
     tokeep = tokeep.groupby(['Time', 'PlayerID']).first()
     tokeep.reset_index(inplace=True)
     rdf = rdf.merge(tokeep, how='inner', on=['Time', 'PlayerID', 'Start', 'End', 'Team', 'rank'])
 
-    ### Remove values above 6--looking like there won't be many
-    ### TODO: keep goalie if one is a goalie!
-    hdf = hdf.pivot(index = 'Time', columns = 'rank', values = 'PlayerID').iloc[:, 0:6]
-    hdf.reset_index(inplace = True) #get time back as a column
+    # Remove values above 6--looking like there won't be many
+    hdf = hdf.pivot(index='Time', columns='rank', values='PlayerID').iloc[:, 0:6]
+    hdf.reset_index(inplace=True)  # get time back as a column
     rdf = rdf.pivot(index='Time', columns='rank', values='PlayerID').iloc[:, 0:6]
-    rdf.reset_index(inplace = True)
+    rdf.reset_index(inplace=True)
 
-    toi = toi.merge(hdf, how = 'left', on = 'Time').merge(rdf, how = 'left', on = 'Time')
+    toi = toi.merge(hdf, how='left', on='Time') \
+        .merge(rdf, how='left', on='Time') \
+        .merge(goalies2, how='left', on='Time')
 
-    return(toi)
+    column_order = list(toi.columns.values)
+    column_order = ['Time'] + [x for x in sorted(column_order[1:])]  # First entry is Time; sort rest
+    toi = toi[column_order]
+    # Now should be Time, H1, H2, ... HG, R1, R2, ..., RG
+
+    toi.loc[:, 'HomeSkaters'] = 0
+    for col in toi.loc[:, 'H1':'HG'].columns[:-1]:
+        toi.loc[:, 'HomeSkaters'] = toi[col].notnull() + toi.HomeSkaters
+    toi.loc[:, 'HomeSkaters'] = 100 * toi['HG'].notnull() + toi.HomeSkaters  # a hack to make it easy to recognize
+    toi.loc[:, 'RoadSkaters'] = 0
+    for col in toi.loc[:, 'R1':'RG'].columns[:-1]:
+        toi.loc[:, 'RoadSkaters'] = toi[col].notnull() + toi.RoadSkaters
+    toi.loc[:, 'RoadSkaters'] = 100 * toi['RG'].notnull() + toi.RoadSkaters  # a hack to make it easy to recognize
+
+    # This is how we label strengths: 5 means 5 skaters plus goalie; five skaters w/o goalie is 4+1.
+    toi.loc[:, 'HomeStrength'] = toi.HomeSkaters.apply(
+        lambda x: '{0:d}'.format(x - 100) if x >= 100 else '{0:d}+1'.format(x - 1))
+    toi.loc[:, 'RoadStrength'] = toi.RoadSkaters.apply(
+        lambda x: '{0:d}'.format(x - 100) if x >= 100 else '{0:d}+1'.format(x - 1))
+
+    toi.drop({'HomeSkaters', 'RoadSkaters'}, axis=1, inplace=True)
+
+    # Also drop -1+1 and 0+1 cases, which are clearly errors, and the like.
+    # Need at least 3 skaters apiece, 1 goalie apiece, time, and strengths to be non-NA = 11 non NA values
+    toi2 = toi.dropna(axis=0, thresh=11)  # drop rows without at least 11 non-NA values
+
+    # TODO data quality check that I don't miss times in the middle of the game
+
+    # TODO not quite right still b/c of data issues I think. Need to fix.
+    return toi
 
 
-def read_events_from_page(pbp):
+def read_events_from_page(rawpbp, season, game):
     """
-    Returns the NHL API url to scrape.
-    Parameters
-    -----------
-    season : int
-        The season of the game. 2007-08 would be 2007.
-    game : int
-        The game id. This can range from 20001 to 21230 for regular season (pre-VGK), and 30111 to 30417 for playoffs.
-        The preseason, all-star game, Olympics, and World Cup also have game IDs that can be provided.
-    Returns
-    --------
-    pandas df
-        Dataframe of the game's play by play data
+    This method takes the json pbp and returns a pandas dataframe with the following columns:
+
+    - Index: int, index of event
+    - Period: str, period of event. In regular season, could be 1, 2, 3, OT, or SO. In playoffs, 1, 2, 3, 4, 5...
+    - Time: str, m:ss, time elapsed in period
+    - Event: str, the event name
+    - Team: int, the team id
+    - Actor: int, the acting player id
+    - ActorRole: str, e.g. for faceoffs there is a "Winner" and "Loser"
+    - Recipient: int, the receiving player id
+    - RecipientRole: str, e.g. for faceoffs there is a "Winner" and "Loser"
+    - X: int, the x coordinate of event (or NaN)
+    - Y: int, the y coordinate of event (or NaN)
+    - Note: str, additional notes, which may include penalty duration, assists on a goal, etc.
+
+    :param rawpbp: json, the raw json pbp
+    :return: pandas dataframe, the pbp in a nicer format
     """
+    pbp = scrape_setup.try_to_access_dict(rawpbp, 'liveData', 'plays', 'allPlays')
+    if pbp is None:
+        return
 
     index = [i for i in range(len(pbp))]
-    period = [-1 for i in range(len(pbp))]
-    time = ['0:00' for i in range(len(pbp))]
-    event = ['NA' for i in range(len(pbp))]
+    period = ['' for _ in range(len(pbp))]
+    times = ['0:00' for _ in range(len(pbp))]
+    event = ['NA' for _ in range(len(pbp))]
 
-    team = [-1 for i in range(len(pbp))]
-    p1 = [-1 for i in range(len(pbp))]
-    p1role = ['' for i in range(len(pbp))]
-    p2 = [-1 for i in range(len(pbp))]
-    p2role = ['' for i in range(len(pbp))]
-    xy = [(np.NaN, np.NaN) for i in range(len(pbp))]
-    note = ['' for i in range(len(pbp))]
+    team = [-1 for _ in range(len(pbp))]
+    p1 = [-1 for _ in range(len(pbp))]
+    p1role = ['' for _ in range(len(pbp))]
+    p2 = [-1 for _ in range(len(pbp))]
+    p2role = ['' for _ in range(len(pbp))]
+    xs = [np.NaN for _ in range(len(pbp))]
+    ys = [np.NaN for _ in range(len(pbp))]
+    note = ['' for _ in range(len(pbp))]
 
     for i in range(len(pbp)):
-        period[i] = int(pbp[i]['about']['period'])
-        time[i] = pbp[i]['about']['periodTime']
-        event[i] = pbp[i]['result']['event']
+        period[i] = scrape_setup.try_to_access_dict(pbp, i, 'about', 'period', default_return='')
+        times[i] = scrape_setup.try_to_access_dict(pbp, i, 'about', 'periodTime', default_return='0:00')
+        event[i] = scrape_setup.try_to_access_dict(pbp, i, 'result', 'event', default_return='NA')
 
-        try:
-            xy[i] = (float(pbp[i]['coordinates']['x']), float(pbp[i]['coordinates']['y']))
-        except KeyError:
-            pass
-        try:
-            team[i] = pbp[i]['team']['id']
-        except KeyError:
-            pass
-        try:
-            p1[i] = pbp[i]['players'][0]['player']['id']
-            p1role[i] = pbp[i]['players'][0]['playerType']
-        except KeyError:
-            pass
-        try:
-            p2[i] = pbp[i]['players'][1]['player']['id']
-            p2role[i] = pbp[i]['players'][1]['playerType']
-        except KeyError:
-            pass
-        except IndexError: #e.g. on a give or take
-            pass
+        xs[i] = float(scrape_setup.try_to_access_dict(pbp, i, 'coordinates', 'x', default_return=np.NaN))
+        ys[i] = float(scrape_setup.try_to_access_dict(pbp, i, 'coordinates', 'y', default_return=np.NaN))
+        team[i] = scrape_setup.try_to_access_dict(pbp, i, 'team', 'id', default_return=-1)
 
-        try:
-            note[i] = pbp[i]['result']['description']
-        except KeyError:
-            pass
+        p1[i] = scrape_setup.try_to_access_dict(pbp, i, 'players', 0, 'player', 'id', default_return=-1)
+        p1role[i] = scrape_setup.try_to_access_dict(pbp, i, 'players', 0, 'playerType', default_return='')
+        p2[i] = scrape_setup.try_to_access_dict(pbp, i, 'players', 1, 'player', 'id', default_return=-1)
+        p2role[i] = scrape_setup.try_to_access_dict(pbp, i, 'players', 1, 'playerType', default_return='')
 
-        #print(period[i], time[i], event[i], xy[i], team[i], p1[i], p1role[i], p2[i], p2role[i])
+        note[i] = scrape_setup.try_to_access_dict(pbp, i, 'result', 'description', default_return='')
 
-    pbpdf = pd.DataFrame({'Index': index, 'Period': period, 'Time': time, 'Event': event,
+    pbpdf = pd.DataFrame({'Index': index, 'Period': period, 'Time': times, 'Event': event,
                           'Team': team, 'Actor': p1, 'ActorRole': p1role, 'Recipient': p2, 'RecipientRole': p2role,
-                          'XY': xy, 'Note': note})
+                          'X': xs, 'Y': ys, 'Note': note})
+    if len(pbpdf) == 0:
+        return pbpdf
+
+    # Add score
+    gameinfo = scrape_setup.get_game_data_from_schedule(season, game)
+    homegoals = pbpdf[['Event', 'Period', 'Time', 'Team']] \
+        .query('Team == {0:d} & Event == "Goal"'.format(gameinfo['Home']))  # TODO check team log for value_counts() of Event.
+    roadgoals = pbpdf[['Event', 'Period', 'Time', 'Team']] \
+        .query('Team == {0:d} & Event == "Goal"'.format(gameinfo['Road']))
+
+    if len(homegoals) > 0:  # errors if len is 0
+        homegoals.loc[:, 'HomeScore'] = 1
+        homegoals.loc[:, 'HomeScore'] = homegoals.HomeScore.cumsum()
+        pbpdf = pbpdf.merge(homegoals, how='left', on=['Event', 'Period', 'Time', 'Team'])
+
+    if len(roadgoals) > 0:
+        roadgoals.loc[:, 'RoadScore'] = 1
+        roadgoals.loc[:, 'RoadScore'] = roadgoals.RoadScore.cumsum()
+        pbpdf = pbpdf.merge(roadgoals, how='left', on=['Event', 'Period', 'Time', 'Team'])
+        # TODO check: am I counting shootout goals?
+
+    # Make the first row show 0 for both teams
+    pbpdf.loc[pbpdf.Index == 0, 'HomeScore'] = 0
+    pbpdf.loc[pbpdf.Index == 0, 'RoadScore'] = 0
+
+    # And now forward fill
+    pbpdf.loc[:, "HomeScore"] = pbpdf.HomeScore.fillna(method='ffill')
+    pbpdf.loc[:, "RoadScore"] = pbpdf.RoadScore.fillna(method='ffill')
+
     return pbpdf
 
 
@@ -361,8 +433,8 @@ def update_player_ids_from_page(pbp):
     :param pbp: json, the raw pbp
     :return: nothing
     """
-    players = pbp['gameData']['players'] # yields the subdictionary with players
-    ids = [key[2:] for key in players] # keys are format "ID[PlayerID]"; pull that PlayerID part
+    players = pbp['gameData']['players']  # yields the subdictionary with players
+    ids = [key[2:] for key in players]  # keys are format "ID[PlayerID]"; pull that PlayerID part
     scrape_setup.update_player_ids_file(ids)
 
 
@@ -375,16 +447,20 @@ def parse_game_pbp(season, game, force_overwrite=False):
     :param force_overwrite: bool. If True, will execute. If False, executes only if file does not exist yet.
     :return: True if parsed, False if not
     """
-    filename = scrape_setup.get_game_raw_pbp_filename(season, game)
+    filename = scrape_setup.get_game_parsed_pbp_filename(season, game)
     if not force_overwrite and os.path.exists(filename):
         return False
 
+    # TODO for some earlier seasons I need to read HTML instead.
+    # Looks like 2010-11 is the first year where this feed supplies more than just boxscore data
     rawpbp = open_raw_pbp(season, game)
     update_player_ids_from_page(rawpbp)
     update_player_logs_from_page(rawpbp, season, game)
     update_schedule_with_coaches(rawpbp, season, game)
     update_schedule_with_result(rawpbp, season, game)
-    #parsedpbp = read_events_from_page(rawpbp)
+
+    parsedpbp = read_events_from_page(rawpbp, season, game)
+    save_parsed_pbp(parsedpbp, season, game)
     return True
 
 
@@ -411,10 +487,12 @@ def update_schedule_with_result(pbp, season, game):
         result = 'L'
     else:
         # Check for the final period
-        finalplayperiod = scrape_setup._try_to_access_dict(pbp, 'liveData', 'linescore', 'currentPeriodOrdinal')
+        finalplayperiod = scrape_setup.try_to_access_dict(pbp, 'liveData', 'linescore', 'currentPeriodOrdinal')
 
         # Identify SO vs OT vs regulation
-        if finalplayperiod == 'SO':
+        if finalplayperiod is None:
+            pass
+        elif finalplayperiod == 'SO':
             if gameinfo['HomeScore'] > gameinfo['RoadScore']:
                 result = 'SOW'
             elif gameinfo['RoadScore'] > gameinfo['HomeScore']:
@@ -430,7 +508,7 @@ def update_schedule_with_result(pbp, season, game):
             elif gameinfo['RoadScore'] > gameinfo['HomeScore']:
                 result = 'L'
 
-    scrape_setup._update_schedule_with_result(season, game, result)
+    scrape_setup.update_schedule_with_result(season, game, result)
 
 
 def update_schedule_with_coaches(pbp, season, game):
@@ -442,11 +520,11 @@ def update_schedule_with_coaches(pbp, season, game):
     :return: nothing
     """
 
-    homecoach = scrape_setup._try_to_access_dict(pbp, 'liveData', 'boxscore', 'teams', 'home',
-                                                 'coaches', 0, 'person', 'fullName')
-    roadcoach = scrape_setup._try_to_access_dict(pbp, 'liveData', 'boxscore', 'teams', 'away',
-                                                 'coaches', 0, 'person', 'fullName')
-    scrape_setup._update_schedule_with_coaches(season, game, homecoach, roadcoach)
+    homecoach = scrape_setup.try_to_access_dict(pbp, 'liveData', 'boxscore', 'teams', 'home',
+                                                'coaches', 0, 'person', 'fullName')
+    roadcoach = scrape_setup.try_to_access_dict(pbp, 'liveData', 'boxscore', 'teams', 'away',
+                                                'coaches', 0, 'person', 'fullName')
+    scrape_setup.update_schedule_with_coaches(season, game, homecoach, roadcoach)
 
 
 def parse_game_toi(season, game, force_overwrite=False):
@@ -457,8 +535,37 @@ def parse_game_toi(season, game, force_overwrite=False):
     :param force_overwrite: bool. If True, will execute. If False, executes only if file does not exist yet.
     :return: nothing
     """
-    return False
+    filename = scrape_setup.get_game_parsed_toi_filename(season, game)
+    if not force_overwrite and os.path.exists(filename):
+        return False
 
+    # TODO for some earlier seasons I need to read HTML instead.
+    # Looks like 2010-11 is the first year where this feed supplies more than just boxscore data
+    rawtoi = open_raw_toi(season, game)
+    parsedtoi = read_shifts_from_page(rawtoi, season, game)
+    if parsedtoi is None:
+        return False
+
+    # PbP doesn't have strengths, so let's add those in
+    update_pbp_from_toi(parsedtoi, season, game)
+    save_parsed_toi(parsedtoi, season, game)
+    return True
+
+    # TODO
+
+def update_pbp_from_toi(parsedtoi, season, game):
+    """
+
+    :param parsedtoi:
+    :param season: int, the season
+    :param game: int, the game
+    :return:
+    """
+
+    pass
+    # Read parsed pbp (have to create new method maybe)
+    # left join to parsed toi[Time, HStrength, RStrength] on time
+    # write to file again
 
 def autoupdate(season=None):
     """
@@ -508,15 +615,15 @@ def autoupdate(season=None):
     for game in games:
         try:
             _ = scrape_game_pbp(season, game, False)
-            scrape_setup._update_schedule_with_pbp_scrape(season, game)
-            parse_game_pbp(season, game, True)
+            scrape_setup.update_schedule_with_pbp_scrape(season, game)
+            parse_game_pbp(season, game, False)
         except urllib.error.HTTPError as he:
             print('Could not access pbp url for', season, game, he)
         except urllib.error.URLError as ue:
             print('Could not access pbp url for', season, game, ue)
         try:
             _ = scrape_game_toi(season, game, False)
-            scrape_setup._update_schedule_with_toi_scrape(season, game)
+            scrape_setup.update_schedule_with_toi_scrape(season, game)
             parse_game_toi(season, game, True)
         except urllib.error.HTTPError as he:
             print('Could not access toi url for', season, game, he)
@@ -526,5 +633,5 @@ def autoupdate(season=None):
         print('Done with', season, game, "(final)")
 
 if __name__ == "__main__":
-    for season in range(2006, 2018):
-        autoupdate(season)
+    for yr in range(2015, 2018):
+        autoupdate(yr)        
