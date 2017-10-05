@@ -210,6 +210,7 @@ def read_shifts_from_page(rawtoi, season, game):
     teams = ['' for _ in range(len(toi))]
     durations = [0 for _ in range(len(toi))]
 
+    # The shifts are ordered shortest duration to longest.
     for i, dct in enumerate(toi):
         ids[i] = scrape_setup.try_to_access_dict(dct, 'playerId', default_return='')
         periods[i] = scrape_setup.try_to_access_dict(dct, 'period', default_return=0)
@@ -232,7 +233,18 @@ def read_shifts_from_page(rawtoi, season, game):
 
     df = pd.DataFrame({'PlayerID': ids, 'Period': periods, 'Start': starttimes, 'End': endtimes,
                        'Team': teams, 'Duration': durationtime})
-    df.loc[df.End < df.Start, 'End'] = df.End + 1200
+    # TODO don't read end times. Use duration, which has good coverage, to infer end. Then end + 1200 not needed below.
+    # Sometimes shifts have the same start and time.
+    # By the time we're here, they'll have start = end + 1
+    # So let's remove shifts with duration -1
+    df = df[df.Start != df.End + 1]
+
+    # Sometimes you see goalies with a shift starting in one period and ending in another
+    # This is to help in those cases.
+    if sum(df.End < df.Start) > 0:
+        print('Have to adjust a shift time')
+        print(df[df.End < df.Start])
+        df.loc[df.End < df.Start, 'End'] = df.End + 1200
     # One issue coming up is when the above line comes into play--missing times are filled in as 0:00
     tempdf = df[['PlayerID', 'Start', 'End', 'Team', 'Duration']]
     tempdf = tempdf.assign(Time=tempdf.Start)
@@ -322,6 +334,10 @@ def read_shifts_from_page(rawtoi, season, game):
     rdf.loc[:, 'rank'] = 'R' + rdf2['rank'].astype('str')
 
     # Remove values above 6--looking like there won't be many
+    if len(hdf[hdf['rank'] == "H7"]) > 0:
+        print('Some times from', season, game, 'have too many home players; cutting off at 6')
+    if len(rdf[rdf['rank'] == "R7"]) > 0:
+        print('Some times from', season, game, 'have too many road players; cutting off at 6')
     hdf = hdf.pivot(index='Time', columns='rank', values='PlayerID').iloc[:, 0:6]
     hdf.reset_index(inplace=True)  # get time back as a column
     rdf = rdf.pivot(index='Time', columns='rank', values='PlayerID').iloc[:, 0:6]
@@ -356,10 +372,11 @@ def read_shifts_from_page(rawtoi, season, game):
     # Also drop -1+1 and 0+1 cases, which are clearly errors, and the like.
     # Need at least 3 skaters apiece, 1 goalie apiece, time, and strengths to be non-NA = 11 non NA values
     toi2 = toi.dropna(axis=0, thresh=11)  # drop rows without at least 11 non-NA values
+    if len(toi2) < len(toi):
+        print('Dropped some times in', season, game, 'because of invalid strengths')
 
     # TODO data quality check that I don't miss times in the middle of the game
 
-    # TODO not quite right still b/c of data issues I think. Need to fix.
     return toi2
 
 
@@ -577,7 +594,8 @@ def parse_game_toi(season, game, force_overwrite=False):
         return False
 
     # PbP doesn't have strengths, so let's add those in
-    update_pbp_from_toi(parsedtoi, season, game)
+    # Ok maybe leave strengths, scores, etc, for team logs
+    # update_pbp_from_toi(parsedtoi, season, game)
     save_parsed_toi(parsedtoi, season, game)
     return True
 
