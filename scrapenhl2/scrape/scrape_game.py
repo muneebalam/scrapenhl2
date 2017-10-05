@@ -233,6 +233,7 @@ def read_shifts_from_page(rawtoi, season, game):
     df = pd.DataFrame({'PlayerID': ids, 'Period': periods, 'Start': starttimes, 'End': endtimes,
                        'Team': teams, 'Duration': durationtime})
     df.loc[df.End < df.Start, 'End'] = df.End + 1200
+    # One issue coming up is when the above line comes into play--missing times are filled in as 0:00
     tempdf = df[['PlayerID', 'Start', 'End', 'Team', 'Duration']]
     tempdf = tempdf.assign(Time=tempdf.Start)
     # print(tempdf.head(20))
@@ -244,21 +245,56 @@ def read_shifts_from_page(rawtoi, season, game):
 
     toi = pd.DataFrame({'Time': [i for i in range(0, max(df.End) + 1)]})
 
-    # This is a hacky way to fill in times between shift start and end: increment tempdf by one, filter, and join
-    # TODO find a better way
-    toidfs = []
-    while len(tempdf.index) > 0:
-        temptoi = toi.merge(tempdf, how='inner', on='Time')
-        toidfs.append(temptoi)
+    # Originally used a hacky way to fill in times between shift start and end: increment tempdf by one, filter, join
+    # Faster to work with base structures
+    # Or what if I join each player to full df, fill backward on start and end, and filter out rows where end > time
+    #toidict = toi.to_dict(orient='list')
+    #players_by_sec = [[] for _ in range(min(toidict['Start'], toidict['End'] + 1))]
+    #for i in range(len(players_by_sec)):
+    #    for j in range(toidict['Start'][i], toidict['End'][i] + 1):
+    #        players_by_sec[j].append(toidict['PlayerID'][i])
+    # Maybe I can create a matrix with rows = time and columns = players
+    # Loop over start and end, and use iloc[] to set booleans en masse.
+    # Then melt and filter
 
-        tempdf = tempdf.assign(Time=tempdf.Time + 1)
-        tempdf = tempdf.query('Time <= End')
+    # Create one row per second
+    alltimes = toi.Time
+    newdf = pd.DataFrame(index=alltimes)
 
-    tempdf = pd.concat(toidfs)
-    tempdf = tempdf.sort_values(by='Time')
+    # Add rows and set times to True simultaneously
+    for i, (pid, start, end, team, duration, time, pid, pos) in tempdf.iterrows():
+        newdf.loc[start:end, pid] = True
 
-    goalies = tempdf[tempdf.Pos == 'G'].drop({'ID', 'Pos'}, axis=1)
-    tempdf = tempdf[tempdf.Pos != 'G'].drop({'ID', 'Pos'}, axis=1)
+    # Fill NAs to False
+    for col in newdf:
+        newdf.loc[:, col] = newdf[col].fillna(False)
+
+    # Go wide to long and then drop unneeded rows
+    newdf = newdf.reset_index().melt(id_vars='Time', value_vars=newdf.columns,
+                                     var_name='PlayerID', value_name='OnIce')
+    newdf = newdf[newdf.OnIce].drop('OnIce', axis=1)
+    newdf = newdf.merge(tempdf.drop('Time', axis=1), how='left', on='PlayerID') \
+        .query("Time <= End & Time >= Start") \
+        .drop('ID', axis=1)
+
+    # In case there were rows that were all missing, join onto TOI
+    tempdf = toi.merge(newdf, how='left', on='Time')
+    # TODO continue here--does newdf match tempdf after sort_values?
+
+    # Old method
+    #toidfs = []
+    #while len(tempdf.index) > 0:
+    #    temptoi = toi.merge(tempdf, how='inner', on='Time')
+    #    toidfs.append(temptoi)
+
+    #    tempdf = tempdf.assign(Time=tempdf.Time + 1)
+    #    tempdf = tempdf.query('Time <= End')
+
+    #tempdf = pd.concat(toidfs)
+    #tempdf = tempdf.sort_values(by='Time')
+
+    goalies = tempdf[tempdf.Pos == 'G'].drop({'Pos'}, axis=1)
+    tempdf = tempdf[tempdf.Pos != 'G'].drop({'Pos'}, axis=1)
 
     # Append team name to start of columns by team
     home = str(gameinfo['Home'])
@@ -274,27 +310,16 @@ def read_shifts_from_page(rawtoi, season, game):
 
     # Home
     hdf = tempdf.query('Team == "' + home + '"')
-    hdf2 = hdf.groupby('Time').rank(method='first')
+    hdf2 = hdf[['Time', 'PlayerID']].groupby('Time').rank() # TODO fix rank. need method = first to break ties
     hdf2 = hdf2.rename(columns={'PlayerID': 'rank'})
     hdf2.loc[:, 'rank'] = hdf2['rank'].apply(lambda x: int(x))
     hdf.loc[:, 'rank'] = 'H' + hdf2['rank'].astype('str')
 
     rdf = tempdf.query('Team == "' + road + '"')
-    rdf2 = rdf.groupby('Time').rank(method='first')
+    rdf2 = rdf[['Time', 'PlayerID']].groupby('Time').rank()
     rdf2 = rdf2.rename(columns={'PlayerID': 'rank'})
     rdf2.loc[:, 'rank'] = rdf2['rank'].apply(lambda x: int(x))
     rdf.loc[:, 'rank'] = 'R' + rdf2['rank'].astype('str')
-
-    # Occasionally bad entries make duplicates on time and rank. Take one with longer duration
-    tokeep = hdf.sort_values(by='Duration', ascending=False)
-    tokeep = tokeep.groupby(['Time', 'PlayerID']).first()
-    tokeep.reset_index(inplace=True)
-    hdf = hdf.merge(tokeep, how='inner', on=['Time', 'PlayerID', 'Start', 'End', 'Team', 'rank'])
-
-    tokeep = rdf.sort_values(by='Duration', ascending=False)
-    tokeep = tokeep.groupby(['Time', 'PlayerID']).first()
-    tokeep.reset_index(inplace=True)
-    rdf = rdf.merge(tokeep, how='inner', on=['Time', 'PlayerID', 'Start', 'End', 'Team', 'rank'])
 
     # Remove values above 6--looking like there won't be many
     hdf = hdf.pivot(index='Time', columns='rank', values='PlayerID').iloc[:, 0:6]
@@ -335,7 +360,7 @@ def read_shifts_from_page(rawtoi, season, game):
     # TODO data quality check that I don't miss times in the middle of the game
 
     # TODO not quite right still b/c of data issues I think. Need to fix.
-    return toi
+    return toi2
 
 
 def read_events_from_page(rawpbp, season, game):
@@ -542,7 +567,12 @@ def parse_game_toi(season, game, force_overwrite=False):
     # TODO for some earlier seasons I need to read HTML instead.
     # Looks like 2010-11 is the first year where this feed supplies more than just boxscore data
     rawtoi = open_raw_toi(season, game)
-    parsedtoi = read_shifts_from_page(rawtoi, season, game)
+    try:
+        parsedtoi = read_shifts_from_page(rawtoi, season, game)
+    except ValueError:
+        print('Error with', season, game)
+        parsedtoi = None
+
     if parsedtoi is None:
         return False
 
@@ -633,5 +663,5 @@ def autoupdate(season=None):
         print('Done with', season, game, "(final)")
 
 if __name__ == "__main__":
-    for yr in range(2015, 2018):
+    for yr in range(2010, 2017):
         autoupdate(yr)        
