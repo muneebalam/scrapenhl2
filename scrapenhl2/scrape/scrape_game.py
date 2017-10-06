@@ -7,7 +7,8 @@ import urllib.request
 import urllib.error
 import zlib
 import numpy as np
-import time
+from time import sleep  # this frees up time for use as variable name
+import pyarrow
 
 
 def scrape_game_pbp(season, game, force_overwrite=False):
@@ -33,7 +34,8 @@ def scrape_game_pbp(season, game, force_overwrite=False):
     with urllib.request.urlopen(url) as reader:
         page = reader.read()
     save_raw_pbp(page, season, game)
-    # time.sleep(1)
+    print('Scraped pbp for', season, game)
+    sleep(1)  # Don't want to overload NHL servers
 
     # It's most efficient to parse with page in memory, but for sake of simplicity will do it later
     # pbp = read_pbp_events_from_page(page)
@@ -57,7 +59,8 @@ def scrape_game_toi(season, game, force_overwrite=False):
     with urllib.request.urlopen(url) as reader:
         page = reader.read()
     save_raw_toi(page, season, game)
-    # time.sleep(1)
+    print('Scraped toi for', season, game)
+    sleep(1)  # Don't want to overload NHL servers
 
     # It's most efficient to parse with page in memory, but for sake of simplicity will do it later
     # toi = read_toi_from_page(page)
@@ -144,16 +147,125 @@ def open_raw_toi(season, game):
     return json.loads(str(zlib.decompress(page).decode('latin-1')))
 
 
-def update_team_logs(newdata, season, game):
-    pass
+def open_parsed_pbp(season, game):
+    """
+    Loads the compressed json file containing this game's play by play from disk.
+    :param season: int, the season
+    :param game: int, the game
+    :return: json, the json pbp
+    """
+    return pd.read_hdf(scrape_setup.get_game_parsed_pbp_filename(season, game))
 
 
-def update_team_pbp(newdata, season, game, team):
-    pass
+def open_parsed_toi(season, game):
+    """
+    Loads the compressed json file containing this game's shifts from disk.
+    :param season: int, the season
+    :param game: int, the game
+    :return: json, the json shifts
+    """
+    return pd.read_hdf(scrape_setup.get_game_parsed_toi_filename(season, game))
 
 
-def update_team_toi(newdata, season, game, team):
-    pass
+def update_team_logs(season, force_overwrite=False):
+    """
+    This method looks at the schedule for the given season and writes pbp for scraped games to file.
+    It also adds the strength at each pbp event to the log.
+    :param season: int, the season
+    :param force_overwrite: bool, whether to generate from scratch
+    :return:
+    """
+    # TODO
+    # For each team
+    new_games_to_do = scrape_setup.get_season_schedule(season) \
+        .query('PBPStatus == "Scraped" & TOIStatus == "Scraped"')
+    allteams = list(new_games_to_do.Home.append(new_games_to_do.Road).unique())
+
+    for teami, team in enumerate(allteams):
+
+        # Compare existing log to schedule to find missing games
+        newgames = new_games_to_do[(new_games_to_do.Home == team) | (new_games_to_do.Road == team)]
+        if force_overwrite:
+            pbpdf = None
+            toidf = None
+        else:
+            # Read currently existing ones for each team and anti join to schedule to find missing games
+            try:
+                pbpdf = scrape_setup.get_team_pbp(season, team)
+                newgames = newgames.merge(pbpdf[['Game']].drop_duplicates(), how='outer', on='Game', indicator=True)
+                newgames = newgames[newgames._merge == "left_only"].drop('_merge', axis=1)
+            except FileNotFoundError:
+                pbpdf = None
+            except pyarrow.lib.ArrowIOError:  # pyarrow (feather) FileNotFoundError equivalent
+                pbpdf = None
+
+            try:
+                toidf = scrape_setup.get_team_toi(season, team)
+                newgames = newgames.merge(pbpdf[['Game']].drop_duplicates(), how='outer', on='Game', indicator=True)
+                newgames = newgames[newgames._merge == "left_only"].drop('_merge', axis=1)
+            except FileNotFoundError:
+                toidf = None
+            except pyarrow.lib.ArrowIOError:  # pyarrow (feather) FileNotFoundError equivalent
+                toidf = None
+
+        for i, gamerow in newgames.iterrows():
+            game = gamerow[1]
+            home = gamerow[2]
+            road = gamerow[4]
+
+            # load parsed pbp and toi
+            try:
+                gamepbp = open_parsed_pbp(season, game)
+                gametoi = open_parsed_toi(season, game)
+                # TODO 2016 20779 why does pbp have 0 rows?
+                # Also check for other errors in parsing etc
+
+                if len(gamepbp) > 0 and len(gametoi) > 0:
+                    # Rename score and strength columns from home/road to team/opp
+                    if team == home:
+                        gametoi = gametoi.assign(TeamStrength = gametoi.HomeStrength, OppStrength=gametoi.RoadStrength) \
+                                        .drop({'HomeStrength', 'RoadStrength'}, axis=1)
+                        gamepbp = gamepbp.assign(TeamScore = gamepbp.HomeScore, OppScore=gamepbp.RoadScore) \
+                                        .drop({'HomeScore', 'RoadScore'}, axis=1)
+                    else:
+                        gametoi = gametoi.assign(TeamStrength=gametoi.RoadStrength, OppStrength=gametoi.HomeStrength) \
+                                    .drop({'HomeStrength', 'RoadStrength'}, axis=1)
+                        gamepbp = gamepbp.assign(TeamScore=gamepbp.RoadScore, OppScore=gamepbp.HomeScore) \
+                                    .drop({'HomeScore', 'RoadScore'}, axis=1)
+
+                    # add scores to toi and strengths to pbp
+                    gamepbp = gamepbp.merge(gametoi[['Time', 'TeamStrength', 'OppStrength']], how='left', on='Time')
+                    gametoi = gametoi.merge(gamepbp[['Time', 'TeamScore', 'OppScore']], how='left', on='Time')
+                    gametoi.loc[:, 'TeamScore'] = gametoi.TeamScore.fillna(method='ffill')
+                    gametoi.loc[:, 'OppScore'] = gametoi.OppScore.fillna(method='ffill')
+
+                    # finally, add game, home, and road to both dfs
+                    pbpdf.loc[:, 'Game'] = game
+                    pbpdf.loc[:, 'Home'] = home
+                    pbpdf.loc[:, 'Road'] = road
+                    toidf.loc[:, 'Game'] = game
+                    toidf.loc[:, 'Home'] = home
+                    toidf.loc[:, 'Road'] = road
+
+                    # concat toi and pbp
+                    if pbpdf is None:
+                        pbpdf = gamepbp
+                    else:
+                        pbpdf = pd.concat([pbpdf, gamepbp])
+                    if toidf is None:
+                        toidf = gametoi
+                    else:
+                        toidf = pd.concat([toidf, gametoi])
+
+            except FileNotFoundError:
+                pass
+
+        # write to file
+        scrape_setup.write_team_pbp(pbpdf, season, team)
+        scrape_setup.write_team_toi(toidf, season, team)
+        print('Done with team logs for', season, scrape_setup.team_as_str(team),
+              '({0:d}/{1:d})'.format(teami + 1, len(allteams)))
+    print('Updated team logs for', season)
 
 
 def update_player_logs_from_page(pbp, season, game):
@@ -242,7 +354,7 @@ def read_shifts_from_page(rawtoi, season, game):
     # Sometimes you see goalies with a shift starting in one period and ending in another
     # This is to help in those cases.
     if sum(df.End < df.Start) > 0:
-        print('Have to adjust a shift time')
+        print('Have to adjust a shift time')  # TODO I think I'm making a mistake with overtime shifts--end at 3900!
         print(df[df.End < df.Start])
         df.loc[df.End < df.Start, 'End'] = df.End + 1200
     # One issue coming up is when the above line comes into play--missing times are filled in as 0:00
@@ -260,9 +372,9 @@ def read_shifts_from_page(rawtoi, season, game):
     # Originally used a hacky way to fill in times between shift start and end: increment tempdf by one, filter, join
     # Faster to work with base structures
     # Or what if I join each player to full df, fill backward on start and end, and filter out rows where end > time
-    #toidict = toi.to_dict(orient='list')
-    #players_by_sec = [[] for _ in range(min(toidict['Start'], toidict['End'] + 1))]
-    #for i in range(len(players_by_sec)):
+    # toidict = toi.to_dict(orient='list')
+    # players_by_sec = [[] for _ in range(min(toidict['Start'], toidict['End'] + 1))]
+    # for i in range(len(players_by_sec)):
     #    for j in range(toidict['Start'][i], toidict['End'][i] + 1):
     #        players_by_sec[j].append(toidict['PlayerID'][i])
     # Maybe I can create a matrix with rows = time and columns = players
@@ -294,16 +406,16 @@ def read_shifts_from_page(rawtoi, season, game):
     # TODO continue here--does newdf match tempdf after sort_values?
 
     # Old method
-    #toidfs = []
-    #while len(tempdf.index) > 0:
+    # toidfs = []
+    # while len(tempdf.index) > 0:
     #    temptoi = toi.merge(tempdf, how='inner', on='Time')
     #    toidfs.append(temptoi)
 
     #    tempdf = tempdf.assign(Time=tempdf.Time + 1)
     #    tempdf = tempdf.query('Time <= End')
 
-    #tempdf = pd.concat(toidfs)
-    #tempdf = tempdf.sort_values(by='Time')
+    # tempdf = pd.concat(toidfs)
+    # tempdf = tempdf.sort_values(by='Time')
 
     goalies = tempdf[tempdf.Pos == 'G'].drop({'Pos'}, axis=1)
     tempdf = tempdf[tempdf.Pos != 'G'].drop({'Pos'}, axis=1)
@@ -386,7 +498,8 @@ def read_events_from_page(rawpbp, season, game):
 
     - Index: int, index of event
     - Period: str, period of event. In regular season, could be 1, 2, 3, OT, or SO. In playoffs, 1, 2, 3, 4, 5...
-    - Time: str, m:ss, time elapsed in period
+    - MinSec: str, m:ss, time elapsed in period
+    - Time: int, time elapsed in game
     - Event: str, the event name
     - Team: int, the team id
     - Actor: int, the acting player id
@@ -434,7 +547,7 @@ def read_events_from_page(rawpbp, season, game):
 
         note[i] = scrape_setup.try_to_access_dict(pbp, i, 'result', 'description', default_return='')
 
-    pbpdf = pd.DataFrame({'Index': index, 'Period': period, 'Time': times, 'Event': event,
+    pbpdf = pd.DataFrame({'Index': index, 'Period': period, 'MinSec': times, 'Event': event,
                           'Team': team, 'Actor': p1, 'ActorRole': p1role, 'Recipient': p2, 'RecipientRole': p2role,
                           'X': xs, 'Y': ys, 'Note': note})
     if len(pbpdf) == 0:
@@ -442,29 +555,50 @@ def read_events_from_page(rawpbp, season, game):
 
     # Add score
     gameinfo = scrape_setup.get_game_data_from_schedule(season, game)
-    homegoals = pbpdf[['Event', 'Period', 'Time', 'Team']] \
-        .query('Team == {0:d} & Event == "Goal"'.format(gameinfo['Home']))  # TODO check team log for value_counts() of Event.
-    roadgoals = pbpdf[['Event', 'Period', 'Time', 'Team']] \
+    homegoals = pbpdf[['Event', 'Period', 'MinSec', 'Team']] \
+        .query('Team == {0:d} & Event == "Goal"'.format(gameinfo['Home']))
+    # TODO check team log for value_counts() of Event.
+    roadgoals = pbpdf[['Event', 'Period', 'MinSec', 'Team']] \
         .query('Team == {0:d} & Event == "Goal"'.format(gameinfo['Road']))
 
     if len(homegoals) > 0:  # errors if len is 0
         homegoals.loc[:, 'HomeScore'] = 1
         homegoals.loc[:, 'HomeScore'] = homegoals.HomeScore.cumsum()
-        pbpdf = pbpdf.merge(homegoals, how='left', on=['Event', 'Period', 'Time', 'Team'])
+        pbpdf = pbpdf.merge(homegoals, how='left', on=['Event', 'Period', 'MinSec', 'Team'])
 
     if len(roadgoals) > 0:
         roadgoals.loc[:, 'RoadScore'] = 1
         roadgoals.loc[:, 'RoadScore'] = roadgoals.RoadScore.cumsum()
-        pbpdf = pbpdf.merge(roadgoals, how='left', on=['Event', 'Period', 'Time', 'Team'])
+        pbpdf = pbpdf.merge(roadgoals, how='left', on=['Event', 'Period', 'MinSec', 'Team'])
         # TODO check: am I counting shootout goals?
 
     # Make the first row show 0 for both teams
+    # TODO does this work for that one game that got stopped?
+    # Maybe I should fill forward first, then replace remaining NA with 0
     pbpdf.loc[pbpdf.Index == 0, 'HomeScore'] = 0
     pbpdf.loc[pbpdf.Index == 0, 'RoadScore'] = 0
 
     # And now forward fill
     pbpdf.loc[:, "HomeScore"] = pbpdf.HomeScore.fillna(method='ffill')
     pbpdf.loc[:, "RoadScore"] = pbpdf.RoadScore.fillna(method='ffill')
+
+    # Convert MM:SS and period to time in game
+    minsec = pbpdf.MinSec.str.split(':', expand=True)
+    minsec.columns = ['Min', 'Sec']
+    minsec.Period = pbpdf.Period
+    minsec.loc[:, 'Min'] = pd.to_numeric(minsec.loc[:, 'Min'])
+    minsec.loc[:, 'Sec'] = pd.to_numeric(minsec.loc[:, 'Sec'])
+    minsec.loc[:, 'TimeInPeriod'] = 60 * minsec.Min + minsec.Sec
+
+    def period_contribution(x):
+        try:
+            return 1200 * (x-1)
+        except ValueError:
+            return 3600 if x == 'OT' else 3900  # OT or SO
+
+    minsec.loc[:, 'PeriodContribution'] = minsec.Period.apply(period_contribution)
+    minsec.loc[:, 'Time'] = minsec.PeriodContribution + minsec.TimeInPeriod
+    pbpdf.loc[:, 'Time'] = minsec.Time
 
     return pbpdf
 
@@ -503,6 +637,7 @@ def parse_game_pbp(season, game, force_overwrite=False):
 
     parsedpbp = read_events_from_page(rawpbp, season, game)
     save_parsed_pbp(parsedpbp, season, game)
+    print('Parsed events for', season, game)
     return True
 
 
@@ -587,7 +722,7 @@ def parse_game_toi(season, game, force_overwrite=False):
     try:
         parsedtoi = read_shifts_from_page(rawtoi, season, game)
     except ValueError:
-        print('Error with', season, game)
+        print('Error with', season, game)  # TODO look through 2016, getting some errors
         parsedtoi = None
 
     if parsedtoi is None:
@@ -597,23 +732,11 @@ def parse_game_toi(season, game, force_overwrite=False):
     # Ok maybe leave strengths, scores, etc, for team logs
     # update_pbp_from_toi(parsedtoi, season, game)
     save_parsed_toi(parsedtoi, season, game)
+    print('Parsed shifts for', season, game)
     return True
 
     # TODO
 
-def update_pbp_from_toi(parsedtoi, season, game):
-    """
-
-    :param parsedtoi:
-    :param season: int, the season
-    :param game: int, the game
-    :return:
-    """
-
-    pass
-    # Read parsed pbp (have to create new method maybe)
-    # left join to parsed toi[Time, HStrength, RStrength] on time
-    # write to file again
 
 def autoupdate(season=None):
     """
@@ -628,6 +751,7 @@ def autoupdate(season=None):
     sch = scrape_setup.get_season_schedule(season)
 
     # First, for all games that were in progress during last scrape, scrape again and parse again
+    # TODO check that this actually works!
     inprogress = sch.query('Status == "In Progress"')
     inprogressgames = inprogress.Game.values
     inprogressgames.sort()
@@ -661,25 +785,33 @@ def autoupdate(season=None):
     games = games.Game.values
     games.sort()
     for game in games:
+        gotpbp = False
+        gottoi = False
         try:
-            _ = scrape_game_pbp(season, game, False)
-            scrape_setup.update_schedule_with_pbp_scrape(season, game)
+            gotpbp = scrape_game_pbp(season, game, False)
+            if gotpbp:
+                scrape_setup.update_schedule_with_pbp_scrape(season, game)
             parse_game_pbp(season, game, False)
         except urllib.error.HTTPError as he:
             print('Could not access pbp url for', season, game, he)
         except urllib.error.URLError as ue:
             print('Could not access pbp url for', season, game, ue)
         try:
-            _ = scrape_game_toi(season, game, False)
-            scrape_setup.update_schedule_with_toi_scrape(season, game)
+            gottoi = scrape_game_toi(season, game, False)
+            if gottoi:
+                scrape_setup.update_schedule_with_toi_scrape(season, game)
             parse_game_toi(season, game, True)
         except urllib.error.HTTPError as he:
             print('Could not access toi url for', season, game, he)
         except urllib.error.URLError as ue:
             print('Could not access toi url for', season, game, ue)
 
-        print('Done with', season, game, "(final)")
+        if gotpbp or gottoi:
+            print('Done with', season, game, "(final)")
+
+    update_team_logs(season, force_overwrite=True)
 
 if __name__ == "__main__":
-    for yr in range(2010, 2017):
+    #parse_game_pbp(2017, 20001, True)
+    for yr in range(2016, 2018):
         autoupdate(yr)        
