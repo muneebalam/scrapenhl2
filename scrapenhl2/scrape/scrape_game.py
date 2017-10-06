@@ -10,6 +10,12 @@ import numpy as np
 from time import sleep  # this frees up time for use as variable name
 import pyarrow
 
+# Known issues
+# 2016 20099, home team does not have players listed on ice for final 25 seconds of regulation
+# 2016 20163, road team does not have players listed last 8 seconds
+# Similar in 2016: 20408, 20419, 20421, 20475, 20510, 20511, 21163, 21194, 30185
+# 2016 20598 road team has too many players, losing a 9 second shift; 30144 loses an 8 second shift
+
 
 def scrape_game_pbp(season, game, force_overwrite=False):
     """
@@ -224,14 +230,14 @@ def update_team_logs(season, force_overwrite=False):
                     # Rename score and strength columns from home/road to team/opp
                     if team == home:
                         gametoi = gametoi.assign(TeamStrength = gametoi.HomeStrength, OppStrength=gametoi.RoadStrength) \
-                                        .drop({'HomeStrength', 'RoadStrength'}, axis=1)
+                            .drop({'HomeStrength', 'RoadStrength'}, axis=1)
                         gamepbp = gamepbp.assign(TeamScore = gamepbp.HomeScore, OppScore=gamepbp.RoadScore) \
-                                        .drop({'HomeScore', 'RoadScore'}, axis=1)
+                            .drop({'HomeScore', 'RoadScore'}, axis=1)
                     else:
                         gametoi = gametoi.assign(TeamStrength=gametoi.RoadStrength, OppStrength=gametoi.HomeStrength) \
-                                    .drop({'HomeStrength', 'RoadStrength'}, axis=1)
+                            .drop({'HomeStrength', 'RoadStrength'}, axis=1)
                         gamepbp = gamepbp.assign(TeamScore=gamepbp.RoadScore, OppScore=gamepbp.HomeScore) \
-                                    .drop({'HomeScore', 'RoadScore'}, axis=1)
+                            .drop({'HomeScore', 'RoadScore'}, axis=1)
 
                     # add scores to toi and strengths to pbp
                     gamepbp = gamepbp.merge(gametoi[['Time', 'TeamStrength', 'OppStrength']], how='left', on='Time')
@@ -358,7 +364,7 @@ def read_shifts_from_page(rawtoi, season, game):
         print(df[df.End < df.Start])
         df.loc[df.End < df.Start, 'End'] = df.End + 1200
     # One issue coming up is when the above line comes into play--missing times are filled in as 0:00
-    tempdf = df[['PlayerID', 'Start', 'End', 'Team', 'Duration']]
+    tempdf = df[['PlayerID', 'Start', 'End', 'Team', 'Duration']].query("Duration > 0")
     tempdf = tempdf.assign(Time=tempdf.Start)
     # print(tempdf.head(20))
 
@@ -432,13 +438,13 @@ def read_shifts_from_page(rawtoi, season, game):
         goalies2 = goalies[['Time', 'PlayerID', 'GTeam']] \
             .pivot(index='Time', columns='GTeam', values='PlayerID') \
             .reset_index()
-    except ValueError as ve:
+    except ValueError:
         # Duplicate entries in index error.
         print('Multiple goalies for a team in', season, game, ', picking one with most TOI')
 
         # Find times with multiple goalies
         too_many_goalies_h = goalies[goalies.GTeam == 'HG'][['Time']] \
-            .assign(GoalieCount = 1) \
+            .assign(GoalieCount=1) \
             .groupby('Time').count() \
             .reset_index() \
             .query('GoalieCount > 1')
@@ -451,18 +457,18 @@ def read_shifts_from_page(rawtoi, season, game):
 
         # Find most common goalie for each team
         top_goalie_h = goalies[goalies.GTeam == 'HG'][['PlayerID']] \
-            .assign(GoalieCount = 1) \
+            .assign(GoalieCount=1) \
             .groupby('PlayerID').count() \
             .reset_index() \
             .sort_values('GoalieCount', ascending=False) \
-            .loc[:, 'PlayerID'].iloc[0]
+            .PlayerID.iloc[0]
 
         top_goalie_r = goalies[goalies.GTeam == 'RG'][['PlayerID']] \
             .assign(GoalieCount = 1) \
             .groupby('PlayerID').count() \
             .reset_index() \
             .sort_values('GoalieCount', ascending=False) \
-            .loc[:, 'PlayerID'].iloc[0]
+            .PlayerID.iloc[0]
 
         # Separate out problem times
         if len(too_many_goalies_h) == 0:
@@ -491,23 +497,28 @@ def read_shifts_from_page(rawtoi, season, game):
             .reset_index()
 
     # Home
-    hdf = tempdf.query('Team == "' + home + '"')
-    hdf2 = hdf[['Time', 'PlayerID']].groupby('Time').rank() # TODO fix rank. need method = first to break ties
-    hdf2 = hdf2.rename(columns={'PlayerID': 'rank'})
+    hdf = tempdf.query('Team == "' + home + '"').sort_values(['Time', 'Duration'], ascending=[True, False])
+    hdf2 = hdf[['Time', 'Duration']].groupby('Time').rank(method='first', ascending=False)
+    hdf2 = hdf2.rename(columns={'Duration': 'rank'})
     hdf2.loc[:, 'rank'] = hdf2['rank'].apply(lambda x: int(x))
     hdf.loc[:, 'rank'] = 'H' + hdf2['rank'].astype('str')
 
-    rdf = tempdf.query('Team == "' + road + '"')
-    rdf2 = rdf[['Time', 'PlayerID']].groupby('Time').rank()
-    rdf2 = rdf2.rename(columns={'PlayerID': 'rank'})
+    rdf = tempdf.query('Team == "' + road + '"').sort_values(['Time', 'Duration'], ascending=[True, False])
+    rdf2 = rdf[['Time', 'Duration']].groupby('Time').rank(method='first', ascending=False)
+    rdf2 = rdf2.rename(columns={'Duration': 'rank'})
     rdf2.loc[:, 'rank'] = rdf2['rank'].apply(lambda x: int(x))
     rdf.loc[:, 'rank'] = 'R' + rdf2['rank'].astype('str')
 
     # Remove values above 6--looking like there won't be many
+    # But in those cases take shifts with longest durations
+    # That's why we create hdf and rdf by also sorting by Time and Duration above, and select duration for rank()
     if len(hdf[hdf['rank'] == "H7"]) > 0:
         print('Some times from', season, game, 'have too many home players; cutting off at 6')
+        print('Longest shift being lost was {0:d} seconds'.format(hdf[hdf['rank'] == "H7"].Duration.max()))
     if len(rdf[rdf['rank'] == "R7"]) > 0:
         print('Some times from', season, game, 'have too many road players; cutting off at 6')
+        print('Longest shift being lost was {0:d} seconds'.format(rdf[rdf['rank'] == "R7"].Duration.max()))
+
     hdf = hdf.pivot(index='Time', columns='rank', values='PlayerID').iloc[:, 0:6]
     hdf.reset_index(inplace=True)  # get time back as a column
     rdf = rdf.pivot(index='Time', columns='rank', values='PlayerID').iloc[:, 0:6]
@@ -543,7 +554,8 @@ def read_shifts_from_page(rawtoi, season, game):
     # Need at least 3 skaters apiece, 1 goalie apiece, time, and strengths to be non-NA = 11 non NA values
     toi2 = toi.dropna(axis=0, thresh=11)  # drop rows without at least 11 non-NA values
     if len(toi2) < len(toi):
-        print('Dropped some times in', season, game, 'because of invalid strengths')
+        print('Dropped {0:d}/{1:d} times in'.format(len(toi) - len(toi2), len(toi)),
+              season, game, 'because of invalid strengths')
 
     # TODO data quality check that I don't miss times in the middle of the game
 
@@ -870,9 +882,5 @@ def autoupdate(season=None):
     update_team_logs(season, force_overwrite=True)
 
 if __name__ == "__main__":
-    parse_game_toi(2016, 20044, True)
-    # Errors with 2016: 20044, 20107, 20377, 20618, 20767, 21229
-    # Dropped times in 20099, 20163, 20408, 20419, 20421, 20475, 20510, 20511, 21163, 21194, 30185
-    # Too many road players in 20324, 20598, 30144
-    # for yr in range(2016, 2018):
-    #    autoupdate(yr)
+    for yr in range(2010, 2018):
+        autoupdate(yr)
