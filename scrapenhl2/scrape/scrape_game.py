@@ -428,9 +428,67 @@ def read_shifts_from_page(rawtoi, season, game):
     # Let's assume we get only one goalie per second per team.
     # TODO: flag if there are multiple listed and pick only one
     goalies.loc[:, 'GTeam'] = goalies.Team.apply(lambda x: 'HG' if str(x) == home else 'RG')
-    goalies2 = goalies[['Time', 'PlayerID', 'GTeam']] \
-        .pivot(index='Time', columns='GTeam', values='PlayerID') \
-        .reset_index()  # TODO: duplicate entries in index error.
+    try:
+        goalies2 = goalies[['Time', 'PlayerID', 'GTeam']] \
+            .pivot(index='Time', columns='GTeam', values='PlayerID') \
+            .reset_index()
+    except ValueError as ve:
+        # Duplicate entries in index error.
+        print('Multiple goalies for a team in', season, game, ', picking one with most TOI')
+
+        # Find times with multiple goalies
+        too_many_goalies_h = goalies[goalies.GTeam == 'HG'][['Time']] \
+            .assign(GoalieCount = 1) \
+            .groupby('Time').count() \
+            .reset_index() \
+            .query('GoalieCount > 1')
+
+        too_many_goalies_r = goalies[goalies.GTeam == 'RG'][['Time']] \
+            .assign(GoalieCount=1) \
+            .groupby('Time').count() \
+            .reset_index() \
+            .query('GoalieCount > 1')
+
+        # Find most common goalie for each team
+        top_goalie_h = goalies[goalies.GTeam == 'HG'][['PlayerID']] \
+            .assign(GoalieCount = 1) \
+            .groupby('PlayerID').count() \
+            .reset_index() \
+            .sort_values('GoalieCount', ascending=False) \
+            .loc[:, 'PlayerID'].iloc[0]
+
+        top_goalie_r = goalies[goalies.GTeam == 'RG'][['PlayerID']] \
+            .assign(GoalieCount = 1) \
+            .groupby('PlayerID').count() \
+            .reset_index() \
+            .sort_values('GoalieCount', ascending=False) \
+            .loc[:, 'PlayerID'].iloc[0]
+
+        # Separate out problem times
+        if len(too_many_goalies_h) == 0:
+            problem_times_revised_h = goalies
+        else:
+            problem_times_revised_h = goalies \
+                .merge(too_many_goalies_h[['Time']], how='outer', on='Time', indicator=True)
+            problem_times_revised_h.loc[:, 'ToDrop'] = (problem_times_revised_h._merge == 'both') & \
+                                                       (problem_times_revised_h.PlayerID != top_goalie_h)
+            problem_times_revised_h = problem_times_revised_h[problem_times_revised_h.ToDrop != True] \
+                .drop({'_merge', 'ToDrop'}, axis=1)
+
+        if len(too_many_goalies_r) == 0:
+            problem_times_revised_r = problem_times_revised_h
+        else:
+            problem_times_revised_r = problem_times_revised_h \
+                .merge(too_many_goalies_r[['Time']], how='outer', on='Time', indicator=True)
+            problem_times_revised_r.loc[:, 'ToDrop'] = (problem_times_revised_r._merge == 'both') & \
+                                                       (problem_times_revised_r.PlayerID != top_goalie_r)
+            problem_times_revised_r = problem_times_revised_r[problem_times_revised_r.ToDrop != True] \
+                .drop({'_merge', 'ToDrop'}, axis=1)
+
+        # Pivot again
+        goalies2 = problem_times_revised_r[['Time', 'PlayerID', 'GTeam']] \
+            .pivot(index='Time', columns='GTeam', values='PlayerID') \
+            .reset_index()
 
     # Home
     hdf = tempdf.query('Team == "' + home + '"')
@@ -812,6 +870,9 @@ def autoupdate(season=None):
     update_team_logs(season, force_overwrite=True)
 
 if __name__ == "__main__":
-    #parse_game_pbp(2017, 20001, True)
-    for yr in range(2016, 2018):
-        autoupdate(yr)        
+    parse_game_toi(2016, 20044, True)
+    # Errors with 2016: 20044, 20107, 20377, 20618, 20767, 21229
+    # Dropped times in 20099, 20163, 20408, 20419, 20421, 20475, 20510, 20511, 21163, 21194, 30185
+    # Too many road players in 20324, 20598, 30144
+    # for yr in range(2016, 2018):
+    #    autoupdate(yr)
