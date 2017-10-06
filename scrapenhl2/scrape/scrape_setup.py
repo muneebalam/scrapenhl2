@@ -243,6 +243,84 @@ def get_season_team_toi_folder(season):
     return os.path.join(get_team_data_folder(), 'toi', str(season))
 
 
+def get_team_pbp_filename(season, team):
+    """
+
+    :param season: int, the season
+    :param team: int or str, the team abbreviation.
+    :return:
+    """
+    return os.path.join(get_season_team_pbp_folder(season),
+                        "{0:s}.feather".format(team_as_str(team, abbreviation=True)))
+
+
+def get_team_toi_filename(season, team):
+    """
+
+    :param season: int, the season
+    :param team: int or str, the team abbreviation.
+    :return:
+    """
+    return os.path.join(get_season_team_toi_folder(season),
+                        "{0:s}.feather".format(team_as_str(team, abbreviation=True)))
+
+
+def get_team_pbp(season, team):
+    """
+
+    :param season: int, the season
+    :param team: int or str, the team abbreviation.
+    :return:
+    """
+    return feather.read_dataframe(get_team_pbp_filename(season, team_as_str(team, True)))
+
+
+def get_team_toi(season, team):
+    """
+
+    :param season: int, the season
+    :param team: int or str, the team abbreviation.
+    :return:
+    """
+    return feather.read_dataframe(get_team_toi_filename(season, team_as_str(team, True)))
+
+
+def write_team_pbp(pbp, season, team):
+    """
+
+    :param season: int, the season
+    :param team: int or str, the team abbreviation.
+    :return:
+    """
+    if pbp is None:
+        print('PBP df is None, will not write team log')
+        return
+    feather.write_dataframe(pbp, get_team_pbp_filename(season, team_as_str(team, True)))
+
+
+def write_team_toi(toi, season, team):
+    """
+
+    :param season: int, the season
+    :param team: int or str, the team abbreviation.
+    :return:
+    """
+    if toi is None:
+        print('TOI df is None, will not write team log')
+        return
+    try:
+        feather.write_dataframe(toi, get_team_toi_filename(season, team_as_str(team, True)))
+    except ValueError:
+        # Need dtypes to be numbers or strings. Sometimes get objs instead
+        for col in toi:
+            try:
+                toi.loc[:, col] = pd.to_numeric(toi[col])
+            except ValueError:
+                toi.loc[:, col] = toi[col].astype(str)
+        feather.write_dataframe(toi, get_team_toi_filename(season, team_as_str(team, True)))
+
+
+
 def get_team_info_filename():
     """
     Returns the team information filename
@@ -814,16 +892,16 @@ def team_as_id(team):
     if isinstance(team, int) or isinstance(team, np.int64):
         return team
     elif isinstance(team, str):
-        df = get_team_info_file().filter('Team == "{0:s}" | Abbreviation == "{0:s}"'.format(team))
+        df = get_team_info_file().query('Team == "{0:s}" | Abbreviation == "{0:s}"'.format(team))
         if len(df) == 0:
             print('Could not find ID for {0:s}'.format(team))
             return None
         elif len(df) == 1:
-            return df.iloc[0, "ID"]
+            return df.ID.iloc[0]
         else:
             print('Multiple results when searching for {0:s}; returning first result'.format(team))
             print(df)
-            return df.iloc[0, "ID"]
+            return df.ID.iloc[0]
     else:
         print('Specified wrong type for team: {0:s}'.format(type(team)))
         return None
@@ -841,16 +919,16 @@ def team_as_str(team, abbreviation=True):
     if isinstance(team, str):
         return team
     elif isinstance(team, int) or isinstance(team, np.int64):
-        df = get_team_info_file().filter('ID == {0:d}'.format(team))
+        df = get_team_info_file().query('ID == {0:d}'.format(team))
         if len(df) == 0:
             print('Could not find name for {0:d}'.format(team))
             return None
         elif len(df) == 1:
-            return df.iloc[0, col_to_access]
+            return df[col_to_access].iloc[0]
         else:
             print('Multiple results when searching for {0:d}; returning first result'.format(team))
             print(df)
-            return df.iloc[0, abbreviation]
+            return df[col_to_access].iloc[0]
     else:
         print('Specified wrong type for team: {0:s}'.format(type(team)))
         return None
@@ -865,7 +943,7 @@ def player_as_id(player):
     if isinstance(player, int) or isinstance(player, np.int64):
         return player
     elif isinstance(player, str):
-        df = get_player_ids_file().filter('Name == "{0:s}"'.format(player)).sort_values('Count', ascending=False)
+        df = get_player_ids_file().query('Name == "{0:s}"'.format(player)).sort_values('Count', ascending=False)
         if len(df) == 0:
             print('Could not find exact match for for {0:s}; trying exact substring match'.format(player))
             df = get_player_ids_file()
@@ -875,17 +953,17 @@ def player_as_id(player):
                 # TODO fuzzy match
                 return None
             elif len(df) == 1:
-                return df.iloc[0, 'ID']
+                return df.ID.iloc[0]
             else:
                 print('Multiple results when searching for {0:s}; returning first result'.format(player))
                 print(df)
-                return df.iloc[0, "ID"]
+                return df.ID.iloc[0]
         elif len(df) == 1:
-            return df.iloc[0, "ID"]
+            return df.ID.iloc[0]
         else:
             print('Multiple results when searching for {0:s}; returning first result'.format(player))
             print(df)
-            return df.iloc[0, "ID"]
+            return df.ID.iloc[0]
     else:
         print('Specified wrong type for player: {0:s}'.format(type(player)))
         return None
@@ -900,16 +978,16 @@ def player_as_str(player):
     if isinstance(player, str):
         return player
     elif isinstance(player, int) or isinstance(player, np.int64):
-        df = get_team_info_file().filter('ID == {0:d}'.format(player)).sort_values('Count', ascending=False)
+        df = get_team_info_file().query('ID == {0:d}'.format(player)).sort_values('Count', ascending=False)
         if len(df) == 0:
             print('Could not find name for {0:d}'.format(player))
             return None
         elif len(df) == 1:
-            return df.iloc[0, "Name"]
+            return df.Name.iloc[0]
         else:
             print('Multiple results when searching for {0:d}; returning first result'.format(player))
             print(df)
-            return df.iloc[0, "Name"]
+            return df.Name.iloc[0]
     else:
         print('Specified wrong type for team: {0:d}'.format(type(player)))
         return None
