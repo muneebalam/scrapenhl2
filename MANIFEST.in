@@ -2,3 +2,4 @@ include LICENSE
 include README.rst
 include tests/*.py
 include docs/*
+include /scrapenhl2/scrape/data/*
