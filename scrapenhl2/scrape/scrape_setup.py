@@ -15,6 +15,25 @@ import urllib.request
 import urllib.error
 import datetime
 import numpy as np
+import logging
+
+
+def _print_and_log(message, level='info'):
+    """
+    A helper method that prints message to console and also writes to log with specified level
+    :param message: str, the message
+    :param level: str, the level of log: info, warn, error, critical
+    :return: nothing
+    """
+    print(message)
+    if level == 'warn':
+        logging.warning(message)
+    elif level == 'error':
+        logging.error(message)
+    elif level == 'critical':
+        logging.critical(message)
+    else:
+        logging.info(message)
 
 
 def _get_current_season():
@@ -293,7 +312,7 @@ def write_team_pbp(pbp, season, team):
     :return:
     """
     if pbp is None:
-        print('PBP df is None, will not write team log')
+        _print_and_log('PBP df is None, will not write team log', 'warn')
         return
     feather.write_dataframe(pbp, get_team_pbp_filename(season, team_as_str(team, True)))
 
@@ -306,7 +325,7 @@ def write_team_toi(toi, season, team):
     :return:
     """
     if toi is None:
-        print('TOI df is None, will not write team log')
+        _print_and_log('TOI df is None, will not write team log', 'warn')
         return
     try:
         feather.write_dataframe(toi, get_team_toi_filename(season, team_as_str(team, True)))
@@ -373,7 +392,7 @@ def generate_team_ids_file(limit=110):
     :param limit: int. Tries every team ID from 1 to limit (inclusive)
     :return: nothing
     """
-    print('Creating team IDs file')
+    _print_and_log('Creating team IDs file')
     ids = []
     abbrevs = []
     names = []
@@ -393,14 +412,14 @@ def generate_team_ids_file(limit=110):
             abbrevs.append(tabbrev)
             names.append(tname)
 
-            print('Done with ID #', tid, ':', tname)
+            _print_and_log('Done with ID # {0:d}: {1:s}'.format(tid, tname))
 
         except urllib.error.HTTPError:
             pass
 
     teaminfo = pd.DataFrame({'ID': ids, 'Abbreviation': abbrevs, 'Name': names})
     write_team_info_file(teaminfo)
-    print('Done writing team IDs')
+    _print_and_log('Done writing team IDs')
 
 
 def get_season_schedule_url(season):
@@ -519,7 +538,7 @@ def generate_season_schedule_file(season, force_overwrite=True):
     If False, only redoes when not Final previously.'
     :return: Nothing
     """
-    print('Generating season schedule for', season)
+    _print_and_log('Generating season schedule for {0:d}'.format(season))
     url = get_season_schedule_url(season)
     with urllib.request.urlopen(url) as reader:
         page = reader.read()
@@ -594,7 +613,7 @@ def generate_season_schedule_file(season, force_overwrite=True):
 
     _write_season_schedule(df, season, force_overwrite)
 
-    print('Done generating schedule for', season)
+    _print_and_log('Done generating schedule for {0:d}'.format(season))
     
 
 def update_schedule_with_pbp_scrape(season, game):
@@ -689,7 +708,7 @@ def generate_player_log_file():
                        'Season': [2016],  # Season (2016-17)
                        'Game': [30221]})  # Game (G1 vs PIT)
     if os.path.exists(get_player_log_filename()):
-        print('Warning: overwriting existing player log with default, one-line df!')
+        _print_and_log('Warning: overwriting existing player log with default, one-line df!', 'warn')
     write_player_log_file(df)
 
 
@@ -894,16 +913,16 @@ def team_as_id(team):
     elif isinstance(team, str):
         df = get_team_info_file().query('Team == "{0:s}" | Abbreviation == "{0:s}"'.format(team))
         if len(df) == 0:
-            print('Could not find ID for {0:s}'.format(team))
+            _print_and_log('Could not find ID for {0:s}'.format(team), 'warn')
             return None
         elif len(df) == 1:
             return df.ID.iloc[0]
         else:
-            print('Multiple results when searching for {0:s}; returning first result'.format(team))
-            print(df)
+            _print_and_log('Multiple results when searching for {0:s}; returning first result'.format(team), 'warn')
+            _print_and_log(df.to_string(), 'info')
             return df.ID.iloc[0]
     else:
-        print('Specified wrong type for team: {0:s}'.format(type(team)))
+        _print_and_log('Specified wrong type for team: {0:s}'.format(type(team)), 'warn')
         return None
 
 
@@ -921,16 +940,16 @@ def team_as_str(team, abbreviation=True):
     elif isinstance(team, int) or isinstance(team, np.int64):
         df = get_team_info_file().query('ID == {0:d}'.format(team))
         if len(df) == 0:
-            print('Could not find name for {0:d}'.format(team))
+            _print_and_log('Could not find name for {0:d}'.format(team), 'warn')
             return None
         elif len(df) == 1:
             return df[col_to_access].iloc[0]
         else:
-            print('Multiple results when searching for {0:d}; returning first result'.format(team))
-            print(df)
+            _print_and_log('Multiple results when searching for {0:d}; returning first result'.format(team), 'warn')
+            _print_and_log(df.to_string(), 'warn')
             return df[col_to_access].iloc[0]
     else:
-        print('Specified wrong type for team: {0:s}'.format(type(team)))
+        _print_and_log('Specified wrong type for team: {0:s}'.format(type(team)), 'warn')
         return None
     
     
@@ -943,29 +962,30 @@ def player_as_id(player):
     if isinstance(player, int) or isinstance(player, np.int64):
         return player
     elif isinstance(player, str):
-        df = get_player_ids_file().query('Name == "{0:s}"'.format(player)).sort_values('Count', ascending=False)
+        df = get_player_ids_file().query('Name == "{0:s}"'.format(player))
         if len(df) == 0:
-            print('Could not find exact match for for {0:s}; trying exact substring match'.format(player))
+            _print_and_log('Could not find exact match for for {0:s}; trying exact substring match'.format(player))
             df = get_player_ids_file()
-            df = df[df.Name.str.contains(player)].sort_values('Count', ascending=False)
+            df = df[df.Name.str.contains(player)]
             if len(df) == 0:
-                print('Could not find exact substring match; trying fuzzy matching')
+                _print_and_log('Could not find exact substring match; trying fuzzy matching')
                 # TODO fuzzy match
                 return None
             elif len(df) == 1:
                 return df.ID.iloc[0]
             else:
-                print('Multiple results when searching for {0:s}; returning first result'.format(player))
-                print(df)
+                _print_and_log('Multiple results when searching for {0:s}; returning first result'.format(player),
+                               'warn')
+                _print_and_log(df.to_string(), 'warn')
                 return df.ID.iloc[0]
         elif len(df) == 1:
             return df.ID.iloc[0]
         else:
-            print('Multiple results when searching for {0:s}; returning first result'.format(player))
-            print(df)
+            _print_and_log('Multiple results when searching for {0:s}; returning first result'.format(player), 'warn')
+            _print_and_log(df.to_string(), 'warn')
             return df.ID.iloc[0]
     else:
-        print('Specified wrong type for player: {0:s}'.format(type(player)))
+        _print_and_log('Specified wrong type for player: {0:s}'.format(type(player)), 'warn')
         return None
 
 
@@ -978,18 +998,18 @@ def player_as_str(player):
     if isinstance(player, str):
         return player
     elif isinstance(player, int) or isinstance(player, np.int64):
-        df = get_team_info_file().query('ID == {0:d}'.format(player)).sort_values('Count', ascending=False)
+        df = get_player_ids_file().query('ID == {0:d}'.format(player))
         if len(df) == 0:
-            print('Could not find name for {0:d}'.format(player))
+            _print_and_log('Could not find name for {0:d}'.format(player), 'warn')
             return None
         elif len(df) == 1:
             return df.Name.iloc[0]
         else:
-            print('Multiple results when searching for {0:d}; returning first result'.format(player))
-            print(df)
+            _print_and_log('Multiple results when searching for {0:d}; returning first result'.format(player), 'warn')
+            _print_and_log(df.to_string(), 'warn')
             return df.Name.iloc[0]
     else:
-        print('Specified wrong type for team: {0:d}'.format(type(player)))
+        _print_and_log('Specified wrong type for team: {0:d}'.format(type(player)), 'warn')
         return None
 
 
@@ -1065,6 +1085,9 @@ def update_schedule_with_result(season, game, result):
     _write_season_schedule(df, season, True)
     refresh_schedules()
 
+logging.basicConfig(level=logging.DEBUG, filemode="a+",
+                    format="%(asctime)-15s %(levelname)-8s %(message)s",
+                    filename = 'logfile.log')
 
 _CURRENT_SEASON = _get_current_season()
 _BASE_DIR = _get_base_dir()
