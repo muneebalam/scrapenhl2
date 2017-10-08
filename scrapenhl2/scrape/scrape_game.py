@@ -247,12 +247,12 @@ def update_team_logs(season, force_overwrite=False):
                     gametoi.loc[:, 'OppScore'] = gametoi.OppScore.fillna(method='ffill')
 
                     # finally, add game, home, and road to both dfs
-                    pbpdf.loc[:, 'Game'] = game
-                    pbpdf.loc[:, 'Home'] = home
-                    pbpdf.loc[:, 'Road'] = road
-                    toidf.loc[:, 'Game'] = game
-                    toidf.loc[:, 'Home'] = home
-                    toidf.loc[:, 'Road'] = road
+                    gamepbp.loc[:, 'Game'] = game
+                    gamepbp.loc[:, 'Home'] = home
+                    gamepbp.loc[:, 'Road'] = road
+                    gametoi.loc[:, 'Game'] = game
+                    gametoi.loc[:, 'Home'] = home
+                    gametoi.loc[:, 'Road'] = road
 
                     # concat toi and pbp
                     if pbpdf is None:
@@ -884,7 +884,7 @@ def autoupdate(season=None):
             gottoi = scrape_game_toi(season, game, False)
             if gottoi:
                 scrape_setup.update_schedule_with_toi_scrape(season, game)
-            parse_game_toi(season, game, True)
+            parse_game_toi(season, game, False)
         except urllib.error.HTTPError as he:
             scrape_setup._print_and_log('Could not access toi url for {0:d} {1:d}'.format(season, game), 'warn')
             scrape_setup._print_and_log(str(he), 'warn')
@@ -903,5 +903,5 @@ def autoupdate(season=None):
         scrape_setup._print_and_log("Error with team logs in {0:d}: {1:s}".format(season, str(e)), 'warn')
 
 if __name__ == "__main__":
-    for yr in range(2011, 2018):
+    for yr in range(2011, 2017):
         autoupdate(yr)
