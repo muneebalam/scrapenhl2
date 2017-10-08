@@ -1085,6 +1085,18 @@ def update_schedule_with_result(season, game, result):
     _write_season_schedule(df, season, True)
     refresh_schedules()
 
+
+def _reset_logfile():
+    """
+    Changes the log file to blank. Use only when log becomes large.
+    Does this by simply configuring the logger to write mode instead of append mode.
+    :return: nothing
+    """
+    logging.basicConfig(level=logging.DEBUG, filemode="w",
+                        format="%(asctime)-15s %(levelname)-8s %(message)s",
+                        filename='logfile.log')
+
+
 logging.basicConfig(level=logging.DEBUG, filemode="a+",
                     format="%(asctime)-15s %(levelname)-8s %(message)s",
                     filename = 'logfile.log')
