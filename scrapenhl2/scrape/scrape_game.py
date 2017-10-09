@@ -273,6 +273,9 @@ def update_team_logs(season, force_overwrite=False):
                 pass
 
         # write to file
+        pbpdf.loc[:, 'FocusTeam'] = team
+        toidf.loc[:, 'FocusTeam'] = team
+
         scrape_setup.write_team_pbp(pbpdf, season, team)
         scrape_setup.write_team_toi(toidf, season, team)
         scrape_setup.print_and_log('Done with team logs for {0:d} {1:s} ({2:d}/{3:d})'.format(
@@ -823,6 +826,29 @@ def parse_game_toi(season, game, force_overwrite=False):
     # TODO
 
 
+def _intervals(lst, interval_pct=10):
+    """
+    A method that divides list into intervals and returns tuples indicating each interval mark.
+    Useful for giving updates when cycling through games.
+    :param lst: lst to divide
+    :param interval_pct: int, pct for each interval to represent. e.g. 10 means it will mark every 10%.
+    :return: a list of tuples of (index, value)
+    """
+
+    lst = sorted(lst)
+    intervals = []
+    i = 0
+    while True:
+        frac = interval_pct / 100 * i
+        index = round(len(lst) * frac)
+        if index >= len(lst):
+            break
+        val = lst[index]
+        intervals.append((index, val))
+        i += 1
+    return intervals
+
+
 def parse_season_pbp(season, force_overwrite=False):
     """
     Parses pbp from the given season.
@@ -831,14 +857,25 @@ def parse_season_pbp(season, force_overwrite=False):
     :return:
     """
     spinner = halo.Halo(text='Parsing pbp from {0:d}'.format(season))
+    spinner.start()
     if season is None:
         season = scrape_setup.get_current_season()
 
     sch = scrape_setup.get_season_schedule(season)
     games = sch.Game.values
     games.sort()
-    for game in games:
-        parse_game_pbp(season, game, force_overwrite)
+    intervals = _intervals(games)
+    interval_j = 0
+    for i, game in enumerate(games):
+        try:
+            parse_game_pbp(season, game, force_overwrite)
+        except Exception as e:
+            scrape_setup.print_and_log('{0:d} {1:d} {2:s}'.format(season, game, str(e)), 'warn')
+        if interval_j < len(intervals):
+            if i == intervals[interval_j][0]:
+                spinner.start(text='Done parsing through {0:d} {1:d} ({2:d}%)'.format(
+                    season, game, round(intervals[interval_j][0]/len(games) * 100)))
+                interval_j += 1
     spinner.stop()
 
 
@@ -877,7 +914,8 @@ def autoupdate(season=None):
 
     # First, for all games that were in progress during last scrape, scrape again and parse again
     # TODO check that this actually works!
-    with halo.Halo(text="Updating previously in-progress games\n"):
+    #with halo.Halo(text="Updating previously in-progress games\n"):
+    if True:
         inprogress = sch.query('Status == "In Progress"')
         inprogressgames = inprogress.Game.values
         inprogressgames.sort()
@@ -896,7 +934,8 @@ def autoupdate(season=None):
     # Now, for games currently in progress, scrape.
     # But no need to force-overwrite. We handled games previously in progress above.
     # Games newly in progress will be written to file here.
-    with halo.Halo(text="Updating newly in-progress games\n"):
+    #with halo.Halo(text="Updating newly in-progress games\n"):
+    if True:
         inprogressgames = sch.query('Status == "In Progress"')
         inprogressgames = inprogressgames.Game.values
         inprogressgames.sort()
@@ -952,8 +991,4 @@ def autoupdate(season=None):
 
 
 if __name__ == "__main__":
-    for yr in range(2011, 2017):
-        parse_season_pbp(yr, True)
-        update_team_logs(yr, True)
-        pass
-        #autoupdate(yr)
+    autoupdate(2017)
