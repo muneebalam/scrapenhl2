@@ -131,7 +131,7 @@ def save_raw_toi(page, season, game):
     w.close()
 
 
-def open_raw_pbp(season, game):
+def get_raw_pbp(season, game):
     """
     Loads the compressed json file containing this game's play by play from disk.
     :param season: int, the season
@@ -143,7 +143,7 @@ def open_raw_pbp(season, game):
     return json.loads(str(zlib.decompress(page).decode('latin-1')))
 
 
-def open_raw_toi(season, game):
+def get_raw_toi(season, game):
     """
     Loads the compressed json file containing this game's shifts from disk.
     :param season: int, the season
@@ -155,7 +155,7 @@ def open_raw_toi(season, game):
     return json.loads(str(zlib.decompress(page).decode('latin-1')))
 
 
-def open_parsed_pbp(season, game):
+def get_parsed_pbp(season, game):
     """
     Loads the compressed json file containing this game's play by play from disk.
     :param season: int, the season
@@ -165,7 +165,7 @@ def open_parsed_pbp(season, game):
     return pd.read_hdf(scrape_setup.get_game_parsed_pbp_filename(season, game))
 
 
-def open_parsed_toi(season, game):
+def get_parsed_toi(season, game):
     """
     Loads the compressed json file containing this game's shifts from disk.
     :param season: int, the season
@@ -227,8 +227,8 @@ def update_team_logs(season, force_overwrite=False):
 
             # load parsed pbp and toi
             try:
-                gamepbp = open_parsed_pbp(season, game)
-                gametoi = open_parsed_toi(season, game)
+                gamepbp = get_parsed_pbp(season, game)
+                gametoi = get_parsed_toi(season, game)
                 # TODO 2016 20779 why does pbp have 0 rows?
                 # Also check for other errors in parsing etc
 
@@ -713,7 +713,7 @@ def parse_game_pbp(season, game, force_overwrite=False):
 
     # TODO for some earlier seasons I need to read HTML instead.
     # Looks like 2010-11 is the first year where this feed supplies more than just boxscore data
-    rawpbp = open_raw_pbp(season, game)
+    rawpbp = get_raw_pbp(season, game)
     update_player_ids_from_page(rawpbp)
     update_player_logs_from_page(rawpbp, season, game)
     update_schedule_with_coaches(rawpbp, season, game)
@@ -802,12 +802,12 @@ def parse_game_toi(season, game, force_overwrite=False):
 
     # TODO for some earlier seasons I need to read HTML instead.
     # Looks like 2010-11 is the first year where this feed supplies more than just boxscore data
-    rawtoi = open_raw_toi(season, game)
+    rawtoi = get_raw_toi(season, game)
     try:
         parsedtoi = read_shifts_from_page(rawtoi, season, game)
     except ValueError as ve:
         scrape_setup.print_and_log('Error with {0:d} {1:d}'.format(season, game), 'warning')
-        scrape_setup.print_and_log(str(ve), 'warning') # TODO look through 2016, getting some errors
+        scrape_setup.print_and_log(str(ve), 'warning')  # TODO look through 2016, getting some errors
         parsedtoi = None
 
     if parsedtoi is None:
