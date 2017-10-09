@@ -213,12 +213,10 @@ def update_team_logs(season, force_overwrite=False):
 
             try:
                 toidf = scrape_setup.get_team_toi(season, team)
-                newgames = newgames.merge(pbpdf[['Game']].drop_duplicates(), how='outer', on='Game', indicator=True)
-                newgames = newgames[newgames._merge == "left_only"].drop('_merge', axis=1)
             except FileNotFoundError:
                 toidf = None
             except pyarrow.lib.ArrowIOError:  # pyarrow (feather) FileNotFoundError equivalent
-                toidf = None
+               toidf = None
 
         for i, gamerow in newgames.iterrows():
             game = gamerow[1]
@@ -251,6 +249,17 @@ def update_team_logs(season, force_overwrite=False):
                     gametoi.loc[:, 'TeamScore'] = gametoi.TeamScore.fillna(method='ffill')
                     gametoi.loc[:, 'OppScore'] = gametoi.OppScore.fillna(method='ffill')
 
+                    # Switch TOI column labeling from H1/R1 to Team1/Opp1 as appropriate
+                    cols_to_change = list(gametoi.columns)
+                    cols_to_change = [x for x in cols_to_change if len(x) == 2]  # e.g. H1
+                    if team == home:
+                        swapping_dict = {'H': 'Team', 'R': 'Opp'}
+                        colchanges = {c: swapping_dict[c[0]] + c[1] for c in cols_to_change}
+                    else:
+                        swapping_dict = {'H': 'Opp', 'R': 'Team'}
+                        colchanges = {c: swapping_dict[c[0]] + c[1] for c in cols_to_change}
+                    gametoi = gametoi.rename(columns=colchanges)
+
                     # finally, add game, home, and road to both dfs
                     gamepbp.loc[:, 'Game'] = game
                     gamepbp.loc[:, 'Home'] = home
@@ -273,8 +282,10 @@ def update_team_logs(season, force_overwrite=False):
                 pass
 
         # write to file
-        pbpdf.loc[:, 'FocusTeam'] = team
-        toidf.loc[:, 'FocusTeam'] = team
+        if pbpdf is not None:
+            pbpdf.loc[:, 'FocusTeam'] = team
+        if toidf is not None:
+            toidf.loc[:, 'FocusTeam'] = team
 
         scrape_setup.write_team_pbp(pbpdf, season, team)
         scrape_setup.write_team_toi(toidf, season, team)
@@ -956,8 +967,7 @@ def autoupdate(season=None):
             gottoi = False
             try:
                 gotpbp = scrape_game_pbp(season, game, False)
-                if gotpbp:
-                    scrape_setup.update_schedule_with_pbp_scrape(season, game)
+                scrape_setup.update_schedule_with_pbp_scrape(season, game)
                 parse_game_pbp(season, game, False)
             except urllib.error.HTTPError as he:
                 scrape_setup.print_and_log('Could not access pbp url for {0:d} {1:d}'.format(season, game), 'warn')
@@ -969,8 +979,7 @@ def autoupdate(season=None):
                 scrape_setup.print_and_log(str(e), 'warn')
             try:
                 gottoi = scrape_game_toi(season, game, False)
-                if gottoi:
-                    scrape_setup.update_schedule_with_toi_scrape(season, game)
+                scrape_setup.update_schedule_with_toi_scrape(season, game)
                 parse_game_toi(season, game, False)
             except urllib.error.HTTPError as he:
                 scrape_setup.print_and_log('Could not access toi url for {0:d} {1:d}'.format(season, game), 'warn')
@@ -991,4 +1000,7 @@ def autoupdate(season=None):
 
 
 if __name__ == "__main__":
-    autoupdate(2017)
+    for season in range(2010, 2017):
+        update_team_logs(season, True)
+
+    # autoupdate(2017)
