@@ -513,6 +513,15 @@ def get_player_url(playerid):
     return 'https://statsapi.web.nhl.com/api/v1/people/{0:s}'.format(str(playerid))
 
 
+def get_player_5v5_log_filename(season):
+    """
+    Gets the filename for the season's player log file. Includes 5v5 CF, CA, TOI, and more.
+    :param season: int, the season
+    :return: /scrape/data/other/[season]_player_log.feather
+    """
+    return os.path.join(get_other_data_folder(), '{0:d}_player_5v5_log.feather'.format(season))
+
+
 def get_season_schedule_filename(season):
     """
     Gets the filename for the season's schedule file
@@ -787,6 +796,18 @@ def _get_player_log_file():
     :return: dataframe from /scrape/data/other/PLAYER_LOG.feather
     """
     return feather.read_dataframe(get_player_log_filename())
+
+
+def get_teams_in_season(season):
+    """
+    Returns all teams that have a game in the schedule for this season
+    :param season: int, the season
+    :return: set of team IDs
+    """
+
+    sch = get_season_schedule(season)
+    allteams = set(sch.Road).union(sch.Home)
+    return set(allteams)
 
 
 def get_player_log_filename():
