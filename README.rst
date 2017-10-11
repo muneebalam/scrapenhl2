@@ -1,3 +1,5 @@
+.. image:: https://travis-ci.org/muneebalam/scrapenhl2.svg?branch=master
+    :target: https://travis-ci.org/muneebalam/scrapenhl2
 Introduction
 ------------
 
@@ -21,6 +23,8 @@ If you do make a donation, make me happy `and leave a record here <https://goo.g
 
 Change log
 ----------
+
+10/10/17: Bug fixes on scraping and team logs. Started methods to aggregate 5v5 game-by-game data for players.
 
 10/7/17: Committed code to scrape 2010 onward and create team logs; still bugs to fix.
 
