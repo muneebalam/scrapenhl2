@@ -63,7 +63,7 @@ def _get_base_dir():
     Returns the base directory (two directories up from __file__)
     :return: the base directory
     """
-    return '../../'  # Formerly (os.path.join(*(__file__.split('/')[:-2])))
+    return '../'  # Formerly (os.path.join(*(__file__.split('/')[:-2])))
 
 
 def get_base_dir():
@@ -184,7 +184,7 @@ def get_raw_data_folder():
     Returns the folder containing raw data
     :return: /scrape/data/raw/
     """
-    return os.path.join('data', 'raw')
+    return os.path.join(_get_base_dir(), 'data', 'raw')
 
 
 def get_parsed_data_folder():
@@ -192,7 +192,7 @@ def get_parsed_data_folder():
     Returns the folder containing parsed data
     :return: /scrape/data/parsed/
     """
-    return os.path.join('data', 'parsed')
+    return os.path.join(_get_base_dir(), 'data', 'parsed')
 
 
 def get_team_data_folder():
@@ -200,7 +200,7 @@ def get_team_data_folder():
     Returns the folder containing team log data
     :return: /scrape/data/teams/
     """
-    return os.path.join('data', 'teams')
+    return os.path.join(_get_base_dir(), 'data', 'teams')
 
 
 def get_other_data_folder():
@@ -208,7 +208,7 @@ def get_other_data_folder():
     Returns the folder containing other data
     :return: /scrape/data/other/
     """
-    return os.path.join('data', 'other')
+    return os.path.join(_get_base_dir(), 'data', 'other')
 
 
 def get_season_raw_pbp_folder(season):
