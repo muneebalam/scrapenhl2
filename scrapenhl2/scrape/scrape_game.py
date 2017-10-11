@@ -1,4 +1,4 @@
-import scrape_setup  # lots of helpful methods in this module
+import scrapenhl2.scrape.scrape_setup as ss  # lots of helpful methods in this module
 import pandas as pd  # standard scientific python stack
 import numpy as np  # standard scientific python stack
 import os  # for files
@@ -27,22 +27,22 @@ def scrape_game_pbp(season, game, force_overwrite=False):
     :param force_overwrite: bool. If file exists already, won't scrape again
     :return: bool, False if not scraped, else True
     """
-    filename = scrape_setup.get_game_raw_pbp_filename(season, game)
+    filename = ss.get_game_raw_pbp_filename(season, game)
     if not force_overwrite and os.path.exists(filename):
         return False
 
     # Use the season schedule file to get the home and road team names
-    # schedule_item = scrape_setup.get_season_schedule(season) \
+    # schedule_item = ss.get_season_schedule(season) \
     #    .query('Game == {0:d}'.format(game)) \
     #    .to_dict(orient = 'series')
     # The output format of above was {colname: np.array[vals]}. Change to {colname: val}
     # schedule_item = {k: v.values[0] for k, v in schedule_item.items()}
 
-    url = scrape_setup.get_game_url(season, game)
+    url = ss.get_game_url(season, game)
     with urllib.request.urlopen(url) as reader:
         page = reader.read()
     save_raw_pbp(page, season, game)
-    scrape_setup.print_and_log('Scraped pbp for {0:d} {1:d}'.format(season, game))
+    ss.print_and_log('Scraped pbp for {0:d} {1:d}'.format(season, game))
     sleep(1)  # Don't want to overload NHL servers
 
     # It's most efficient to parse with page in memory, but for sake of simplicity will do it later
@@ -59,15 +59,15 @@ def scrape_game_toi(season, game, force_overwrite=False):
     :param force_overwrite: bool. If file exists already, won't scrape again
     :return: nothing
     """
-    filename = scrape_setup.get_game_raw_toi_filename(season, game)
+    filename = ss.get_game_raw_toi_filename(season, game)
     if not force_overwrite and os.path.exists(filename):
         return False
 
-    url = scrape_setup.get_shift_url(season, game)
+    url = ss.get_shift_url(season, game)
     with urllib.request.urlopen(url) as reader:
         page = reader.read()
     save_raw_toi(page, season, game)
-    scrape_setup.print_and_log('Scraped toi for {0:d} {1:d}'.format(season, game))
+    ss.print_and_log('Scraped toi for {0:d} {1:d}'.format(season, game))
     sleep(1)  # Don't want to overload NHL servers
 
     # It's most efficient to parse with page in memory, but for sake of simplicity will do it later
@@ -84,7 +84,7 @@ def save_raw_pbp(page, season, game):
     :return: nothing
     """
     page2 = zlib.compress(page, level=9)
-    filename = scrape_setup.get_game_raw_pbp_filename(season, game)
+    filename = ss.get_game_raw_pbp_filename(season, game)
     w = open(filename, 'wb')
     w.write(page2)
     w.close()
@@ -98,7 +98,7 @@ def save_parsed_pbp(pbp, season, game):
     :param game: int, the game
     :return: nothing
     """
-    pbp.to_hdf(scrape_setup.get_game_parsed_pbp_filename(season, game),
+    pbp.to_hdf(ss.get_game_parsed_pbp_filename(season, game),
                key='P{0:d}0{1:d}'.format(season, game),
                mode='w', complib='zlib')
 
@@ -111,7 +111,7 @@ def save_parsed_toi(toi, season, game):
     :param game: int, the game
     :return: nothing
     """
-    toi.to_hdf(scrape_setup.get_game_parsed_toi_filename(season, game),
+    toi.to_hdf(ss.get_game_parsed_toi_filename(season, game),
                key='T{0:d}0{1:d}'.format(season, game),
                mode='w', complib='zlib')
 
@@ -125,7 +125,7 @@ def save_raw_toi(page, season, game):
     :return: nothing
     """
     page2 = zlib.compress(page, level=9)
-    filename = scrape_setup.get_game_raw_toi_filename(season, game)
+    filename = ss.get_game_raw_toi_filename(season, game)
     w = open(filename, 'wb')
     w.write(page2)
     w.close()
@@ -138,7 +138,7 @@ def get_raw_pbp(season, game):
     :param game: int, the game
     :return: json, the json pbp
     """
-    with open(scrape_setup.get_game_raw_pbp_filename(season, game), 'rb') as reader:
+    with open(ss.get_game_raw_pbp_filename(season, game), 'rb') as reader:
         page = reader.read()
     return json.loads(str(zlib.decompress(page).decode('latin-1')))
 
@@ -150,7 +150,7 @@ def get_raw_toi(season, game):
     :param game: int, the game
     :return: json, the json shifts
     """
-    with open(scrape_setup.get_game_raw_toi_filename(season, game), 'rb') as reader:
+    with open(ss.get_game_raw_toi_filename(season, game), 'rb') as reader:
         page = reader.read()
     return json.loads(str(zlib.decompress(page).decode('latin-1')))
 
@@ -162,7 +162,7 @@ def get_parsed_pbp(season, game):
     :param game: int, the game
     :return: json, the json pbp
     """
-    return pd.read_hdf(scrape_setup.get_game_parsed_pbp_filename(season, game))
+    return pd.read_hdf(ss.get_game_parsed_pbp_filename(season, game))
 
 
 def get_parsed_toi(season, game):
@@ -172,7 +172,7 @@ def get_parsed_toi(season, game):
     :param game: int, the game
     :return: json, the json shifts
     """
-    return pd.read_hdf(scrape_setup.get_game_parsed_toi_filename(season, game))
+    return pd.read_hdf(ss.get_game_parsed_toi_filename(season, game))
 
 
 def update_team_logs(season, force_overwrite=False):
@@ -188,12 +188,12 @@ def update_team_logs(season, force_overwrite=False):
 
     spinner = halo.Halo()
 
-    new_games_to_do = scrape_setup.get_season_schedule(season) \
+    new_games_to_do = ss.get_season_schedule(season) \
         .query('PBPStatus == "Scraped" & TOIStatus == "Scraped"')
     allteams = list(new_games_to_do.Home.append(new_games_to_do.Road).unique())
 
     for teami, team in enumerate(allteams):
-        spinner.start(text='Updating team log for {0:d} {1:s}\n'.format(season, scrape_setup.team_as_str(team)))
+        spinner.start(text='Updating team log for {0:d} {1:s}\n'.format(season, ss.team_as_str(team)))
 
         # Compare existing log to schedule to find missing games
         newgames = new_games_to_do[(new_games_to_do.Home == team) | (new_games_to_do.Road == team)]
@@ -203,7 +203,7 @@ def update_team_logs(season, force_overwrite=False):
         else:
             # Read currently existing ones for each team and anti join to schedule to find missing games
             try:
-                pbpdf = scrape_setup.get_team_pbp(season, team)
+                pbpdf = ss.get_team_pbp(season, team)
                 newgames = newgames.merge(pbpdf[['Game']].drop_duplicates(), how='outer', on='Game', indicator=True)
                 newgames = newgames[newgames._merge == "left_only"].drop('_merge', axis=1)
             except FileNotFoundError:
@@ -212,7 +212,7 @@ def update_team_logs(season, force_overwrite=False):
                 pbpdf = None
 
             try:
-                toidf = scrape_setup.get_team_toi(season, team)
+                toidf = ss.get_team_toi(season, team)
             except FileNotFoundError:
                 toidf = None
             except pyarrow.lib.ArrowIOError:  # pyarrow (feather) FileNotFoundError equivalent
@@ -287,12 +287,12 @@ def update_team_logs(season, force_overwrite=False):
         if toidf is not None:
             toidf.loc[:, 'FocusTeam'] = team
 
-        scrape_setup.write_team_pbp(pbpdf, season, team)
-        scrape_setup.write_team_toi(toidf, season, team)
-        scrape_setup.print_and_log('Done with team logs for {0:d} {1:s} ({2:d}/{3:d})'.format(
-            season, scrape_setup.team_as_str(team), teami + 1, len(allteams)), print_and_log=False)
+        ss.write_team_pbp(pbpdf, season, team)
+        ss.write_team_toi(toidf, season, team)
+        ss.print_and_log('Done with team logs for {0:d} {1:s} ({2:d}/{3:d})'.format(
+            season, ss.team_as_str(team), teami + 1, len(allteams)), print_and_log=False)
         spinner.stop()
-    scrape_setup.print_and_log('Updated team logs for {0:d}'.format(season))
+    ss.print_and_log('Updated team logs for {0:d}'.format(season))
 
 
 def update_player_logs_from_page(pbp, season, game):
@@ -306,10 +306,10 @@ def update_player_logs_from_page(pbp, season, game):
     """
 
     # Get players who played, and scratches, from boxscore
-    home_played = scrape_setup.try_to_access_dict(pbp, 'liveData', 'boxscore', 'teams', 'home', 'players')
-    road_played = scrape_setup.try_to_access_dict(pbp, 'liveData', 'boxscore', 'teams', 'away', 'players')
-    home_scratches = scrape_setup.try_to_access_dict(pbp, 'liveData', 'boxscore', 'teams', 'home', 'scratches')
-    road_scratches = scrape_setup.try_to_access_dict(pbp, 'liveData', 'boxscore', 'teams', 'away', 'scratches')
+    home_played = ss.try_to_access_dict(pbp, 'liveData', 'boxscore', 'teams', 'home', 'players')
+    road_played = ss.try_to_access_dict(pbp, 'liveData', 'boxscore', 'teams', 'away', 'players')
+    home_scratches = ss.try_to_access_dict(pbp, 'liveData', 'boxscore', 'teams', 'home', 'scratches')
+    road_scratches = ss.try_to_access_dict(pbp, 'liveData', 'boxscore', 'teams', 'away', 'scratches')
 
     # Played are both dicts, so make them lists
     home_played = [int(pid[2:]) for pid in home_played]
@@ -320,13 +320,13 @@ def update_player_logs_from_page(pbp, season, game):
     road_played = list(set(road_played).difference(set(road_scratches)))
 
     # Get home and road names
-    gameinfo = scrape_setup.get_game_data_from_schedule(season, game)
+    gameinfo = ss.get_game_data_from_schedule(season, game)
 
     # Update player logs
-    scrape_setup.update_player_log_file(home_played, season, game, gameinfo['Home'], 'P')
-    scrape_setup.update_player_log_file(home_scratches, season, game, gameinfo['Home'], 'S')
-    scrape_setup.update_player_log_file(road_played, season, game, gameinfo['Road'], 'P')
-    scrape_setup.update_player_log_file(road_scratches, season, game, gameinfo['Road'], 'S')
+    ss.update_player_log_file(home_played, season, game, gameinfo['Home'], 'P')
+    ss.update_player_log_file(home_scratches, season, game, gameinfo['Home'], 'S')
+    ss.update_player_log_file(road_played, season, game, gameinfo['Road'], 'P')
+    ss.update_player_log_file(road_scratches, season, game, gameinfo['Road'], 'S')
 
     # TODO: One issue is we do not see goalies (and maybe skaters) who dressed but did not play. How can this be fixed?
 
@@ -351,14 +351,14 @@ def read_shifts_from_page(rawtoi, season, game):
 
     # The shifts are ordered shortest duration to longest.
     for i, dct in enumerate(toi):
-        ids[i] = scrape_setup.try_to_access_dict(dct, 'playerId', default_return='')
-        periods[i] = scrape_setup.try_to_access_dict(dct, 'period', default_return=0)
-        starts[i] = scrape_setup.try_to_access_dict(dct, 'startTime', default_return='0:00')
-        ends[i] = scrape_setup.try_to_access_dict(dct, 'endTime', default_return='0:00')
-        durations[i] = scrape_setup.try_to_access_dict(dct, 'duration', default_return=0)
-        teams[i] = scrape_setup.try_to_access_dict(dct, 'teamId', default_return='')
+        ids[i] = ss.try_to_access_dict(dct, 'playerId', default_return='')
+        periods[i] = ss.try_to_access_dict(dct, 'period', default_return=0)
+        starts[i] = ss.try_to_access_dict(dct, 'startTime', default_return='0:00')
+        ends[i] = ss.try_to_access_dict(dct, 'endTime', default_return='0:00')
+        durations[i] = ss.try_to_access_dict(dct, 'duration', default_return=0)
+        teams[i] = ss.try_to_access_dict(dct, 'teamId', default_return='')
 
-    gameinfo = scrape_setup.get_game_data_from_schedule(season, game)
+    gameinfo = ss.get_game_data_from_schedule(season, game)
 
     startmin = [x[:x.index(':')] for x in starts]
     startsec = [x[x.index(':') + 1:] for x in starts]
@@ -381,9 +381,9 @@ def read_shifts_from_page(rawtoi, season, game):
     # Sometimes you see goalies with a shift starting in one period and ending in another
     # This is to help in those cases.
     if sum(df.End < df.Start) > 0:
-        scrape_setup.print_and_log('Have to adjust a shift time', 'warn')
+        ss.print_and_log('Have to adjust a shift time', 'warn')
         # TODO I think I'm making a mistake with overtime shifts--end at 3900!
-        scrape_setup.print_and_log(df[df.End < df.Start])
+        ss.print_and_log(df[df.End < df.Start])
         df.loc[df.End < df.Start, 'End'] = df.End + 1200
     # One issue coming up is when the above line comes into play--missing times are filled in as 0:00
     tempdf = df[['PlayerID', 'Start', 'End', 'Team', 'Duration']].query("Duration > 0")
@@ -392,7 +392,7 @@ def read_shifts_from_page(rawtoi, season, game):
 
     # Let's filter out goalies for now. We can add them back in later.
     # This will make it easier to get the strength later
-    pids = scrape_setup.get_player_ids_file()
+    pids = ss.get_player_ids_file()
     tempdf = tempdf.merge(pids[['ID', 'Pos']], how='left', left_on='PlayerID', right_on='ID')
 
     toi = pd.DataFrame({'Time': [i for i in range(0, max(df.End) + 1)]})
@@ -462,7 +462,7 @@ def read_shifts_from_page(rawtoi, season, game):
             .reset_index()
     except ValueError:
         # Duplicate entries in index error.
-        scrape_setup.print_and_log('Multiple goalies for a team in {0:d} {1:d}, picking one with the most TOI'.format(
+        ss.print_and_log('Multiple goalies for a team in {0:d} {1:d}, picking one with the most TOI'.format(
             season, game), 'warn')
 
         # Find times with multiple goalies
@@ -534,14 +534,14 @@ def read_shifts_from_page(rawtoi, season, game):
     # But in those cases take shifts with longest durations
     # That's why we create hdf and rdf by also sorting by Time and Duration above, and select duration for rank()
     if len(hdf[hdf['rank'] == "H7"]) > 0:
-        scrape_setup.print_and_log('Some times from {0:d} {1:d} have too many home players; cutting off at 6'.format(
+        ss.print_and_log('Some times from {0:d} {1:d} have too many home players; cutting off at 6'.format(
             season, game), 'warn')
-        scrape_setup.print_and_log('Longest shift being lost was {0:d} seconds'.format(
+        ss.print_and_log('Longest shift being lost was {0:d} seconds'.format(
             hdf[hdf['rank'] == "H7"].Duration.max()), 'warn')
     if len(rdf[rdf['rank'] == "R7"]) > 0:
-        scrape_setup.print_and_log('Some times from {0:d} {1:d} have too many road players; cutting off at 6'.format(
+        ss.print_and_log('Some times from {0:d} {1:d} have too many road players; cutting off at 6'.format(
             season, game), 'warn')
-        scrape_setup.print_and_log('Longest shift being lost was {0:d} seconds'.format(
+        ss.print_and_log('Longest shift being lost was {0:d} seconds'.format(
             rdf[rdf['rank'] == "H7"].Duration.max()), 'warn')
 
     hdf = hdf.pivot(index='Time', columns='rank', values='PlayerID').iloc[:, 0:6]
@@ -579,7 +579,7 @@ def read_shifts_from_page(rawtoi, season, game):
     # Need at least 3 skaters apiece, 1 goalie apiece, time, and strengths to be non-NA = 11 non NA values
     toi2 = toi.dropna(axis=0, thresh=11)  # drop rows without at least 11 non-NA values
     if len(toi2) < len(toi):
-        scrape_setup.print_and_log('Dropped {0:d}/{1:d} times in {2:d} {3:d} because of invalid strengths'.format(
+        ss.print_and_log('Dropped {0:d}/{1:d} times in {2:d} {3:d} because of invalid strengths'.format(
             len(toi) - len(toi2), len(toi), season, game), 'warn')
 
     # TODO data quality check that I don't miss times in the middle of the game
@@ -610,7 +610,7 @@ def read_events_from_page(rawpbp, season, game):
     :param game: int, the game
     :return: pandas dataframe, the pbp in a nicer format
     """
-    pbp = scrape_setup.try_to_access_dict(rawpbp, 'liveData', 'plays', 'allPlays')
+    pbp = ss.try_to_access_dict(rawpbp, 'liveData', 'plays', 'allPlays')
     if pbp is None:
         return
 
@@ -629,20 +629,20 @@ def read_events_from_page(rawpbp, season, game):
     note = ['' for _ in range(len(pbp))]
 
     for i in range(len(pbp)):
-        period[i] = scrape_setup.try_to_access_dict(pbp, i, 'about', 'period', default_return='')
-        times[i] = scrape_setup.try_to_access_dict(pbp, i, 'about', 'periodTime', default_return='0:00')
-        event[i] = scrape_setup.try_to_access_dict(pbp, i, 'result', 'event', default_return='NA')
+        period[i] = ss.try_to_access_dict(pbp, i, 'about', 'period', default_return='')
+        times[i] = ss.try_to_access_dict(pbp, i, 'about', 'periodTime', default_return='0:00')
+        event[i] = ss.try_to_access_dict(pbp, i, 'result', 'event', default_return='NA')
 
-        xs[i] = float(scrape_setup.try_to_access_dict(pbp, i, 'coordinates', 'x', default_return=np.NaN))
-        ys[i] = float(scrape_setup.try_to_access_dict(pbp, i, 'coordinates', 'y', default_return=np.NaN))
-        team[i] = scrape_setup.try_to_access_dict(pbp, i, 'team', 'id', default_return=-1)
+        xs[i] = float(ss.try_to_access_dict(pbp, i, 'coordinates', 'x', default_return=np.NaN))
+        ys[i] = float(ss.try_to_access_dict(pbp, i, 'coordinates', 'y', default_return=np.NaN))
+        team[i] = ss.try_to_access_dict(pbp, i, 'team', 'id', default_return=-1)
 
-        p1[i] = scrape_setup.try_to_access_dict(pbp, i, 'players', 0, 'player', 'id', default_return=-1)
-        p1role[i] = scrape_setup.try_to_access_dict(pbp, i, 'players', 0, 'playerType', default_return='')
-        p2[i] = scrape_setup.try_to_access_dict(pbp, i, 'players', 1, 'player', 'id', default_return=-1)
-        p2role[i] = scrape_setup.try_to_access_dict(pbp, i, 'players', 1, 'playerType', default_return='')
+        p1[i] = ss.try_to_access_dict(pbp, i, 'players', 0, 'player', 'id', default_return=-1)
+        p1role[i] = ss.try_to_access_dict(pbp, i, 'players', 0, 'playerType', default_return='')
+        p2[i] = ss.try_to_access_dict(pbp, i, 'players', 1, 'player', 'id', default_return=-1)
+        p2role[i] = ss.try_to_access_dict(pbp, i, 'players', 1, 'playerType', default_return='')
 
-        note[i] = scrape_setup.try_to_access_dict(pbp, i, 'result', 'description', default_return='')
+        note[i] = ss.try_to_access_dict(pbp, i, 'result', 'description', default_return='')
 
     pbpdf = pd.DataFrame({'Index': index, 'Period': period, 'MinSec': times, 'Event': event,
                           'Team': team, 'Actor': p1, 'ActorRole': p1role, 'Recipient': p2, 'RecipientRole': p2role,
@@ -651,7 +651,7 @@ def read_events_from_page(rawpbp, season, game):
         return pbpdf
 
     # Add score
-    gameinfo = scrape_setup.get_game_data_from_schedule(season, game)
+    gameinfo = ss.get_game_data_from_schedule(season, game)
     homegoals = pbpdf[['Event', 'Period', 'MinSec', 'Team']] \
         .query('Team == {0:d} & Event == "Goal"'.format(gameinfo['Home']))
     # TODO check team log for value_counts() of Event.
@@ -708,7 +708,7 @@ def update_player_ids_from_page(pbp):
     """
     players = pbp['gameData']['players']  # yields the subdictionary with players
     ids = [key[2:] for key in players]  # keys are format "ID[PlayerID]"; pull that PlayerID part
-    scrape_setup.update_player_ids_file(ids)
+    ss.update_player_ids_file(ids)
 
 
 def parse_game_pbp(season, game, force_overwrite=False):
@@ -721,7 +721,7 @@ def parse_game_pbp(season, game, force_overwrite=False):
     :return: True if parsed, False if not
     """
 
-    filename = scrape_setup.get_game_parsed_pbp_filename(season, game)
+    filename = ss.get_game_parsed_pbp_filename(season, game)
     if not force_overwrite and os.path.exists(filename):
         return False
 
@@ -735,7 +735,7 @@ def parse_game_pbp(season, game, force_overwrite=False):
 
     parsedpbp = read_events_from_page(rawpbp, season, game)
     save_parsed_pbp(parsedpbp, season, game)
-    scrape_setup.print_and_log('Parsed events for {0:d} {1:d}'.format(season, game), print_and_log=False)
+    ss.print_and_log('Parsed events for {0:d} {1:d}'.format(season, game), print_and_log=False)
     return True
 
 
@@ -748,7 +748,7 @@ def update_schedule_with_result(pbp, season, game):
     :return: nothing
     """
 
-    gameinfo = scrape_setup.get_game_data_from_schedule(season, game)
+    gameinfo = ss.get_game_data_from_schedule(season, game)
     result = None  # In case they have the same score. Like 2006 10009 has incomplete data, shows 0-0
 
     # If game is not final yet, don't do anything
@@ -762,7 +762,7 @@ def update_schedule_with_result(pbp, season, game):
         result = 'L'
     else:
         # Check for the final period
-        finalplayperiod = scrape_setup.try_to_access_dict(pbp, 'liveData', 'linescore', 'currentPeriodOrdinal')
+        finalplayperiod = ss.try_to_access_dict(pbp, 'liveData', 'linescore', 'currentPeriodOrdinal')
 
         # Identify SO vs OT vs regulation
         if finalplayperiod is None:
@@ -783,7 +783,7 @@ def update_schedule_with_result(pbp, season, game):
             elif gameinfo['RoadScore'] > gameinfo['HomeScore']:
                 result = 'L'
 
-    scrape_setup.update_schedule_with_result(season, game, result)
+    ss.update_schedule_with_result(season, game, result)
 
 
 def update_schedule_with_coaches(pbp, season, game):
@@ -795,11 +795,11 @@ def update_schedule_with_coaches(pbp, season, game):
     :return: nothing
     """
 
-    homecoach = scrape_setup.try_to_access_dict(pbp, 'liveData', 'boxscore', 'teams', 'home',
+    homecoach = ss.try_to_access_dict(pbp, 'liveData', 'boxscore', 'teams', 'home',
                                                 'coaches', 0, 'person', 'fullName')
-    roadcoach = scrape_setup.try_to_access_dict(pbp, 'liveData', 'boxscore', 'teams', 'away',
+    roadcoach = ss.try_to_access_dict(pbp, 'liveData', 'boxscore', 'teams', 'away',
                                                 'coaches', 0, 'person', 'fullName')
-    scrape_setup.update_schedule_with_coaches(season, game, homecoach, roadcoach)
+    ss.update_schedule_with_coaches(season, game, homecoach, roadcoach)
 
 
 def parse_game_toi(season, game, force_overwrite=False):
@@ -810,7 +810,7 @@ def parse_game_toi(season, game, force_overwrite=False):
     :param force_overwrite: bool. If True, will execute. If False, executes only if file does not exist yet.
     :return: nothing
     """
-    filename = scrape_setup.get_game_parsed_toi_filename(season, game)
+    filename = ss.get_game_parsed_toi_filename(season, game)
     if not force_overwrite and os.path.exists(filename):
         return False
 
@@ -820,8 +820,8 @@ def parse_game_toi(season, game, force_overwrite=False):
     try:
         parsedtoi = read_shifts_from_page(rawtoi, season, game)
     except ValueError as ve:
-        scrape_setup.print_and_log('Error with {0:d} {1:d}'.format(season, game), 'warning')
-        scrape_setup.print_and_log(str(ve), 'warning')  # TODO look through 2016, getting some errors
+        ss.print_and_log('Error with {0:d} {1:d}'.format(season, game), 'warning')
+        ss.print_and_log(str(ve), 'warning')  # TODO look through 2016, getting some errors
         parsedtoi = None
 
     if parsedtoi is None:
@@ -831,7 +831,7 @@ def parse_game_toi(season, game, force_overwrite=False):
     # Ok maybe leave strengths, scores, etc, for team logs
     # update_pbp_from_toi(parsedtoi, season, game)
     save_parsed_toi(parsedtoi, season, game)
-    scrape_setup.print_and_log('Parsed shifts for {0:d} {1:d}'.format(season, game))
+    ss.print_and_log('Parsed shifts for {0:d} {1:d}'.format(season, game))
     return True
 
     # TODO
@@ -870,9 +870,9 @@ def parse_season_pbp(season, force_overwrite=False):
     spinner = halo.Halo(text='Parsing pbp from {0:d}'.format(season))
     spinner.start()
     if season is None:
-        season = scrape_setup.get_current_season()
+        season = ss.get_current_season()
 
-    sch = scrape_setup.get_season_schedule(season)
+    sch = ss.get_season_schedule(season)
     games = sch.Game.values
     games.sort()
     intervals = _intervals(games)
@@ -881,7 +881,7 @@ def parse_season_pbp(season, force_overwrite=False):
         try:
             parse_game_pbp(season, game, force_overwrite)
         except Exception as e:
-            scrape_setup.print_and_log('{0:d} {1:d} {2:s}'.format(season, game, str(e)), 'warn')
+            ss.print_and_log('{0:d} {1:d} {2:s}'.format(season, game, str(e)), 'warn')
         if interval_j < len(intervals):
             if i == intervals[interval_j][0]:
                 spinner.start(text='Done parsing through {0:d} {1:d} ({2:d}%)'.format(
@@ -900,9 +900,9 @@ def parse_season_toi(season, force_overwrite=False):
 
     spinner = halo.Halo(text='Parsing toi from {0:d}'.format(season))
     if season is None:
-        season = scrape_setup.get_current_season()
+        season = ss.get_current_season()
 
-    sch = scrape_setup.get_season_schedule(season)
+    sch = ss.get_season_schedule(season)
     games = sch.Game.values
     games.sort()
     for game in games:
@@ -919,9 +919,9 @@ def autoupdate(season=None):
     """
 
     if season is None:
-        season = scrape_setup.get_current_season()
+        season = ss.get_current_season()
 
-    sch = scrape_setup.get_season_schedule(season)
+    sch = ss.get_season_schedule(season)
 
     # First, for all games that were in progress during last scrape, scrape again and parse again
     # TODO check that this actually works!
@@ -935,12 +935,12 @@ def autoupdate(season=None):
             scrape_game_toi(season, game, True)
             parse_game_pbp(season, game, True)
             parse_game_toi(season, game, True)
-            scrape_setup.print_and_log('Done with {0:d} {1:d} (previously in progress)'.format(season, game))
+            ss.print_and_log('Done with {0:d} {1:d} (previously in progress)'.format(season, game))
 
     # Update schedule to get current status
-    scrape_setup.generate_season_schedule_file(season)
-    scrape_setup.refresh_schedules()
-    sch = scrape_setup.get_season_schedule(season)
+    ss.generate_season_schedule_file(season)
+    ss.refresh_schedules()
+    sch = ss.get_season_schedule(season)
 
     # Now, for games currently in progress, scrape.
     # But no need to force-overwrite. We handled games previously in progress above.
@@ -955,7 +955,7 @@ def autoupdate(season=None):
             scrape_game_toi(season, game, False)
             parse_game_pbp(season, game, False)
             parse_game_toi(season, game, False)
-            scrape_setup.print_and_log('Done with {0:d} {1:d} (in progress)'.format(season, game))
+            ss.print_and_log('Done with {0:d} {1:d} (in progress)'.format(season, game))
 
     # Now, for any games that are final, run scrape_game, but don't necessarily force_overwrite
     with halo.Halo(text='Updating final games\n'):
@@ -967,40 +967,41 @@ def autoupdate(season=None):
             gottoi = False
             try:
                 gotpbp = scrape_game_pbp(season, game, False)
-                scrape_setup.update_schedule_with_pbp_scrape(season, game)
+                ss.update_schedule_with_pbp_scrape(season, game)
                 parse_game_pbp(season, game, False)
             except urllib.error.HTTPError as he:
-                scrape_setup.print_and_log('Could not access pbp url for {0:d} {1:d}'.format(season, game), 'warn')
-                scrape_setup.print_and_log(str(he), 'warn')
+                ss.print_and_log('Could not access pbp url for {0:d} {1:d}'.format(season, game), 'warn')
+                ss.print_and_log(str(he), 'warn')
             except urllib.error.URLError as ue:
-                scrape_setup.print_and_log('Could not access pbp url for {0:d} {1:d}'.format(season, game), 'warn')
-                scrape_setup.print_and_log(str(ue), 'warn')
+                ss.print_and_log('Could not access pbp url for {0:d} {1:d}'.format(season, game), 'warn')
+                ss.print_and_log(str(ue), 'warn')
             except Exception as e:
-                scrape_setup.print_and_log(str(e), 'warn')
+                ss.print_and_log(str(e), 'warn')
             try:
                 gottoi = scrape_game_toi(season, game, False)
-                scrape_setup.update_schedule_with_toi_scrape(season, game)
+                ss.update_schedule_with_toi_scrape(season, game)
                 parse_game_toi(season, game, False)
             except urllib.error.HTTPError as he:
-                scrape_setup.print_and_log('Could not access toi url for {0:d} {1:d}'.format(season, game), 'warn')
-                scrape_setup.print_and_log(str(he), 'warn')
+                ss.print_and_log('Could not access toi url for {0:d} {1:d}'.format(season, game), 'warn')
+                ss.print_and_log(str(he), 'warn')
             except urllib.error.URLError as ue:
-                scrape_setup.print_and_log('Could not access toi url for {0:d} {1:d}'.format(season, game), 'warn')
-                scrape_setup.print_and_log(str(ue), 'warn')
+                ss.print_and_log('Could not access toi url for {0:d} {1:d}'.format(season, game), 'warn')
+                ss.print_and_log(str(ue), 'warn')
             except Exception as e:
-                scrape_setup.print_and_log(str(e), 'warn')
+                ss.print_and_log(str(e), 'warn')
 
             if gotpbp or gottoi:
-                scrape_setup.print_and_log('Done with {0:d} {1:d} (final)'.format(season, game), print_and_log=False)
+                ss.print_and_log('Done with {0:d} {1:d} (final)'.format(season, game), print_and_log=False)
 
     try:
         update_team_logs(season, force_overwrite=False)
     except Exception as e:
-        scrape_setup.print_and_log("Error with team logs in {0:d}: {1:s}".format(season, str(e)), 'warn')
+        ss.print_and_log("Error with team logs in {0:d}: {1:s}".format(season, str(e)), 'warn')
 
 
 if __name__ == "__main__":
-    for season in range(2010, 2017):
-        update_team_logs(season, True)
+    autoupdate()
+    #for season in range(2010, 2017):
+    #    update_team_logs(season, True)
 
     # autoupdate(2017)
