@@ -1,5 +1,5 @@
-import scrapenhl2.scrape.scrape_setup as scrape_setup
-import scrapenhl2.scrape.scrape_game as scrape_game
+import scrapenhl2.scrape.scrape_setup as ss
+import scrapenhl2.scrape.scrape_game as sg
 import os
 import os.path
 import feather
@@ -12,6 +12,42 @@ import datetime
 import numpy as np
 import logging
 import halo
+
+
+def get_player_toion_toioff_filename(season):
+    """
+
+    :param season: int, the season
+    :return:
+    """
+    return os.path.join(ss.get_other_data_folder(), '{0:d}_season_toi60.csv'.format(season))
+
+
+def save_player_toion_toioff_file(df, season):
+    """
+
+    :param df:
+    :param season: int, the season
+    :return:
+    """
+    df.to_csv(get_player_toion_toioff_filename(season), index=False)
+
+
+def get_player_toion_toioff_file(season, force_create=False):
+    """
+
+    :param season: int, the season
+    :param force_create: bool, should this be read from file if possible, or created from scratch
+    :return:
+    """
+    fname = get_player_toion_toioff_filename(season)
+    if os.path.exists(fname) and not force_create:
+        return pd.read_csv(fname)
+    else:
+        df = generate_player_toion_toioff(season)
+        save_player_toion_toioff_file(df, season)
+        return get_player_toion_toioff_file(season)
+
 
 def generate_5v5_player_log(season):
     """
@@ -101,7 +137,7 @@ def get_pbp_events(*args, **kwargs):
     all_seasons_to_read = _seasons_to_read(**kwargs)
 
     for season in all_seasons_to_read:
-        df = pd.concat([scrape_setup.get_team_pbp(season, team) for team in all_teams_to_read])
+        df = pd.concat([ss.get_team_pbp(season, team) for team in all_teams_to_read])
         df = _filter_for_team(df, **kwargs)
 
         df = _filter_for_games(df, **kwargs)
@@ -128,7 +164,7 @@ def _filter_for_event_types(data, *args):
 
     dflst = []
     for arg in args:
-        dflst.append(data[data.Event2 == scrape_setup.get_event_longname(arg)])
+        dflst.append(data[data.Event2 == ss.get_event_longname(arg)])
     data = pd.concat(dflst).drop('Event2', axis=1)
     return data
 
@@ -221,11 +257,11 @@ def _filter_for_players(data, **kwargs):
     """
 
     if 'acting_player' in kwargs:
-        p = scrape_setup.player_as_id(kwargs['acting_player'])
+        p = ss.player_as_id(kwargs['acting_player'])
         data = data[data.Actor == p]
 
     if 'receiving_player' in kwargs:
-        p = scrape_setup.player_as_id(kwargs['receiving_player'])
+        p = ss.player_as_id(kwargs['receiving_player'])
         data = data[data.Recipient == p]
 
     if 'add_on_ice' in kwargs or 'players_on_ice' in kwargs or 'players_on_ice_for' in kwargs or \
@@ -242,11 +278,11 @@ def _filter_for_players(data, **kwargs):
             players = set()
             key = 'players_on_ice'
             if key in kwargs:
-                if scrape_setup.check_types(kwargs[key]):
+                if ss.check_types(kwargs[key]):
                     players.add(kwargs[key])
                 else:
                     players = players.union(kwargs[key])
-            players = {scrape_setup.player_as_id(p) for p in players}
+            players = {ss.player_as_id(p) for p in players}
 
             querystrings = []
             for hr in ('H', 'R'):
@@ -277,9 +313,9 @@ def _join_on_ice_players_to_pbp(season, game, pbp=None, toi=None):
     """
 
     if pbp is None:
-        pbp = scrape_game.get_parsed_pbp(season, game)
+        pbp = sg.get_parsed_pbp(season, game)
     if toi is None:
-        toi = scrape_game.get_parsed_toi(season, game)
+        toi = sg.get_parsed_toi(season, game)
 
     newpbp = pbp.merge(toi, how='left', on='Time')
     return newpbp
@@ -294,20 +330,20 @@ def _filter_for_team(data, **kwargs):
     """
 
     if 'team' in kwargs:
-        teamid = scrape_setup.team_as_id(kwargs['team'])
+        teamid = ss.team_as_id(kwargs['team'])
         data = data[(data.Home == teamid) | (data.Road == teamid)]
     if 'team_for' in kwargs:
-        teamid = scrape_setup.team_as_id(kwargs['team_for'])
+        teamid = ss.team_as_id(kwargs['team_for'])
         data = data[data.Team == teamid]
     if 'team_ag' in kwargs:
-        teamid = scrape_setup.team_as_id(kwargs['team_ag'])
+        teamid = ss.team_as_id(kwargs['team_ag'])
         data = data[((data.Home == teamid) | (data.Road == teamid)) & (data.Team != teamid)]
 
     if 'home_team' in kwargs:
-        teamid = scrape_setup.team_as_id(kwargs['home_team'])
+        teamid = ss.team_as_id(kwargs['home_team'])
         data = data[data.Home == teamid]
     if 'road_team' in kwargs:
-        teamid = scrape_setup.team_as_id(kwargs['road_team'])
+        teamid = ss.team_as_id(kwargs['road_team'])
         data = data[data.Road == teamid]
 
     return data
@@ -321,17 +357,17 @@ def _seasons_to_read(**kwargs):
     """
 
     minseason = 2011
-    maxseason = scrape_setup.get_current_season()
+    maxseason = ss.get_current_season()
 
     if 'start_season' in kwargs:
         minseason = max(kwargs['start_season'], minseason)
     if 'start_date' in kwargs:
-        minseason = max(scrape_setup.infer_season_from_date(kwargs['start_date']), minseason)
+        minseason = max(ss.infer_season_from_date(kwargs['start_date']), minseason)
 
     if 'end_season' in kwargs:
         maxseason = min(kwargs['end_season'], maxseason)
     if 'end_date' in kwargs:
-        maxseason = max(scrape_setup.infer_season_from_date(kwargs['end_date']), maxseason)
+        maxseason = max(ss.infer_season_from_date(kwargs['end_date']), maxseason)
 
     return list(range(minseason, maxseason + 1))
 
@@ -347,10 +383,10 @@ def _teams_to_read(**kwargs):
     for key in ('team', 'team_for', 'team_ag'):
         if key in kwargs:
             if isinstance(kwargs[key], str) or isinstance(kwargs[key], int):
-                teamlst.add(scrape_setup.team_as_id(kwargs[key]))
+                teamlst.add(ss.team_as_id(kwargs[key]))
             else:
                 for val in kwargs[key]:
-                    teamlst.add(scrape_setup.team_as_id(val))
+                    teamlst.add(ss.team_as_id(val))
     return teamlst
 
 
@@ -365,43 +401,47 @@ def generate_player_toion_toioff(season):
     spinner.start(text='Generating TOI60 for {0:d}'.format(season))
 
     team_by_team = []
-    allteams = scrape_setup.get_teams_in_season(season)
+    allteams = ss.get_teams_in_season(season)
     for i, team in enumerate(allteams):
-        spinner.start(text='Generating TOI60 for {0:d} {1:s} ({2:d}/{3:d})'.format(
-            season, scrape_setup.team_as_str(team), i+1, len(allteams)))
+        if os.path.exists(ss.get_team_toi_filename(season, team)):
+            spinner.start(text='Generating TOI60 for {0:d} {1:s} ({2:d}/{3:d})'.format(
+                season, ss.team_as_str(team), i+1, len(allteams)))
 
-        toi = scrape_setup.get_team_toi(season, team).drop('FocusTeam', axis=1)
-        fives = toi[(toi.TeamStrength == '5v5') & (toi.OppStrength == '5v5')]
+            fives = ss.get_team_toi(season, team) \
+                .query('TeamStrength == "5" & OppStrength == "5"') \
+                .filter(items=['Game', 'Time', 'Team1', 'Team2', 'Team3', 'Team4', 'Team5'])
 
-        # Get TOI by game. This is to get TOIOFF
-        team_by_game = toi[['Game', 'Time']].groupby('Game').count().reset_index().rename(columns={'Time': 'TeamTOI'})
+            # Get TOI by game. This is to get TOIOFF
+            time_by_game = fives[['Game', 'Time']].groupby('Game').count().reset_index().rename(columns={'Time': 'TeamTOI'})
 
-        # Now get a long dataframe of individual TOI
-        fives2 = fives[['Game', 'Time', 'Team1', 'Team2', 'Team3', 'Team4', 'Team5']]
-        fives_long = pd.melt(fives2, id_vars=['Time', 'Game'], value_vars=['Team1', 'Team2', 'Team3', 'Team4', 'Team5'],
-                             var_name='Team', value_name='Player') \
-            .drop('Team', axis=1)
+            # Now get a long dataframe of individual TOI
+            fives2 = fives[['Game', 'Time', 'Team1', 'Team2', 'Team3', 'Team4', 'Team5']]
+            fives_long = pd.melt(fives2, id_vars=['Time', 'Game'], value_vars=['Team1', 'Team2', 'Team3', 'Team4', 'Team5'],
+                                 var_name='Team', value_name='Player') \
+                .drop('Team', axis=1)
 
-        # First, we need TOI by game
-        time_by_game = fives[['Game', 'Time']].groupby('Game').count().reset_index()  # In 60s played
-        time_by_game = time_by_game.rename(columns={'Time': 'TeamTOI'})
+            # Now, by player. First at a game level to get TOIOFF
+            toi_by_player = fives_long.groupby(['Player', 'Game']).count() \
+                .reset_index() \
+                .rename(columns={'Time': 'TOION'}) \
+                .merge(time_by_game, how='left', on='Game')
+            toi_by_player.loc[:, 'TOION'] = toi_by_player.TOION / 3600
+            toi_by_player.loc[:, 'TOIOFF'] = toi_by_player.TeamTOI / 3600 - toi_by_player.TOION
 
-        # Now, by player. First at a game level to get TOIOFF
-        toi_by_player = fives_long.groupby('Player').count() \
-            .reset_index() \
-            .rename(columns={'Time': 'TOION'}) \
-            .merge(time_by_game, how='left', on='Game')
-        toi_by_player.loc[:, 'TOION'] = toi_by_player.TOION / 3600
-        toi_by_player.loc[:, 'TOIOFF'] = toi_by_player.TeamTOI - toi_by_player.TOION
+            # Now at the season level
+            toi_indiv = toi_by_player[['Player', 'TOION', 'TOIOFF']].groupby('Player').sum().reset_index()
+            # toi_indiv.loc[:, 'TOI%'] = toi_indiv.TOION / (toi_indiv.TOION + toi_indiv.TOIOFF)
+            # toi_indiv.loc[:, 'TOI60'] = toi_indiv['TOI%'] * 60
 
-        # Now at the season level
-        toi_indiv = toi_by_player[['Player', 'TOION', 'TOIOFF']].groupby('Player').sum().reset_index()
-        toi_indiv.loc[:, 'TOI60'] = toi_indiv.TOION = toi_indiv.TOIOFF
+            team_by_team.append(toi_indiv)
+            spinner.stop()
 
-        team_by_team.append(toi_indiv)
-        spinner.stop()
+    toi60 = pd.concat(team_by_team)
+    toi60 = toi60.groupby('Player').sum().reset_index()
+    toi60.loc[:, 'TOI%'] = toi60.TOION / (toi60.TOION + toi60.TOIOFF)
+    toi60.loc[:, 'TOI60'] = toi60['TOI%'] * 60
 
-    return pd.concat(team_by_team)
+    return toi60
 
 
 def get_player_positions():
@@ -410,110 +450,127 @@ def get_player_positions():
     :return: df with colnames ID and position
     """
 
-    return scrape_setup.get_player_ids_file()[['ID', 'Pos']]
+    return ss.get_player_ids_file()[['ID', 'Pos']]
 
 
-def calculate_game_toicomp(shifts, toi60, positions=None):
+def get_toicomp_file(season, force_create=False):
     """
-    For given shifts, calculate toicomp
-    :param shifts: wide on players, long on seconds in a game
-    :param toi60: df with PlayerID and TOI60
-    :param positions: df with PlayerID and Pos
-    :param season: int. Need to provide this if not provi
-    :return: df with PlayerID, DSum, DCount, DQoC, FSum, FCount, FQoC
+    If you want to rewrite the TOI60 file, too, then run get_player_toion_toioff_file with force_create=True before
+    running this method.
+    :param season: int, the season
+    :param force_create: bool, should this be read from file if possible, or created from scratch
+    :return:
     """
 
-    if positions is None:
-        positions = get_player_positions()
-
-    if 'H1' in shifts.columns:
-        cols1 = ['H1', 'H2', 'H3', 'H4', 'H5']
-        cols2 = ['R1', 'R2', 'R3', 'R4', 'R5']
-        shifts = shifts[(shifts.HomeStrength == '5') & (shifts.RoadStrength == '5')]
-        shifts = shifts[['Time'] + cols1 + cols2]
+    fname = get_toicomp_filename(season)
+    if os.path.exists(fname) and not force_create:
+        return pd.read_csv(fname)
     else:
-        cols1 = ['Team1', 'Team2', 'Team3', 'Team4', 'Team5']
-        cols2 = ['Opp1', 'Opp2', 'Opp3', 'Opp4', 'Opp5']
-        shifts = shifts[(shifts.TeamStrength == '5') & (shifts.OppStrength == '5')]
-        shifts = shifts[['Time'] + cols1 + cols2]
-
-    def melt_with_vars(df, extracols):
-        return pd.melt(df[['Time'] + extracols], id_vars='Time', value_vars=cols1,
-                  var_name='Temp', value_name='PlayerID').drop('Temp', axis=1)
-
-    df1 = melt_with_vars(shifts, cols1)
-    df2 = melt_with_vars(shifts, cols2)
-
-    # Join to positions and TOI60
-    def join_to_pos_toi(df):
-        return df.merge(positions, how='left', on='PlayerID').merge(toi60, how='left', on='PlayerID')
-
-    df1 = join_to_pos_toi(df1)
-    df2 = join_to_pos_toi(df2)
-
-    # Get D and F sums by second, and pivot to wide
-    def sums_by_sec(df):
-        return df1.drop('PlayerID', axis=1) \
-            .groupby(['Time', 'Pos']).sum().reset_index() \
-            .pivot(index='Time', columns='Pos', values='TOI60')
-        # TODO--check that this works. May need to drop columns from toi60 above
-
-    comp1 = df1.drop('PlayerID', axis=1).groupby(['Time', 'Pos']).sum().reset_index()
-    comp1 = sums_by_sec(df1)
-    comp2 = sums_by_sec(df2)
-
-    # Concat together by columns to get Team1 and Team2 sums by pos and sec
-
-    # Join onto long team dfs and calculate qoc and qot
-    # Concatenate by rows and return
+        df = generate_toicomp(season)
+        save_toicomp_file(df, season)
+        return get_toicomp_file(season)
 
 
-def generate_toicomp(season, toi60df=None, posdf=None):
+def get_toicomp_filename(season):
+    """
+
+    :param season: int, the season
+    :return:
+    """
+    return os.path.join(ss.get_other_data_folder(), '{0:d}_toicomp.csv'.format(season))
+
+
+def save_toicomp_file(df, season):
+    """
+
+    :param df:
+    :param season: int, the season
+    :return:
+    """
+    df.to_csv(get_toicomp_filename(season), index=False)
+
+
+def generate_toicomp(season):
     """
     Generates toicomp at a player-game level
     :param season: int, the season
-    :param toi60df: df as generated by generate_player_toion_toioff
-    :param posdf: df as generated by get_player_positions
     :return: df,
     """
-    # TODO switch from season level to game level
-    if toi60df is None:
-        toi60df = generate_player_toion_toioff(season)
-    if posdf is None:
-        posdf = get_player_positions()
+
+    toi60df = get_player_toion_toioff_file(season)
+    posdf = get_player_positions()
 
     spinner = halo.Halo()
     spinner.start(text='Generating TOICOMP for {0:d}'.format(season))
 
     team_by_team = []
-    allteams = scrape_setup.get_teams_in_season(season)
+    allteams = ss.get_teams_in_season(season)
     for i, team in enumerate(allteams):
-        spinner.start(text='Generating TOI60 for {0:d} {1:s} ({2:d}/{3:d})'.format(
-            season, scrape_setup.team_as_str(team), i + 1, len(allteams)))
+        spinner.start(text='Generating TOICOMP for {0:d} {1:s} ({2:d}/{3:d})'.format(
+            season, ss.team_as_str(team), i + 1, len(allteams)))
 
         # Filter to 5v5
-        toidf = scrape_setup.get_team_toi(season, team)
-        toidf = toidf[(toidf.TeamStrength == '5') & (toidf.OppStrength == '5')] \
-            .drop({'FocusTeam', 'HG', 'RG', 'H6', 'R6'}, axis=1)
+        toidf = ss.get_team_toi(season, team)
+        try:
+            toidf = toidf[(toidf.TeamStrength == '5') & (toidf.OppStrength == '5')] \
+                .drop({'FocusTeam', 'TeamG', 'OppG', 'Team6', 'Opp6', 'TeamScore', 'OppScore',
+                       'Team', 'Opp', 'Time', 'TeamStrength', 'OppStrength', 'Home', 'Road'},
+                      axis=1, errors='ignore')
+        except TypeError:  # Sometimes Team and Opp Strength are numeric, not str
+            toidf = toidf[(toidf.TeamStrength == 5) & (toidf.OppStrength == 5)] \
+                .drop({'FocusTeam', 'TeamG', 'OppG', 'Team6', 'Opp6', 'TeamScore', 'OppScore',
+                       'Team', 'Opp', 'Time', 'TeamStrength', 'OppStrength', 'Home', 'Road'},
+                      axis=1, errors='ignore')
 
-        # For memory reasons, we can't melt this and calculate counts right away
-        # So what we'll do is go in pairs: H1-H2, H1-H3, etc.
-        to_concat = []
-        cols1 = ['Team{0:d}'.format(i) for i in range(1, 6)]
-        cols2 = ['Opp{0:d}'.format(i) for i in range(1, 6)]
-        for c1 in cols1:
-            for c2 in cols2:
-                tempdf = toidf[[c1, c2]].rename({c1: 'TeamP', c2: 'OppP'}, axis=1).assign(Secs=1)
-                tempdf = tempdf.groupby(['TeamP', 'OppP']).count().reset_index()
-                to_concat.append(tempdf)
+        if len(toidf) > 0:
+            df_for_qoc = toidf
+            df_for_qot = toidf.assign(Opp1 = toidf.Team1, Opp2 = toidf.Team2,
+                                      Opp3 = toidf.Team3, Opp4 = toidf.Team4, Opp5 = toidf.Team5)
 
-        qoc = pd.concat(to_concat).groupby(['TeamP', 'OppP']).sum().reset_index()
+            def long_on_player_and_opp(df):
+                # Melt opponents down. Group by Game, TeamPlayers, and Opponent, and take counts
+                # Then melt by team players. Group by game, team player, and opp player, and sum counts
+                df2 = pd.melt(df, id_vars=['Game', 'Team1', 'Team2', 'Team3', 'Team4', 'Team5'],
+                                          value_vars=['Opp1', 'Opp2', 'Opp3', 'Opp4', 'Opp5'],
+                                          var_name='OppNum', value_name='OppPlayerID').drop('OppNum', axis=1).assign(Secs=1)
+                df2 = df2.groupby(['Game', 'OppPlayerID', 'Team1',
+                                  'Team2', 'Team3', 'Team4', 'Team5']).sum().reset_index()
+                df2 = pd.melt(df2, id_vars=['Game', 'OppPlayerID', 'Secs'],
+                              value_vars=['Team1', 'Team2', 'Team3', 'Team4', 'Team5'],
+                              var_name='TeamNum', value_name='TeamPlayerID').drop('TeamNum', axis=1)
+                # Filter out self for team cases
+                df2 = df2.query("TeamPlayerID != OppPlayerID")
+                df2 = df2.groupby(['Game', 'TeamPlayerID', 'OppPlayerID']).sum().reset_index()
+                return df2
+            def merge_toi60_position_calculate_comp(df, suffix='Comp'):
+                # Now attach toi60 and positions, and calculate sums
+                qoc = df.merge(toi60df, how='left', left_on='OppPlayerID', right_on='Player') \
+                    .merge(posdf, how='left', left_on='OppPlayerID', right_on='ID') \
+                    .drop({'Player', 'TOION', 'TOIOFF', 'TOI%', 'ID'}, axis=1)
+                qoc.loc[:, 'Pos2'] = qoc.Pos.apply(lambda x: 'D' + suffix if x == 'D' else 'F' + suffix)  # There shouldn't be any goalies
+                qoc.loc[:, 'TOI60Sum'] = qoc.Secs * qoc.TOI60
+                qoc = qoc.drop('Pos', axis=1)
+                qoc = qoc.drop({'OppPlayerID', 'TOI60'}, axis=1) \
+                    .groupby(['Game', 'TeamPlayerID', 'Pos2']).sum().reset_index()
+                qoc.loc[:, suffix] = qoc.TOI60Sum / qoc.Secs
+                qoc = qoc[['Game', 'TeamPlayerID', 'Pos2', suffix]] \
+                    .pivot_table(index=['Game', 'TeamPlayerID'], columns='Pos2', values=suffix).reset_index()
+                return qoc
 
-        # Now attach toi60 and calculate sums
-        # Attach positions and sum by positions, keeping track of count by position
-        # Divide
+            qc1 = long_on_player_and_opp(df_for_qoc)
+            qc2 = merge_toi60_position_calculate_comp(qc1, 'Comp')
 
-        spinner.stop()
+            qt1 = long_on_player_and_opp(df_for_qot)
+            qt2 = merge_toi60_position_calculate_comp(qt1, 'Team')
+
+            qct = qc2.merge(qt2, how='inner', on=['Game', 'TeamPlayerID'])
+            qct.loc[:, 'Team'] = team
+
+            team_by_team.append(qct)
+            spinner.stop()
+
+    df = pd.concat(team_by_team)
+    return df
 
 
 def generate_player_5v5_log(season):
@@ -529,13 +586,13 @@ def generate_player_5v5_log(season):
 
     generate_player_toion_toioff(season)
 
-    df = scrape_setup.get_player_log_file()
+    df = ss.get_player_log_file()
     players_in_this_game = df[(df.Game == game) & (df.Season == season)]
     # This df has columns Game, ID, Season, Status, and Team
 
     try:
-        shifts = scrape_game.get_parsed_toi(season, game)
-        pbp = scrape_game.get_parsed_pbp(season, game)
+        shifts = sg.get_parsed_toi(season, game)
+        pbp = sg.get_parsed_pbp(season, game)
     except FileNotFoundError:
         return  # We can't do anything without the shifts dataframe. Need it to get on-ice players for each pbp event
 
@@ -559,4 +616,4 @@ def generate_player_5v5_log(season):
     print('')
 
 if __name__ == '__main__':
-    generate_player_toion_toioff(2016)
+    get_toicomp_file(2016)
