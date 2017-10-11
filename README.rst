@@ -1,5 +1,12 @@
 .. image:: https://travis-ci.org/muneebalam/scrapenhl2.svg?branch=master
     :target: https://travis-ci.org/muneebalam/scrapenhl2
+.. image:: https://coveralls.io/repos/github/muneebalam/scrapenhl2/badge.svg?branch=master
+    :target: https://coveralls.io/github/muneebalam/scrapenhl2?branch=master
+.. image:: https://landscape.io/github/muneebalam/scrapenhl2/master/landscape.svg?style=flat
+   :target: https://landscape.io/github/muneebalam/scrapenhl2/master
+   :alt: Code Health
+.. image:: https://badge.fury.io/py/scrapenhl2.svg
+    :target: https://badge.fury.io/py/scrapenhl2
 Introduction
 ------------
 
