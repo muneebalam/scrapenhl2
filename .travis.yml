@@ -10,3 +10,4 @@ install:
   - pip install pandas
   - pip install feather
   - pip install halo
+  - pip install scikit-learn

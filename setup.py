@@ -18,7 +18,8 @@ setuptools.setup(
     keywords = "nhl",
     url = "https://github.com/muneebalam/scrapenhl2",
     packages=['scrapenhl2', 'docs', 'tests'],
-    install_requires=['numpy', 'scipy', 'matplotlib', 'seaborn', 'pandas', 'feather', 'halo', 'pyarrow'],
+    install_requires=['numpy', 'scipy', 'matplotlib', 'seaborn', 'pandas', 'feather', 'halo', 'pyarrow',
+                      'scikit-learn'],
     long_description=read('README.rst'),
     classifiers=[
         "Development Status :: 2 - Pre-Alpha",

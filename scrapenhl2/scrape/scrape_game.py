@@ -879,7 +879,7 @@ def parse_season_pbp(season, force_overwrite=False):
         season = ss.get_current_season()
 
     sch = ss.get_season_schedule(season)
-    games = sch.Game.values
+    games = sch[sch.Status == "Final"].Game.values
     games.sort()
     intervals = _intervals(games)
     interval_j = 0
