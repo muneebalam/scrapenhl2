@@ -369,7 +369,7 @@ def read_shifts_from_page(rawtoi, season, game):
     startmin = [x[:x.index(':')] for x in starts]
     startsec = [x[x.index(':') + 1:] for x in starts]
     starttimes = [1200 * (p-1) + 60 * int(m) + int(s) + 1 for p, m, s in zip(periods, startmin, startsec)]
-    starttimes = [0 if x == 1 else 0 for x in starttimes]
+    starttimes = [0 if x == 1 else x for x in starttimes]
     endmin = [x[:x.index(':')] for x in ends]
     endsec = [x[x.index(':') + 1:] for x in ends]
     # There is an extra -1 in endtimes to avoid overlapping start/end
@@ -402,7 +402,8 @@ def read_shifts_from_page(rawtoi, season, game):
     pids = ss.get_player_ids_file()
     tempdf = tempdf.merge(pids[['ID', 'Pos']], how='left', left_on='PlayerID', right_on='ID')
 
-    toi = pd.DataFrame({'Time': [i for i in range(0, max(df.End) + 1)]})
+    # toi = pd.DataFrame({'Time': [i for i in range(0, max(df.End) + 1)]})
+    toi = pd.DataFrame({'Time': [i for i in range(0, max(df.End))]})
 
     # Originally used a hacky way to fill in times between shift start and end: increment tempdf by one, filter, join
     # Faster to work with base structures
@@ -897,7 +898,7 @@ def parse_season_pbp(season, force_overwrite=False):
 
 def parse_season_toi(season, force_overwrite=False):
     """
-    Parses toi from the given season
+    Parses toi from the given season. Final games covered only.
     :param season: int, the season
     :param force_overwrite: bool. If true, parses all games. If false, only previously unparsed ones
     :return:
@@ -908,7 +909,7 @@ def parse_season_toi(season, force_overwrite=False):
         season = ss.get_current_season()
 
     sch = ss.get_season_schedule(season)
-    games = sch.Game.values
+    games = sch[sch.Status == "Final"].Game.values
     games.sort()
     for game in games:
         parse_game_toi(season, game, force_overwrite)
@@ -950,8 +951,7 @@ def autoupdate(season=None):
     # Now, for games currently in progress, scrape.
     # But no need to force-overwrite. We handled games previously in progress above.
     # Games newly in progress will be written to file here.
-    #with halo.Halo(text="Updating newly in-progress games\n"):
-    if True:
+    with halo.Halo(text="Updating newly in-progress games\n"):
         inprogressgames = sch.query('Status == "In Progress"')
         inprogressgames = inprogressgames.Game.values
         inprogressgames.sort()
