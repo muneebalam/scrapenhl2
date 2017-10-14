@@ -12,6 +12,7 @@ import datetime
 import numpy as np
 import logging
 import halo
+import functools
 
 
 def get_player_toion_toioff_filename(season):
@@ -47,21 +48,6 @@ def get_player_toion_toioff_file(season, force_create=False):
         df = generate_player_toion_toioff(season)
         save_player_toion_toioff_file(df, season)
         return get_player_toion_toioff_file(season)
-
-
-def generate_5v5_player_log(season):
-    """
-
-    :param season:
-    :return:
-    """
-    df = get_pbp_events('goal', 'shot', 'miss', 'block')
-    df = pd.melt(df, id_vars, value_vars, var_name='PlayerNumOI', value_name='Player')
-    df = df.drop('PlayerNumOI', axis=1)
-
-    df.loc[:, 'CF'] = df.Team  # TODO I need to add FocusTeam in team logs
-
-    df = df.groupby(['Player', 'Game'])
 
 
 def get_pbp_events(*args, **kwargs):
@@ -618,9 +604,24 @@ def generate_5v5_player_log(season):
     spinner = halo.Halo()
     spinner.start(text='Generating player log for {0:d}'.format(season))
 
-    df = ss.get_player_log_file()
+    to_concat = []
+
+    df = ss.get_player_log_file()  # Left join onto this
+    df = df[df.Season == season]
     # TODO modularize--for each team
-    # get cf and ca
+    for team in ss.get_teams_in_season(season):
+        goals = get_5v5_player_game_boxcars(season, team)  # G, A1, A2, SOG, iCF
+        cfca = get_5v5_player_game_cfca(season, team)  # CFON, CAON, CFOFF, CAOFF, and same for goals
+        toi = get_5v5_player_game_toi(season, team)  # TOION and TOIOFF
+        toicomp = get_5v5_player_game_toicomp(season, team)  # FQoC, F QoT, D QoC, D QoT, and respective Ns
+        shifts = get_5v5_player_game_shift_startend(season, team)  # OZ, NZ, DZ, OTF-O, OTF-D, OTF-N
+
+        temp = df[df.Team == team] \
+            .merge(cfca, how='left', on=['Player', 'Game']) \
+            .merge(toi, how='left', on=['Player', 'Game']) \
+            .merge(toicomp, how='left', on=['Player', 'Game']) \
+            .merge(shifts, how='left', on=['Player', 'Game'])
+            # get cf and ca
     # Get TOI
     # Get toicomp
     # Get shift starts and ends
@@ -628,6 +629,257 @@ def generate_5v5_player_log(season):
     # Concatenate
 
     spinner.stop()
+
+
+def _convert_to_all_combos(df, fillval=0, *args):
+    """
+    This method takes a dataframe and makes sure all possible combinations of given arguments are present.
+    For example, if you want df to have all combos of P1 and P2, it will create a dataframe with all possible combos,
+    left join existing dataframe onto that, and return that df. Uses fillval to fill *all* non-key columns.
+    :param df: the pandas dataframe
+    :param fillval: obj, the value with which to fill. Default fill is 0
+    :param args: str, column names, or tuples of combinations of column names
+    :return: df with all combos of columns specified
+    """
+    args = set(args)
+    if len(args) == 1:
+        df.loc[:, args[0]] = df[args[0]].fillna(fillval)
+        return df  # Nothing else to do here
+
+    dfs_with_unique = []
+    for combo in args:
+        if isinstance(combo, str):
+            tempdf = df[[combo]].drop_duplicates()
+        else:
+            tempdf = df[list(combo)].drop_duplicates()
+        dfs_with_unique.append(tempdf.assign(JoinKey=1))
+
+    # Now join all these dfs together
+    complete_df = functools.reduce(lambda x, y: pd.merge(x, y, how='inner', on='JoinKey'), dfs_with_unique)
+
+    # And left join on original
+    all_key_cols = set()
+    for i in range(len(dfs_with_unique)):
+        all_key_cols = all_key_cols.union(set(dfs_with_unique[i].columns))
+    final_df = complete_df.merge(df.assign(JoinKey=1), how='left', on=list(all_key_cols)).drop('JoinKey', axis=1)
+
+    # Fill in values
+    for col in final_df.columns:
+        if col not in all_key_cols:
+            final_df.loc[:, col] = final_df.loc[:, col].fillna(fillval)
+
+    return final_df
+
+
+def get_player_toi(season, game, pos=None, homeroad='H'):
+    """
+    Returns a df listing 5v5 ice time for each player for specified team.
+    :param season: int, the game
+    :param game: int, the season
+    :param pos: specify 'L', 'C', 'R', 'D' or None for all
+    :param homeroad: str, 'H' for home or 'R' for road
+    :return: pandas df with columns Player, Secs
+    """
+
+    toi = sg.get_parsed_toi(season, game)
+    posdf = get_player_positions()
+
+    fives = toi[(toi.HomeStrength == "5") & (toi.RoadStrength == "5")]
+    cols_to_keep = ['Time'] + ['{0:s}{1:d}'.format(homeroad, i + 1) for i in range(5)]
+    players = fives[cols_to_keep] \
+        .melt(id_vars='Time', var_name='P', value_name='PlayerID') \
+        .drop('P', axis=1) \
+        .groupby('PlayerID').count().reset_index() \
+        .rename(columns={'Time': 'Secs'}) \
+        .merge(posdf, how='left', left_on='PlayerID', right_on='ID') \
+        .drop('ID', axis=1) \
+        .sort_values('Secs', ascending=False)
+    if pos is not None:
+        if pos == 'F':
+            players = players.query('Pos != "D"')
+        else:
+            players = players.query('Pos == "{0:s}"'.format(pos))
+    return players
+
+
+def get_line_combos(season, game, homeroad='H'):
+    """
+    Returns a df listing the 5v5 line combinations used in this game for specified team, and time they each played together
+    :param season: int, the game
+    :param game: int, the season
+    :param homeroad: str, 'H' for home or 'R' for road
+    :return: pandas dataframe with columns P1, P2, P3, Secs. May contain duplicates
+    """
+
+    toi = sg.get_parsed_toi(season, game)
+    pos = get_player_positions()
+
+    fives = toi[(toi.HomeStrength == "5") & (toi.RoadStrength == "5")]
+    cols_to_keep = ['Time'] + ['{0:s}{1:d}'.format(homeroad, i+1) for i in range(5)]
+    players = fives[cols_to_keep] \
+        .melt(id_vars='Time', var_name='P', value_name='PlayerID') \
+        .drop('P', axis=1) \
+        .merge(pos, how='left', left_on='PlayerID', right_on='ID') \
+        .query('Pos != "D"') \
+        .drop({'Pos', 'ID'}, axis=1)
+    wide = players.merge(players, how='inner', on='Time', suffixes=['1', '2']) \
+        .merge(players, how='inner', on='Time') \
+        .rename(columns={'PlayerID': 'PlayerID3'}) \
+        .query('PlayerID1 != PlayerID2 & PlayerID1 != PlayerID3 & PlayerID2 != PlayerID3')
+    counts = wide.groupby(['PlayerID1', 'PlayerID2', 'PlayerID3']).count().reset_index() \
+        .rename(columns={'Time': 'Secs'})
+    return counts
+
+
+def get_pairings(season, game, homeroad='H'):
+    """
+    Returns a df listing the 5v5 pairs used in this game for specified team, and time they each played together
+    :param season: int, the game
+    :param game: int, the season
+    :param homeroad: str, 'H' for home or 'R' for road
+    :return: pandas dataframe with columns P1, P2, Secs. May contain duplicates
+    """
+
+    toi = sg.get_parsed_toi(season, game)
+    pos = get_player_positions()
+
+    fives = toi[(toi.HomeStrength == "5") & (toi.RoadStrength == "5")]
+    cols_to_keep = ['Time'] + ['{0:s}{1:d}'.format(homeroad, i + 1) for i in range(5)]
+    players = fives[cols_to_keep] \
+        .melt(id_vars='Time', var_name='P', value_name='PlayerID') \
+        .drop('P', axis=1) \
+        .merge(pos, how='left', left_on='PlayerID', right_on='ID') \
+        .query('Pos == "D"') \
+        .drop({'Pos', 'ID'}, axis=1)
+    wide = players.merge(players, how='inner', on='Time', suffixes=['1', '2']) \
+        .query('PlayerID1 != PlayerID2')
+    counts = wide.groupby(['PlayerID1', 'PlayerID2']).count().reset_index() \
+        .rename(columns={'Time': 'Secs'})
+    return counts
+
+
+def get_game_h2h_toi(season, game):
+    """
+    This method gets H2H TOI at 5v5 for the given game.
+    :param season: int, the season
+    :param game: int, the game
+    :return: a df with [P1, P1Team, P2, P2Team, TOI]. Entries will be duplicated (one with given P as P1, another as P2)
+    """
+    # TODO add strength arg
+    toi = sg.get_parsed_toi(season, game)
+    fives = toi[(toi.HomeStrength == "5") & (toi.RoadStrength == "5")]
+    home = fives[['Time', 'H1', 'H2', 'H3', 'H4', 'H5']] \
+        .melt(id_vars='Time', var_name='P', value_name='PlayerID') \
+        .drop('P', axis=1) \
+        .assign(Team='H')
+    road = fives[['Time', 'R1', 'R2', 'R3', 'R4', 'R5']] \
+        .melt(id_vars='Time', var_name='P', value_name='PlayerID') \
+        .drop('P', axis=1) \
+        .assign(Team='R')
+
+    hh = home.merge(home, how='inner', on='Time', suffixes=['1', '2'])
+    hr = home.merge(road, how='inner', on='Time', suffixes=['1', '2'])
+    rh = road.merge(home, how='inner', on='Time', suffixes=['1', '2'])
+    rr = road.merge(road, how='inner', on='Time', suffixes=['1', '2'])
+
+    pairs = pd.concat([hh, hr, rh, rr]) \
+        .assign(Secs=1) \
+        .drop('Time', axis=1) \
+        .groupby(['PlayerID1', 'PlayerID2', 'Team1', 'Team2']).count().reset_index()
+
+    # One last to-do: make sure I have all possible pairs of players covered
+
+    allpairs = _convert_to_all_combos(pairs, 0, ('PlayerID1', 'Team1'), ('PlayerID2', 'Team2'))
+
+    allpairs.loc[:, 'Min'] = allpairs.Secs / 60
+    return allpairs
+
+
+def filter_for_corsi(pbp):
+    """
+    Filters given dataframe for 5v5 goal, shot, miss, and block events
+    :param pbp: a dataframe with columns Event + HomeStrength + RoadStrength (or TeamStrength + OppStrength)
+    :return: pbp, filtered for 5v5 corsi events
+    """
+    colnames = set(pbp.columns)
+    if 'HomeStrength' in colnames and 'RoadStrength' in colnames:
+        fives = pbp[(pbp.HomeStrength == "5") & (pbp.RoadStrength == "5")]
+    elif 'TeamStrength' in colnames and 'OppStrength' in colnames:
+        fives = pbp[(pbp.TeamStrength == "5") & (pbp.OppStrength == "5")]
+
+    goals = fives.Event.apply(lambda x: x == "Goal")
+    shots = fives.Event.apply(lambda x: x == "Shot")
+    misses = fives.Event.apply(lambda x: x == "Missed Shot")
+    blocks = fives.Event.apply(lambda x: x == "Blocked Shot")
+
+    corsi = fives[goals | shots | misses | blocks]
+    return corsi
+
+
+def get_game_h2h_corsi(season, game):
+    """
+    This method gets H2H Corsi at 5v5 for the given game.
+    :param season: int, the season
+    :param game: int, the game
+    :return: a df with [P1, P1Team, P2, P2Team, CF, CA, C+/-]. Entries will be duplicated, as with get_game_h2h_toi.
+    """
+    # TODO add strength arg
+    toi = sg.get_parsed_toi(season, game)
+    pbp = sg.get_parsed_pbp(season, game)
+    toi.to_csv('/Users/muneebalam/Desktop/toi.csv')
+    pbp.to_csv('/Users/muneebalam/Desktop/pbp.csv')
+    # pbp.loc[:, 'Event'] = pbp.Event.apply(lambda x: ss.convert_event(x))
+    pbp = pbp[['Time', 'Event', 'Team']] \
+        .merge(toi[['Time', 'R1', 'R2', 'R3', 'R4', 'R5', 'H1', 'H2', 'H3', 'H4', 'H5',
+                    'HomeStrength', 'RoadStrength']], how='inner', on='Time')
+    corsi = filter_for_corsi(pbp).drop(['HomeStrength', 'RoadStrength'], axis=1)
+
+    hometeam = ss.get_home_team(season, game)
+    # Add HomeCorsi which will be 1 or -1. Need to separate out blocks because they're credited to defending team
+    blocks = corsi[corsi.Event == 'Blocked Shot']
+    fenwick = corsi[corsi.Event != 'Blocked Shot']
+    blocks.loc[:, 'HomeCorsi'] = blocks.Team.apply(lambda x: -1 if x == hometeam else 1)
+    fenwick.loc[:, 'HomeCorsi'] = fenwick.Team.apply(lambda x: 1 if x == hometeam else -1)
+
+    corsi = pd.concat([fenwick, blocks])
+    corsipm = corsi[['Time', 'HomeCorsi']]
+
+    home = corsi[['Time', 'H1', 'H2', 'H3', 'H4', 'H5']] \
+        .melt(id_vars='Time', var_name='P', value_name='PlayerID') \
+        .drop('P', axis=1)
+    road = corsi[['Time', 'R1', 'R2', 'R3', 'R4', 'R5']] \
+        .melt(id_vars='Time', var_name='P', value_name='PlayerID') \
+        .drop('P', axis=1)
+
+    hh = home.merge(home, how='inner', on='Time', suffixes=['1', '2']).assign(Team1='H', Team2='H')
+    hr = home.merge(road, how='inner', on='Time', suffixes=['1', '2']).assign(Team1='H', Team2='R')
+    rh = road.merge(home, how='inner', on='Time', suffixes=['1', '2']).assign(Team1='R', Team2='H')
+    rr = road.merge(road, how='inner', on='Time', suffixes=['1', '2']).assign(Team1='R', Team2='R')
+
+    pairs = pd.concat([hh, hr, rh, rr]) \
+        .merge(corsipm, how='inner', on='Time') \
+        .drop('Time', axis=1) \
+        .groupby(['PlayerID1', 'PlayerID2', 'Team1', 'Team2']).sum().reset_index()
+    pairs.loc[pairs.Team1 == 'R', 'HomeCorsi'] = pairs.loc[pairs.Team1 == 'R', 'HomeCorsi'] * -1
+    allpairs = _convert_to_all_combos(pairs, 0, ('PlayerID1', 'Team1'), ('PlayerID2', 'Team2'))
+    return allpairs
+
+
+def time_to_mss(sectime):
+    """
+    Converts a number of seconds to m:ss format
+    :param sectime: int, a number of seconds
+    :return: str, sectime in m:ss
+    """
+    n_min = int(sectime / 60)
+    n_sec = int(sectime % 60)
+    if n_sec == 0:
+        return '{0:d}:00'.format(n_min)
+    elif n_sec < 10:
+        return '{0:d}:0{1:d}'.format(n_min, n_sec)
+    else:
+        return '{0:d}:{1:d}'.format(n_min, n_sec)
+
 
 if __name__ == '__main__':
     for season in range(2010, 2017):
