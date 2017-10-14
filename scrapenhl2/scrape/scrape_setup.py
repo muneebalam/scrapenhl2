@@ -48,7 +48,7 @@ def _get_base_dir():
     Returns the base directory (two directories up from __file__)
     :return: the base directory
     """
-    return '../'  # Formerly (os.path.join(*(__file__.split('/')[:-2])))
+    return os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 
 
 
@@ -57,8 +57,7 @@ def get_base_dir():
     Returns the base directory of this package.
     :return: the base directory (generated at import from _get_base_dir)
     """
-    return os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-
+    return _get_base_dir()
 
 
 def _check_create_folder(*args):
@@ -1476,4 +1475,4 @@ def setup():
     _EVENT_DICT = _get_event_dictionary()
     _TEAM_COLORS = _get_team_colordict()
 
-# setup()
+setup()
