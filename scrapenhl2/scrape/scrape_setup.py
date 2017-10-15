@@ -1042,7 +1042,7 @@ def team_as_id(team):
     if isinstance(team, int) or isinstance(team, np.int64):
         return team
     elif isinstance(team, str):
-        df = get_team_info_file().query('Team == "{0:s}" | Abbreviation == "{0:s}"'.format(team))
+        df = get_team_info_file().query('Name == "{0:s}" | Abbreviation == "{0:s}"'.format(team))
         if len(df) == 0:
             ed.print_and_log('Could not find ID for {0:s}'.format(team), 'warn')
             return None
@@ -1231,6 +1231,16 @@ def get_game_data_from_schedule(season, game):
     return schedule_item
 
 
+def get_game_date(season, game):
+    """
+    Returns the date of this game
+    :param season: int, the game
+    :param game: int, the season
+    :return: str
+    """
+    return get_game_data_from_schedule(season, game)['Date']
+
+
 def get_home_team(season, game, returntype='id'):
     """
     Returns the home team from this game
@@ -1268,7 +1278,7 @@ def get_home_score(season, game):
     :param game: int, the game
     :return: int, the score
     """
-    return get_game_data_from_schedule(season, game)['HomeScore']
+    return int(get_game_data_from_schedule(season, game)['HomeScore'])
 
 
 def get_road_score(season, game):
@@ -1278,7 +1288,7 @@ def get_road_score(season, game):
     :param game: int, the game
     :return: int, the score
     """
-    return get_game_data_from_schedule(season, game)['RoadScore']
+    return int(get_game_data_from_schedule(season, game)['RoadScore'])
 
 
 def get_game_status(season, game):
