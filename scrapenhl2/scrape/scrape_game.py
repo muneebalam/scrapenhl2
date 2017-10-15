@@ -501,7 +501,7 @@ def read_shifts_from_page(rawtoi, season, game):
                 .merge(too_many_goalies_h[['Time']], how='outer', on='Time', indicator=True)
             problem_times_revised_h.loc[:, 'ToDrop'] = (problem_times_revised_h._merge == 'both') & \
                                                        (problem_times_revised_h.PlayerID != top_goalie_h)
-            problem_times_revised_h = problem_times_revised_h[problem_times_revised_h.ToDrop is not True] \
+            problem_times_revised_h = problem_times_revised_h[problem_times_revised_h.ToDrop == False] \
                 .drop({'_merge', 'ToDrop'}, axis=1)
 
         if len(too_many_goalies_r) == 0:
@@ -517,7 +517,7 @@ def read_shifts_from_page(rawtoi, season, game):
                 .merge(too_many_goalies_r[['Time']], how='outer', on='Time', indicator=True)
             problem_times_revised_r.loc[:, 'ToDrop'] = (problem_times_revised_r._merge == 'both') & \
                                                        (problem_times_revised_r.PlayerID != top_goalie_r)
-            problem_times_revised_r = problem_times_revised_r[problem_times_revised_r.ToDrop is not True] \
+            problem_times_revised_r = problem_times_revised_r[problem_times_revised_r.ToDrop == False] \
                 .drop({'_merge', 'ToDrop'}, axis=1)
 
         # Pivot again
@@ -565,6 +565,14 @@ def read_shifts_from_page(rawtoi, season, game):
     column_order = ['Time'] + [x for x in sorted(column_order[1:])]  # First entry is Time; sort rest
     toi = toi[column_order]
     # Now should be Time, H1, H2, ... HG, R1, R2, ..., RG
+
+    # For games in the first, HG and RG may not exist yet. Have dummy replacements in there.
+    # Will be wrong for when goalie is pulled in first, but oh well...
+    if 'HG' not in toi.columns:
+        newcol = [0 for i in range(len(toi))]
+        toi.insert(loc=toi.columns.get_loc('R1'), column='HG', value=newcol)
+    if 'RG' not in toi.columns:
+        toi.loc[:, 'RG'] = 0
 
     toi.loc[:, 'HomeSkaters'] = 0
     for col in toi.loc[:, 'H1':'HG'].columns[:-1]:
@@ -837,7 +845,7 @@ def parse_game_toi(season, game, force_overwrite=False):
     # Ok maybe leave strengths, scores, etc, for team logs
     # update_pbp_from_toi(parsedtoi, season, game)
     save_parsed_toi(parsedtoi, season, game)
-    ed.print_and_log('Parsed shifts for {0:d} {1:d}'.format(season, game))
+    # ed.print_and_log('Parsed shifts for {0:d} {1:d}'.format(season, game))
     return True
 
     # TODO
@@ -924,6 +932,7 @@ def autoupdate(season=None):
     :return: nothing
     """
 
+    # TODO: why does sometimes the schedule have the wrong game-team pairs, but when I regenerate, it's all ok?
     if season is None:
         season = ss.get_current_season()
 
@@ -1005,8 +1014,11 @@ def autoupdate(season=None):
 
 
 if __name__ == "__main__":
-    autoupdate()
-    #for season in range(2010, 2017):
-    #    update_team_logs(season, True)
+    # autoupdate()
+    for season in range(2015, 2017):
+        ss.generate_season_schedule_file(season)
+        ss.refresh_schedules()
+        parse_season_toi(season, True)
+        # update_team_logs(season, True)
 
     # autoupdate(2017)
