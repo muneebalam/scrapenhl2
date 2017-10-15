@@ -681,6 +681,8 @@ def get_player_toi(season, game, pos=None, homeroad='H'):
     :return: pandas df with columns Player, Secs
     """
 
+    # TODO this isn't working properly for in-progress games. Or maybe it's my scraping earlier.
+
     toi = sg.get_parsed_toi(season, game)
     posdf = get_player_positions()
 
@@ -806,6 +808,8 @@ def filter_for_corsi(pbp):
         fives = pbp[(pbp.HomeStrength == "5") & (pbp.RoadStrength == "5")]
     elif 'TeamStrength' in colnames and 'OppStrength' in colnames:
         fives = pbp[(pbp.TeamStrength == "5") & (pbp.OppStrength == "5")]
+    else:
+        fives = pbp
 
     goals = fives.Event.apply(lambda x: x == "Goal")
     shots = fives.Event.apply(lambda x: x == "Shot")
@@ -879,6 +883,121 @@ def time_to_mss(sectime):
         return '{0:d}:0{1:d}'.format(n_min, n_sec)
     else:
         return '{0:d}:{1:d}'.format(n_min, n_sec)
+
+
+def period_time_to_elapsed(df, period_colname='Period', time_colname='Time', time_format='elapsed'):
+    """
+    Adds a column to df called Elapsed.
+    :param df: pandas dataframe
+    :param periodcol: str, column containing period (ints)
+    :param time_colname: str, column containing time in m:ss format.
+    :param time_format: str, 'elapsed' or 'remaining'. Latter not suitable for regular season.
+    :return: dataframe with extra column noting seconds elapsed in game
+    """
+
+    newdf_minsec = df[time_colname].str.split(':', expand=True)
+    newdf_minsec.columns = ['Min', 'Sec']
+    newdf_minsec.loc[:, 'TimeElapsed_P'] = (df[period_colname] - 1) * 1200
+    if time_format == 'elapsed':
+        newdf_minsec.loc[:, 'TimeElapsed'] = newdf_minsec['TimeElapsed_P'] + newdf_minsec.Min * 60 + newdf_minsec.Sec
+        df.loc[:, 'Elapsed'] = newdf_minsec.TimeElapsed
+    elif time_format == 'remaining':
+        newdf_minsec.loc[:, 'TimeElapsed'] = newdf_minsec['TimeElapsed_P'] + \
+                                             1200 - (newdf_minsec.Min * 60 + newdf_minsec.Sec)
+        df.loc[:, 'Elapsed'] = newdf_minsec.TimeElapsed
+    return df
+
+
+def add_on_ice_players_to_file(filename, *args, **kwargs):
+    """
+    A method to add on-ice players to each row.
+    :param filename: str, path to file. Can read csv or xlsx (first sheet only)
+    :param period_colname: str, name of column containing period (ints)
+    :param time_colname: str, name of column containing time in m:ss
+    :param time_format: str, use 'elapsed' (preferred) or 'remaining' (latter may not work for regular season)
+    :param faceoff_indicator: bool. This is suitable for events like shots. For faceoffs, specify True.
+    This is because TOI is recorded in a non-overlapping way. At the time of the faceoff, the on-ice players listed
+    are the players still on from the previous time. To get new players coming onto the ice, if this arg is True,
+    will add 1 to times before joining.
+    :return: nothing
+    """
+    # TODO handle date specification instead of season-game
+
+    if filename[-4:] == '.csv':
+        df = pd.read_csv(filename)
+    elif filename[-5:] == '.xlsx':
+        df = pd.read_excel(filename)
+
+    newdf = add_on_ice_players_to_df(df, *args, **kwargs)
+    new_filename = filename[:filename.rfind('.')] + '_on_ice' + filename[filename.rfind('.'):]
+    if filename[-4:] == '.csv':
+        df.to_csv(filename, index=False)
+    elif filename[-5:] == '.xlsx':
+        df.to_excel(filename, index=False)
+
+
+def add_on_ice_players_to_df(df, season_colname=None, game_colname='Game', period_colname='Period',
+                             time_colname='Time', time_format='elapsed', faceoff_indicator=False):
+    """
+    A method to add on-ice players to each row.
+    :param df: a dataframe
+    :param season_colname: str, name of column containing season. Defaults to assuming all are current season
+    :param game_colname: str, name of column containing game
+    :param period_colname: str, name of column containing period (ints)
+    :param time_colname: str, name of column containing time in m:ss
+    :param time_format: str, use 'elapsed' (preferred) or 'remaining' (latter may not work for regular season)
+    :param faceoff_indicator: bool. This is suitable for events like shots. For faceoffs, specify True.
+    This is because TOI is recorded in a non-overlapping way. At the time of the faceoff, the on-ice players listed
+    are the players still on from the previous time. To get new players coming onto the ice, if this arg is True,
+    will join to players on ice one second after.
+    :return: nothing
+    """
+
+    df = period_time_to_elapsed(df, period_colname, time_colname, time_format)
+    if season_colname is None or season_colname not in df.columns:
+        df.loc[:, 'Season'] = ss.get_current_season()
+        season_colname = 'Season'
+
+    newdf = []
+    seasons_and_games = df[[season_colname, game_colname]].drop_duplicates()
+    for season, game in seasons_and_games.iterrows():
+        tempdf = df[(df[season_colname] == season) & (df[game_colname] == game)]
+        toi = sg.get_parsed_toi(season, game)
+        if faceoff_indicator:
+            toi.loc[:, 'Time'] = toi.Time - 1
+        tempdf = tempdf.merge(toi.rename(columns={'Time': 'Elapsed'}), how='left', on='Elapsed')
+
+        newdf.append(tempdf)
+
+    newdf = pd.concat(newdf)
+    newdf = player_columns_to_name(newdf)
+    return newdf
+
+
+def player_columns_to_name(df, columns=None):
+    """
+    Takes a dataframe and transforms specified columns of player IDs into names.
+    If no columns provided, searches for defaults: H1, H2, H3, H4, H5, H6, HG (and same seven with R)
+    :param df: A dataframe
+    :param columns: a list of strings, or None
+    :return: df, dataframe with same column names, but columns now names instead of IDs
+    """
+
+    if columns is None:
+        columns = set(['{0:s}{1:s}'.format(hr, i) for hr in ['H', 'R'] for i in ['1', '2', '3', '4', '5', '6', 'G']])
+    colnames = set(df.columns)
+    players = ss.get_player_ids_file()[['ID', 'Name']]
+
+    newdf = pd.DataFrame(index=df.index)
+    for col in colnames:
+        if col in columns:
+            newdf = newdf.merge(players, how='left', left_on=col, right_on='ID') \
+                .drop([col, 'ID'], axis=1) \
+                .rename(columns={'ID': col})
+        else:
+            newdf.loc[:, col] = df[col]
+
+    return newdf
 
 
 if __name__ == '__main__':
