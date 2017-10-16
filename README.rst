@@ -52,8 +52,16 @@ Autoupdate should update you regularly on its progress; be patient.
 To get a game H2H, use::
 
     season = 2016
-    game = 20001
-    h2h_chart(season, game)
+    game = 30136
+    game_h2h(season, game)
+
+.. image:: examples/WSH-TOR G6.png
+
+To get a game timeline, use::
+
+    game_h2h(season, game)
+
+.. image:: examples/WSH-TOR G6 timeline.png
 
 To get a player rolling CF% graph, use::
 
@@ -63,12 +71,18 @@ To get a player rolling CF% graph, use::
     end_year = 2017
     rolling_player_cf(player, rolling_games, start_year, end_year)
 
-When the docs are up, you should look through them. Also always feel free to contact me with questions.
+When the docs are up, you should look through them. Also always feel free to contact me with questions or suggestions.
 
 Contact
 --------
 `Twitter
 <http://www.twitter.com/muneebalamcu>`_.
+
+Collaboration
+-------------
+
+I'm happy to partner with you in development efforts--just shoot me a message.
+Please also let me know if you'd like to alpha- or beta-test my code.
 
 Donations
 ---------
@@ -84,6 +98,8 @@ If you do make a donation, make me happy `and leave a record here <https://goo.g
 
 Change log
 ----------
+
+10/16/17: Added initial versions of game timelines, player rolling corsi, and game H2H graphs.
 
 10/10/17: Bug fixes on scraping and team logs. Started methods to aggregate 5v5 game-by-game data for players.
 
