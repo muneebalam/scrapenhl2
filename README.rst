@@ -71,6 +71,8 @@ To get a player rolling CF% graph, use::
     end_year = 2017
     rolling_player_cf(player, rolling_games, start_year, end_year)
 
+   .. image:: examples/Ovechkin rolling cf.png
+
 When the docs are up, you should look through them. Also always feel free to contact me with questions or suggestions.
 
 Contact
