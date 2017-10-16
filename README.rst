@@ -18,7 +18,7 @@ You need python3 and the python scientific stack (e.g. numpy, matplotlib, pandas
 Easiest way is to simply use `Anaconda<https://conda.io/docs/user-guide/install/index.html>`_.
 To be safe, make sure you have python 3.5+, matplotlib 2.0+, and pandas 0.20+.
 
-After that, all you need to do is open up terminal or command line and enter:
+After that, all you need to do is open up terminal or command line and enter::
 
     pip install scrapenhl2
 
@@ -30,7 +30,7 @@ For now, installation should be pretty quick, but in the future it may take awhi
 As far as coding environments go, I recommend jupyter notebook or
 `Pycharm Community<https://www.jetbrains.com/pycharm/download/#section=mac>`_.
 Some folks also like the PyDev plugin in Eclipse. The latter two are full-scale applications, while the former
-launches in your browser. Open up terminal or command line and run
+launches in your browser. Open up terminal or command line and run::
 
     jupyter notebook
 
@@ -42,20 +42,20 @@ Use
 *Note that because this is in pre-alpha/alpha, syntax and use may be buggy and subject to change.*
 
 On startup, when you have an internet connection and some games have gone final since you last used the package,
-open up your python environment and update.
+open up your python environment and update::
 
     from scrapenhl2 import *
     autoupdate()
 
 Autoupdate should update you regularly on its progress; be patient.
 
-To get a game H2H, use:
+To get a game H2H, use::
 
     season = 2016
     game = 20001
     h2h_chart(season, game)
 
-To get a player rolling CF% graph, use:
+To get a player rolling CF% graph, use::
 
     player = 'Ovechkin'
     rolling_games = 25
