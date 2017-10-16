@@ -55,13 +55,13 @@ To get a game H2H, use::
     game = 30136
     game_h2h(season, game)
 
-.. image:: examples/WSH-TOR G6.png
+.. image:: examples/WSH-TOR_G6.png
 
 To get a game timeline, use::
 
     game_h2h(season, game)
 
-.. image:: examples/WSH-TOR G6 timeline.png
+.. image:: examples/WSH-TOR_G6_timeline.png
 
 To get a player rolling CF% graph, use::
 
@@ -71,7 +71,7 @@ To get a player rolling CF% graph, use::
     end_year = 2017
     rolling_player_cf(player, rolling_games, start_year, end_year)
 
-   .. image:: examples/Ovechkin rolling cf.png
+   .. image:: examples/Ovechkin_rolling_cf.png
 
 When the docs are up, you should look through them. Also always feel free to contact me with questions or suggestions.
 
