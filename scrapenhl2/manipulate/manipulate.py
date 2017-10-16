@@ -1,18 +1,14 @@
-import scrapenhl2.scrape.scrape_setup as ss
-import scrapenhl2.scrape.scrape_game as sg
+import functools
 import os
 import os.path
-import feather
-import pandas as pd
-import json
 import os.path
-import urllib.request
-import urllib.error
-import datetime
-import numpy as np
-import logging
+
+import feather
 import halo
-import functools
+import pandas as pd
+
+import scrapenhl2.scrape.scrape_game as sg
+import scrapenhl2.scrape.scrape_setup as ss
 
 
 def get_player_toion_toioff_filename(season):
@@ -376,6 +372,49 @@ def _teams_to_read(**kwargs):
     return teamlst
 
 
+def get_5v5_player_game_toi(season, team):
+    """
+    Gets TOION and TOIOFF by game and player for given team in given season.
+    :param season: int, the season
+    :param team: int, team id
+    :return: df with game, player, TOION, and TOIOFF
+    """
+    fives = ss.get_team_toi(season, team) \
+        .query('TeamStrength == "5" & OppStrength == "5"') \
+        .filter(items=['Game', 'Time', 'Team1', 'Team2', 'Team3', 'Team4', 'Team5'])
+
+    # Get TOI by game. This is to get TOIOFF
+    time_by_game = fives[['Game', 'Time']].groupby('Game').count().reset_index().rename(columns={'Time': 'TeamTOI'})
+
+    # Now get a long dataframe of individual TOI
+    fives2 = fives[['Game', 'Time', 'Team1', 'Team2', 'Team3', 'Team4', 'Team5']]
+    fives_long = pd.melt(fives2, id_vars=['Time', 'Game'], value_vars=['Team1', 'Team2', 'Team3', 'Team4', 'Team5'],
+                         var_name='Team', value_name='Player') \
+        .drop('Team', axis=1)
+
+    # Now, by player. First at a game level to get TOIOFF
+    toi_by_player = fives_long.groupby(['Player', 'Game']).count() \
+        .reset_index() \
+        .rename(columns={'Time': 'TOION'}) \
+        .merge(time_by_game, how='left', on='Game')
+    toi_by_player.loc[:, 'TOION'] = toi_by_player.TOION / 3600
+    toi_by_player.loc[:, 'TOIOFF'] = toi_by_player.TeamTOI / 3600 - toi_by_player.TOION
+
+    return toi_by_player.rename(columns={'Player': 'PlayerID'})
+
+
+def get_5v5_player_season_toi(season, team):
+    """
+    Gets TOION and TOIOFF by player for given team in given season.
+    :param season: int, the season
+    :param team: int, team id
+    :return: df with game, player, TOION, and TOIOFF
+    """
+    toi_by_player = get_5v5_player_game_toi(season, team)
+    toi_indiv = toi_by_player[['PlayerID', 'TOION', 'TOIOFF']].groupby('PlayerID').sum().reset_index()
+    return toi_indiv
+
+
 def generate_player_toion_toioff(season):
     """
     Generates TOION and TOIOFF at 5v5 for each player in this season.
@@ -391,39 +430,13 @@ def generate_player_toion_toioff(season):
     for i, team in enumerate(allteams):
         if os.path.exists(ss.get_team_toi_filename(season, team)):
             spinner.start(text='Generating TOI60 for {0:d} {1:s} ({2:d}/{3:d})'.format(
-                season, ss.team_as_str(team), i+1, len(allteams)))
-
-            fives = ss.get_team_toi(season, team) \
-                .query('TeamStrength == "5" & OppStrength == "5"') \
-                .filter(items=['Game', 'Time', 'Team1', 'Team2', 'Team3', 'Team4', 'Team5'])
-
-            # Get TOI by game. This is to get TOIOFF
-            time_by_game = fives[['Game', 'Time']].groupby('Game').count().reset_index().rename(columns={'Time': 'TeamTOI'})
-
-            # Now get a long dataframe of individual TOI
-            fives2 = fives[['Game', 'Time', 'Team1', 'Team2', 'Team3', 'Team4', 'Team5']]
-            fives_long = pd.melt(fives2, id_vars=['Time', 'Game'], value_vars=['Team1', 'Team2', 'Team3', 'Team4', 'Team5'],
-                                 var_name='Team', value_name='Player') \
-                .drop('Team', axis=1)
-
-            # Now, by player. First at a game level to get TOIOFF
-            toi_by_player = fives_long.groupby(['Player', 'Game']).count() \
-                .reset_index() \
-                .rename(columns={'Time': 'TOION'}) \
-                .merge(time_by_game, how='left', on='Game')
-            toi_by_player.loc[:, 'TOION'] = toi_by_player.TOION / 3600
-            toi_by_player.loc[:, 'TOIOFF'] = toi_by_player.TeamTOI / 3600 - toi_by_player.TOION
-
-            # Now at the season level
-            toi_indiv = toi_by_player[['Player', 'TOION', 'TOIOFF']].groupby('Player').sum().reset_index()
-            # toi_indiv.loc[:, 'TOI%'] = toi_indiv.TOION / (toi_indiv.TOION + toi_indiv.TOIOFF)
-            # toi_indiv.loc[:, 'TOI60'] = toi_indiv['TOI%'] * 60
-
+                season, ss.team_as_str(team), i + 1, len(allteams)))
+            toi_indiv = get_5v5_player_season_toi(season, team)
             team_by_team.append(toi_indiv)
             spinner.stop()
 
     toi60 = pd.concat(team_by_team)
-    toi60 = toi60.groupby('Player').sum().reset_index()
+    toi60 = toi60.groupby('PlayerID').sum().reset_index()
     toi60.loc[:, 'TOI%'] = toi60.TOION / (toi60.TOION + toi60.TOIOFF)
     toi60.loc[:, 'TOI60'] = toi60['TOI%'] * 60
 
@@ -483,9 +496,6 @@ def generate_toicomp(season):
     :return: df,
     """
 
-    toi60df = get_player_toion_toioff_file(season)
-    posdf = get_player_positions()
-
     spinner = halo.Halo()
     spinner.start(text='Generating TOICOMP for {0:d}'.format(season))
 
@@ -496,65 +506,10 @@ def generate_toicomp(season):
             spinner.start(text='Generating TOICOMP for {0:d} {1:s} ({2:d}/{3:d})'.format(
                 season, ss.team_as_str(team), i + 1, len(allteams)))
 
-            # Filter to 5v5
-            toidf = ss.get_team_toi(season, team)
-            try:
-                toidf = toidf[(toidf.TeamStrength == '5') & (toidf.OppStrength == '5')] \
-                    .drop({'FocusTeam', 'TeamG', 'OppG', 'Team6', 'Opp6', 'TeamScore', 'OppScore',
-                           'Team', 'Opp', 'Time', 'TeamStrength', 'OppStrength', 'Home', 'Road'},
-                          axis=1, errors='ignore')
-            except TypeError:  # Sometimes Team and Opp Strength are numeric, not str
-                toidf = toidf[(toidf.TeamStrength == 5) & (toidf.OppStrength == 5)] \
-                    .drop({'FocusTeam', 'TeamG', 'OppG', 'Team6', 'Opp6', 'TeamScore', 'OppScore',
-                           'Team', 'Opp', 'Time', 'TeamStrength', 'OppStrength', 'Home', 'Road'},
-                          axis=1, errors='ignore')
-
-            if len(toidf) > 0:
-                df_for_qoc = toidf
-                df_for_qot = toidf.assign(Opp1 = toidf.Team1, Opp2 = toidf.Team2,
-                                          Opp3 = toidf.Team3, Opp4 = toidf.Team4, Opp5 = toidf.Team5)
-
-                def long_on_player_and_opp(df):
-                    # Melt opponents down. Group by Game, TeamPlayers, and Opponent, and take counts
-                    # Then melt by team players. Group by game, team player, and opp player, and sum counts
-                    df2 = pd.melt(df, id_vars=['Game', 'Team1', 'Team2', 'Team3', 'Team4', 'Team5'],
-                                              value_vars=['Opp1', 'Opp2', 'Opp3', 'Opp4', 'Opp5'],
-                                              var_name='OppNum', value_name='OppPlayerID').drop('OppNum', axis=1).assign(Secs=1)
-                    df2 = df2.groupby(['Game', 'OppPlayerID', 'Team1',
-                                      'Team2', 'Team3', 'Team4', 'Team5']).sum().reset_index()
-                    df2 = pd.melt(df2, id_vars=['Game', 'OppPlayerID', 'Secs'],
-                                  value_vars=['Team1', 'Team2', 'Team3', 'Team4', 'Team5'],
-                                  var_name='TeamNum', value_name='TeamPlayerID').drop('TeamNum', axis=1)
-                    # Filter out self for team cases
-                    df2 = df2.query("TeamPlayerID != OppPlayerID")
-                    df2 = df2.groupby(['Game', 'TeamPlayerID', 'OppPlayerID']).sum().reset_index()
-                    return df2
-                def merge_toi60_position_calculate_comp(df, suffix='Comp'):
-                    # Now attach toi60 and positions, and calculate sums
-                    qoc = df.merge(toi60df, how='left', left_on='OppPlayerID', right_on='Player') \
-                        .merge(posdf, how='left', left_on='OppPlayerID', right_on='ID') \
-                        .drop({'Player', 'TOION', 'TOIOFF', 'TOI%', 'ID'}, axis=1)
-                    qoc.loc[:, 'Pos2'] = qoc.Pos.apply(lambda x: 'D' + suffix if x == 'D' else 'F' + suffix)  # There shouldn't be any goalies
-                    qoc.loc[:, 'TOI60Sum'] = qoc.Secs * qoc.TOI60
-                    qoc = qoc.drop('Pos', axis=1)
-                    qoc = qoc.drop({'OppPlayerID', 'TOI60'}, axis=1) \
-                        .groupby(['Game', 'TeamPlayerID', 'Pos2']).sum().reset_index()
-                    qoc.loc[:, suffix] = qoc.TOI60Sum / qoc.Secs
-                    qoc = qoc[['Game', 'TeamPlayerID', 'Pos2', suffix]] \
-                        .pivot_table(index=['Game', 'TeamPlayerID'], columns='Pos2', values=suffix).reset_index()
-                    return qoc
-
-                qc1 = long_on_player_and_opp(df_for_qoc)
-                qc2 = merge_toi60_position_calculate_comp(qc1, 'Comp')
-
-                qt1 = long_on_player_and_opp(df_for_qot)
-                qt2 = merge_toi60_position_calculate_comp(qt1, 'Team')
-
-                qct = qc2.merge(qt2, how='inner', on=['Game', 'TeamPlayerID'])
-                qct.loc[:, 'Team'] = team
-
+            qct = get_5v5_player_game_toicomp(season, team)
+            if qct is not None:
                 team_by_team.append(qct)
-                spinner.stop()
+            spinner.stop()
 
     df = pd.concat(team_by_team)
     return df
@@ -594,6 +549,102 @@ def save_5v5_player_log(df, season):
     return feather.write_dataframe(df, get_5v5_player_log_filename(season))
 
 
+def get_5v5_player_game_boxcars(season, team):
+    return pd.DataFrame({'PlayerID': [0], 'Game': [0]})
+
+
+def get_5v5_player_game_toicomp(season, team):
+    """
+    Calculates data for QoT and QoC at a player-game level for given team in given season.
+    :param season: int, the season
+    :param team: int, team id
+    :return: df with game, player,
+    """
+
+    toidf = ss.get_team_toi(season, team).drop_duplicates()
+    toidf.loc[:, 'TeamStrength'] = toidf.TeamStrength.astype(str)
+    toidf.loc[:, 'OppStrength'] = toidf.OppStrength.astype(str)
+    # Filter to 5v5
+    toidf = toidf[(toidf.TeamStrength == '5') & (toidf.OppStrength == '5')] \
+        .drop({'FocusTeam', 'TeamG', 'OppG', 'Team6', 'Opp6', 'TeamScore', 'OppScore',
+               'Team', 'Opp', 'Time', 'TeamStrength', 'OppStrength', 'Home', 'Road'},
+              axis=1, errors='ignore')
+
+    if len(toidf) > 0:
+        df_for_qoc = toidf
+        df_for_qot = toidf.assign(Opp1=toidf.Team1, Opp2=toidf.Team2,
+                                  Opp3=toidf.Team3, Opp4=toidf.Team4, Opp5=toidf.Team5)
+
+        qc1 = _long_on_player_and_opp(df_for_qoc)
+        qc2 = _merge_toi60_position_calculate_comp(qc1, season, 'Comp')
+
+        qt1 = _long_on_player_and_opp(df_for_qot)
+        qt2 = _merge_toi60_position_calculate_comp(qt1, season, 'Team')
+
+        qct = qc2.merge(qt2, how='inner', on=['Game', 'TeamPlayerID'])
+        qct.loc[:, 'Team'] = team
+        qct = qct.rename(columns={'TeamPlayerID': 'PlayerID'})
+        return qct
+    else:
+        return None
+
+
+def _long_on_player_and_opp(df):
+    """
+    A helper method for get_5v5_player_game_toicomp. Goes from standard format (which has one row per second) to
+    long format (one row per player1-player2 pair)
+    :param df: dataframe with game and players
+    :return: dataframe, melted
+    """
+
+    # Melt opponents down. Group by Game, TeamPlayers, and Opponent, and take counts
+    # Then melt by team players. Group by game, team player, and opp player, and sum counts
+    df2 = pd.melt(df, id_vars=['Game', 'Team1', 'Team2', 'Team3', 'Team4', 'Team5'],
+                  value_vars=['Opp1', 'Opp2', 'Opp3', 'Opp4', 'Opp5'],
+                  var_name='OppNum', value_name='OppPlayerID').drop('OppNum', axis=1).assign(Secs=1)
+    df2 = df2.groupby(['Game', 'OppPlayerID', 'Team1',
+                       'Team2', 'Team3', 'Team4', 'Team5']).sum().reset_index()
+    df2 = pd.melt(df2, id_vars=['Game', 'OppPlayerID', 'Secs'],
+                  value_vars=['Team1', 'Team2', 'Team3', 'Team4', 'Team5'],
+                  var_name='TeamNum', value_name='TeamPlayerID').drop('TeamNum', axis=1)
+    # Filter out self for team cases
+    df2 = df2.query("TeamPlayerID != OppPlayerID")
+    df2 = df2.groupby(['Game', 'TeamPlayerID', 'OppPlayerID']).sum().reset_index()
+    return df2
+
+
+def _merge_toi60_position_calculate_comp(df, season, suffix='Comp'):
+    """
+    Merges dataframe with toi60 and positions to calculate QoC or QoT by player and game.
+    Used in get_5v5_player_game_toicomp
+    :param df: dataframe with players and times faced
+    :param suffix: use 'Comp' for QoC and 'Team' for QoT
+    :return: a dataframe with QoC and QoT by player and game
+    """
+
+    toi60df = get_player_toion_toioff_file(season)
+    posdf = get_player_positions()
+
+    # Attach toi60 and positions, and calculate sums
+    qoc = df.merge(toi60df, how='left', left_on='OppPlayerID', right_on='PlayerID') \
+        .merge(posdf, how='left', left_on='OppPlayerID', right_on='ID') \
+        .drop({'PlayerID', 'TOION', 'TOIOFF', 'TOI%', 'ID'}, axis=1)
+    qoc.loc[:, 'Pos2'] = qoc.Pos.apply(
+        lambda x: 'D' + suffix if x == 'D' else 'F' + suffix)  # There shouldn't be any goalies
+    qoc.loc[:, 'TOI60Sum'] = qoc.Secs * qoc.TOI60
+    qoc = qoc.drop('Pos', axis=1)
+    qoc = qoc.drop({'OppPlayerID', 'TOI60'}, axis=1) \
+        .groupby(['Game', 'TeamPlayerID', 'Pos2']).sum().reset_index()
+    qoc.loc[:, suffix] = qoc.TOI60Sum / qoc.Secs
+    qoc = qoc[['Game', 'TeamPlayerID', 'Pos2', suffix]] \
+        .pivot_table(index=['Game', 'TeamPlayerID'], columns='Pos2', values=suffix).reset_index()
+    return qoc
+
+
+def get_5v5_player_game_shift_startend(season, team):
+    return pd.DataFrame({'PlayerID': [0], 'Game': [0]})
+
+
 def generate_5v5_player_log(season):
     """
     Takes the play by play and adds player 5v5 info to the master player log file, noting TOI, CF, etc.
@@ -606,9 +657,14 @@ def generate_5v5_player_log(season):
 
     to_concat = []
 
-    df = ss.get_player_log_file()  # Left join onto this
+    # Left join onto this
+    # Filter for players who played
+    df = ss.get_player_log_file().query('Status == "P"').drop('Status', axis=1)
     df = df[df.Season == season]
-    # TODO modularize--for each team
+
+    # Recreate TOI60 file.
+    _ = get_player_toion_toioff_file(season, force_create=True)
+
     for team in ss.get_teams_in_season(season):
         goals = get_5v5_player_game_boxcars(season, team)  # G, A1, A2, SOG, iCF
         cfca = get_5v5_player_game_cfca(season, team)  # CFON, CAON, CFOFF, CAOFF, and same for goals
@@ -616,19 +672,66 @@ def generate_5v5_player_log(season):
         toicomp = get_5v5_player_game_toicomp(season, team)  # FQoC, F QoT, D QoC, D QoT, and respective Ns
         shifts = get_5v5_player_game_shift_startend(season, team)  # OZ, NZ, DZ, OTF-O, OTF-D, OTF-N
 
-        temp = df[df.Team == team] \
-            .merge(cfca, how='left', on=['Player', 'Game']) \
-            .merge(toi, how='left', on=['Player', 'Game']) \
-            .merge(toicomp, how='left', on=['Player', 'Game']) \
-            .merge(shifts, how='left', on=['Player', 'Game'])
-            # get cf and ca
-    # Get TOI
-    # Get toicomp
-    # Get shift starts and ends
-    # Join
-    # Concatenate
+        temp = df[df.Team == team].rename(columns={'ID': 'PlayerID'}) \
+            .merge(cfca, how='left', on=['PlayerID', 'Game']) \
+            .merge(toi, how='left', on=['PlayerID', 'Game']) \
+            .merge(toicomp.drop('Team', axis=1), how='left', on=['PlayerID', 'Game'])
+        # .merge(goals, how='left', on=['PlayerID', 'Game']) \
+        # .merge(shifts, how='left', on=['PlayerID', 'Game'])
 
+        to_concat.append(temp)
+
+    df = pd.concat(to_concat)
+    for col in df.columns:
+        df.loc[:, col] = pd.to_numeric(df[col])
+    df = df[df.Game >= 20001]  # no preseason
+    df = df[df.Game <= 30417]  # no ASG, WC, Olympics, etc
+    for col in df:
+        if df[col].isnull().sum() > 0:
+            print('In player log, {0:s} has null values; filling with zeroes'.format(col))
+            df.loc[:, col] = df[col].fillna(0)
     spinner.stop()
+    return df
+
+
+def get_5v5_player_game_cfca(season, team):
+    """
+    Gets CFON, CAON, CFOFF, and CAOFF by game for given team in given season.
+    :param season: int, the season
+    :param team: int, team id
+    :return: df with game, player, CFON, CAON, CFOFF, and CAOFF
+    """
+    team = ss.team_as_id(team)
+    # TODO create generate methods. Get methods check if file exists and if not, create anew (or overwrite)
+    pbp = filter_for_corsi(ss.get_team_pbp(season, team))
+    pbp.loc[:, 'TeamEvent'] = pbp.Team.apply(lambda x: 'CF' if x == team else 'CA')
+
+    teamtotals = pbp[['Game', 'TeamEvent']] \
+        .assign(Count=1) \
+        .groupby(['Game', 'TeamEvent']).count().reset_index() \
+        .pivot_table(index='Game', columns='TeamEvent', values='Count').reset_index() \
+        .rename(columns={'CF': 'TeamCF', 'CA': 'TeamCA'})
+
+    toi = ss.get_team_toi(season, team)
+    toi = toi[['Game', 'Time', 'Team1', 'Team2', 'Team3', 'Team4', 'Team5']].drop_duplicates()
+    indivtotals = pbp.merge(toi, how='left', on=['Game', 'Time'])
+    indivtotals = indivtotals[['Game', 'TeamEvent', 'Team1', 'Team2', 'Team3', 'Team4', 'Team5']] \
+        .melt(id_vars=['Game', 'TeamEvent'], value_vars=['Team1', 'Team2', 'Team3', 'Team4', 'Team5'],
+              var_name='Temp', value_name='PlayerID') \
+        .drop('Temp', axis=1) \
+        .assign(Count=1) \
+        .groupby(['Game', 'TeamEvent', 'PlayerID']).count().reset_index() \
+        .pivot_table(index=['Game', 'PlayerID'], columns='TeamEvent', values='Count').reset_index() \
+        .rename(columns={'CF': 'CFON', 'CA': 'CAON'})
+
+    df = indivtotals.merge(teamtotals, how='inner', on='Game')
+    for col in ['CFON', 'CAON', 'TeamCF', 'TeamCA']:
+        if col not in df.columns:
+            df.loc[:, col] = 0
+        df.loc[:, col] = df[col].fillna(0)
+    df.loc['CFOFF'] = df.TeamCF - df.CFON
+    df.loc['CAOFF'] = df.TeamCA - df.CAON
+    return df
 
 
 def _convert_to_all_combos(df, fillval=0, *args):
@@ -643,7 +746,7 @@ def _convert_to_all_combos(df, fillval=0, *args):
     """
     args = set(args)
     if len(args) == 1:
-        df.loc[:, args[0]] = df[args[0]].fillna(fillval)
+        df.loc[:, list(args)[0]] = df[list(args)[0]].fillna(fillval)
         return df  # Nothing else to do here
 
     dfs_with_unique = []
@@ -717,7 +820,7 @@ def get_line_combos(season, game, homeroad='H'):
     pos = get_player_positions()
 
     fives = toi[(toi.HomeStrength == "5") & (toi.RoadStrength == "5")]
-    cols_to_keep = ['Time'] + ['{0:s}{1:d}'.format(homeroad, i+1) for i in range(5)]
+    cols_to_keep = ['Time'] + ['{0:s}{1:d}'.format(homeroad, i + 1) for i in range(5)]
     players = fives[cols_to_keep] \
         .melt(id_vars='Time', var_name='P', value_name='PlayerID') \
         .drop('P', axis=1) \
@@ -811,12 +914,8 @@ def filter_for_corsi(pbp):
     else:
         fives = pbp
 
-    goals = fives.Event.apply(lambda x: x == "Goal")
-    shots = fives.Event.apply(lambda x: x == "Shot")
-    misses = fives.Event.apply(lambda x: x == "Missed Shot")
-    blocks = fives.Event.apply(lambda x: x == "Blocked Shot")
+    corsi = fives[fives.Event.apply(lambda x: x in {"Goal", "Shot", "Missed Shot", "Blocked Shot"})]
 
-    corsi = fives[goals | shots | misses | blocks]
     return corsi
 
 
@@ -840,12 +939,9 @@ def get_game_h2h_corsi(season, game):
 
     hometeam = ss.get_home_team(season, game)
     # Add HomeCorsi which will be 1 or -1. Need to separate out blocks because they're credited to defending team
-    blocks = corsi[corsi.Event == 'Blocked Shot']
-    fenwick = corsi[corsi.Event != 'Blocked Shot']
-    blocks.loc[:, 'HomeCorsi'] = blocks.Team.apply(lambda x: -1 if x == hometeam else 1)
-    fenwick.loc[:, 'HomeCorsi'] = fenwick.Team.apply(lambda x: 1 if x == hometeam else -1)
+    # Never mind, switched block attribution at time of parsing, so we're good now
+    corsi.loc[:, 'HomeCorsi'] = corsi.Team.apply(lambda x: 1 if x == hometeam else -1)
 
-    corsi = pd.concat([fenwick, blocks])
     corsipm = corsi[['Time', 'HomeCorsi']]
 
     home = corsi[['Time', 'H1', 'H2', 'H3', 'H4', 'H5']] \

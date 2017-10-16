@@ -1,17 +1,19 @@
-import scrapenhl2.scrape.scrape_setup as ss  # lots of helpful methods in this module
-import scrapenhl2.scrape.exception_decor as ed
-import pandas as pd  # standard scientific python stack
-import numpy as np  # standard scientific python stack
+import json  # NHL API outputs JSONs
 import os  # for files
 import os.path  # for files
-import json  # NHL API outputs JSONs
-import urllib.request  # for accessing internet pages
 import urllib.error  # for errors in accessing internet pages
+import urllib.request  # for accessing internet pages
 import zlib  # for compressing and saving files
 from time import sleep  # this frees up time for use as variable name
-import pyarrow  # related to feather; need to import to use an error
-import logging  # for error logging
+
 import halo  # terminal spinners
+import numpy as np  # standard scientific python stack
+import pandas as pd  # standard scientific python stack
+import pyarrow  # related to feather; need to import to use an error
+
+import scrapenhl2.scrape.exception_decor as ed
+import scrapenhl2.scrape.scrape_setup as ss  # lots of helpful methods in this module
+
 
 # Known issues (non-exhaustive list)
 # 2016 20099, home team does not have players listed on ice for final 25 seconds of regulation
@@ -612,11 +614,11 @@ def read_events_from_page(rawpbp, season, game):
     - MinSec: str, m:ss, time elapsed in period
     - Time: int, time elapsed in game
     - Event: str, the event name
-    - Team: int, the team id
-    - Actor: int, the acting player id
-    - ActorRole: str, e.g. for faceoffs there is a "Winner" and "Loser"
-    - Recipient: int, the receiving player id
-    - RecipientRole: str, e.g. for faceoffs there is a "Winner" and "Loser"
+    - Team: int, the team id. Note that this is switched to blocked team for blocked shots to ease Corsi calculations.
+    - Actor: int, the acting player id. Switched with recipient for blocks (see above)
+    - ActorRole: str, e.g. for faceoffs there is a "Winner" and "Loser". Switched with recipient for blocks (see above)
+    - Recipient: int, the receiving player id. Switched with actor for blocks (see above)
+    - RecipientRole: str, e.g. for faceoffs there is a "Winner" and "Loser". Switched with actor for blocks (see above)
     - X: int, the x coordinate of event (or NaN)
     - Y: int, the y coordinate of event (or NaN)
     - Note: str, additional notes, which may include penalty duration, assists on a goal, etc.
@@ -660,14 +662,23 @@ def read_events_from_page(rawpbp, season, game):
 
         note[i] = ss.try_to_access_dict(pbp, i, 'result', 'description', default_return='')
 
+    # Switch blocked shots from being an event for player who blocked, to player who took shot that was blocked
+    # That means switching team attribution and actor/recipient.
+    gameinfo = ss.get_game_data_from_schedule(season, game)
+    switch_teams = {gameinfo['Home']: gameinfo['Road'], gameinfo['Road']: gameinfo['Home']}
+    team_sw = [team[i] if event[i] != "Blocked Shot" else switch_teams[team[i]] for i in range(len(team))]
+    p1_sw = [p1[i] if event[i] != "Blocked Shot" else p2[i] for i in range(len(p1))]
+    p2_sw = [p2[i] if event[i] != "Blocked Shot" else p1[i] for i in range(len(p2))]
+    p1role_sw = [p1role[i] if event[i] != "Blocked Shot" else p2role[i] for i in range(len(p1role))]
+    p2role_sw = [p2role[i] if event[i] != "Blocked Shot" else p1role[i] for i in range(len(p2role))]
+
     pbpdf = pd.DataFrame({'Index': index, 'Period': period, 'MinSec': times, 'Event': event,
-                          'Team': team, 'Actor': p1, 'ActorRole': p1role, 'Recipient': p2, 'RecipientRole': p2role,
-                          'X': xs, 'Y': ys, 'Note': note})
+                          'Team': team_sw, 'Actor': p1_sw, 'ActorRole': p1role_sw, 'Recipient': p2_sw,
+                          'RecipientRole': p2role_sw, 'X': xs, 'Y': ys, 'Note': note})
     if len(pbpdf) == 0:
         return pbpdf
 
     # Add score
-    gameinfo = ss.get_game_data_from_schedule(season, game)
     homegoals = pbpdf[['Event', 'Period', 'MinSec', 'Team']] \
         .query('Team == {0:d} & Event == "Goal"'.format(gameinfo['Home']))
     # TODO check team log for value_counts() of Event.
@@ -1015,7 +1026,7 @@ def autoupdate(season=None):
 
 if __name__ == "__main__":
     # autoupdate()
-    for season in range(2015, 2017):
+    for season in range(2016, 2017):
         ss.generate_season_schedule_file(season)
         ss.refresh_schedules()
         parse_season_toi(season, True)

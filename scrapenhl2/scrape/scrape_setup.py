@@ -5,21 +5,21 @@ At import, this module creates folders for data storage if need be.
 It also creates a team ID mapping and schedule files from 2005 through the current season (if the files do not exist).
 """
 
+import datetime
+import functools
+import json
 import os
 import os.path
-import feather
-import pandas as pd
-import json
 import os.path
-import urllib.request
 import urllib.error
-import datetime
-import numpy as np
-import logging
-import halo
-import functools
-import scrapenhl2.scrape.exception_decor as ed
+import urllib.request
 
+import feather
+import halo
+import numpy as np
+import pandas as pd
+
+import scrapenhl2.scrape.exception_decor as ed
 
 
 def _get_current_season():
@@ -33,7 +33,6 @@ def _get_current_season():
     return season
 
 
-
 def get_current_season():
     """
     Returns the current season.
@@ -42,14 +41,12 @@ def get_current_season():
     return _CURRENT_SEASON
 
 
-
 def _get_base_dir():
     """
     Returns the base directory (two directories up from __file__)
     :return: the base directory
     """
     return os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-
 
 
 def get_base_dir():
@@ -69,7 +66,6 @@ def _check_create_folder(*args):
     path = os.path.join(get_base_dir(), *args)
     if not os.path.exists(path):
         os.makedirs(path)
-
 
 
 def _create_folders_and_files():
@@ -126,7 +122,6 @@ def _create_folders_and_files():
         generate_player_log_file()
 
 
-
 def get_game_raw_pbp_filename(season, game):
     """
     Returns the filename of the raw pbp folder
@@ -135,7 +130,6 @@ def get_game_raw_pbp_filename(season, game):
     :return: /scrape/data/raw/pbp/[season]/[game].zlib
     """
     return os.path.join(get_season_raw_pbp_folder(season), str(game) + '.zlib')
-
 
 
 def get_game_raw_toi_filename(season, game):
@@ -148,7 +142,6 @@ def get_game_raw_toi_filename(season, game):
     return os.path.join(get_season_raw_toi_folder(season), str(game) + '.zlib')
 
 
-
 def get_game_parsed_pbp_filename(season, game):
     """
     Returns the filename of the parsed pbp folder
@@ -157,7 +150,6 @@ def get_game_parsed_pbp_filename(season, game):
     :return: /scrape/data/parsed/pbp/[season]/[game].zlib
     """
     return os.path.join(get_season_parsed_pbp_folder(season), str(game) + '.h5')
-
 
 
 def get_game_parsed_toi_filename(season, game):
@@ -170,14 +162,12 @@ def get_game_parsed_toi_filename(season, game):
     return os.path.join(get_season_parsed_toi_folder(season), str(game) + '.h5')
 
 
-
 def get_raw_data_folder():
     """
     Returns the folder containing raw data
     :return: /scrape/data/raw/
     """
     return os.path.join(_get_base_dir(), 'data', 'raw')
-
 
 
 def get_parsed_data_folder():
@@ -188,14 +178,12 @@ def get_parsed_data_folder():
     return os.path.join(_get_base_dir(), 'data', 'parsed')
 
 
-
 def get_team_data_folder():
     """
     Returns the folder containing team log data
     :return: /scrape/data/teams/
     """
     return os.path.join(_get_base_dir(), 'data', 'teams')
-
 
 
 def get_other_data_folder():
@@ -206,7 +194,6 @@ def get_other_data_folder():
     return os.path.join(_get_base_dir(), 'data', 'other')
 
 
-
 def get_season_raw_pbp_folder(season):
     """
     Returns the folder containing raw pbp for given season
@@ -214,7 +201,6 @@ def get_season_raw_pbp_folder(season):
     :return: /scrape/data/raw/pbp/[season]/
     """
     return os.path.join(get_raw_data_folder(), 'pbp', str(season))
-
 
 
 def get_season_raw_toi_folder(season):
@@ -236,7 +222,6 @@ def get_season_parsed_pbp_folder(season):
     return os.path.join(get_parsed_data_folder(), 'pbp', str(season))
 
 
-
 def get_season_parsed_toi_folder(season):
     """
     Returns the folder containing parsed toi for given season
@@ -244,7 +229,6 @@ def get_season_parsed_toi_folder(season):
     :return: /scrape/data/raw/toi/[season]/
     """
     return os.path.join(get_parsed_data_folder(), 'toi', str(season))
-
 
 
 def get_season_team_pbp_folder(season):
@@ -256,7 +240,6 @@ def get_season_team_pbp_folder(season):
     return os.path.join(get_team_data_folder(), 'pbp', str(season))
 
 
-
 def get_season_team_toi_folder(season):
     """
     Returns the folder containing team toi logs for given season
@@ -264,7 +247,6 @@ def get_season_team_toi_folder(season):
     :return: /scrape/data/teams/toi/[season]/
     """
     return os.path.join(get_team_data_folder(), 'toi', str(season))
-
 
 
 def get_team_pbp_filename(season, team):
@@ -278,7 +260,6 @@ def get_team_pbp_filename(season, team):
                         "{0:s}.feather".format(team_as_str(team, abbreviation=True)))
 
 
-
 def get_team_toi_filename(season, team):
     """
 
@@ -288,7 +269,6 @@ def get_team_toi_filename(season, team):
     """
     return os.path.join(get_season_team_toi_folder(season),
                         "{0:s}.feather".format(team_as_str(team, abbreviation=True)))
-
 
 
 def get_team_pbp(season, team):
@@ -301,7 +281,6 @@ def get_team_pbp(season, team):
     return feather.read_dataframe(get_team_pbp_filename(season, team_as_str(team, True)))
 
 
-
 def get_team_toi(season, team):
     """
     Returns the toi of given team in given season across all games.
@@ -310,7 +289,6 @@ def get_team_toi(season, team):
     :return: df, the toi of given team in given season
     """
     return feather.read_dataframe(get_team_toi_filename(season, team_as_str(team, True)))
-
 
 
 def write_team_pbp(pbp, season, team):
@@ -327,10 +305,9 @@ def write_team_pbp(pbp, season, team):
     feather.write_dataframe(pbp, get_team_pbp_filename(season, team_as_str(team, True)))
 
 
-
 def write_team_toi(toi, season, team):
     """
-    
+
     :param toi: df, team toi for this season
     :param season: int, the season
     :param team: int or str, the team abbreviation.
@@ -351,14 +328,12 @@ def write_team_toi(toi, season, team):
         feather.write_dataframe(toi, get_team_toi_filename(season, team_as_str(team, True)))
 
 
-
 def get_team_info_filename():
     """
     Returns the team information filename
     :return: /scrape/data/other/TEAM_INFO.feather
     """
     return os.path.join(get_other_data_folder(), 'TEAM_INFO.feather')
-
 
 
 def _get_team_info_file():
@@ -369,14 +344,12 @@ def _get_team_info_file():
     return feather.read_dataframe(get_team_info_filename())
 
 
-
 def get_team_info_file():
     """
     Returns the team information file. This is stored as a feather file for fast read/write.
     :return: file from /scrape/data/other/TEAM_INFO.feather
     """
     return _TEAMS
-
 
 
 def write_team_info_file(df):
@@ -387,7 +360,6 @@ def write_team_info_file(df):
     feather.write_dataframe(df, get_team_info_filename())
 
 
-
 def get_team_info_url(teamid):
     """
     Gets the team url from the NHL API.
@@ -395,7 +367,6 @@ def get_team_info_url(teamid):
     :return: http://statsapi.web.nhl.com/api/v1/teams/[teamid]
     """
     return 'http://statsapi.web.nhl.com/api/v1/teams/{0:d}'.format(teamid)
-
 
 
 def get_team_info_from_url(teamid):
@@ -415,8 +386,7 @@ def get_team_info_from_url(teamid):
     tabbrev = teaminfo['teams'][0]['abbreviation']
     tname = teaminfo['teams'][0]['name']
 
-    return(tid, tabbrev, tname)
-
+    return tid, tabbrev, tname
 
 
 def add_team_to_info_file(teamid):
@@ -438,7 +408,6 @@ def add_team_to_info_file(teamid):
     refresh_team_info()
 
     return info
-
 
 
 def generate_team_ids_file(teamids=None):
@@ -490,7 +459,6 @@ def generate_team_ids_file(teamids=None):
     spinner.stop()
 
 
-
 def get_season_schedule_url(season):
     """
     Gets the url for a page containing all of this season's games (Sep 1 to Jun 26) from NHL API.
@@ -515,7 +483,6 @@ def get_game_from_url(season, game):
     return page
 
 
-
 def get_game_url(season, game):
     """
     Gets the url for a page containing information for specified game from NHL API.
@@ -524,7 +491,6 @@ def get_game_url(season, game):
     :return: https://statsapi.web.nhl.com/api/v1/game/[season]0[game]/feed/live
     """
     return 'https://statsapi.web.nhl.com/api/v1/game/{0:d}0{1:d}/feed/live'.format(season, game)
-
 
 
 def get_shift_url(season, game):
@@ -537,7 +503,6 @@ def get_shift_url(season, game):
     return 'http://www.nhl.com/stats/rest/shiftcharts?cayenneExp=gameId={0:d}0{1:d}'.format(season, game)
 
 
-
 def get_player_url(playerid):
     """
     Gets the url for a page containing information for specified player from NHL API.
@@ -545,7 +510,6 @@ def get_player_url(playerid):
     :return: https://statsapi.web.nhl.com/api/v1/people/[playerid]
     """
     return 'https://statsapi.web.nhl.com/api/v1/people/{0:s}'.format(str(playerid))
-
 
 
 def get_player_5v5_log_filename(season):
@@ -557,7 +521,6 @@ def get_player_5v5_log_filename(season):
     return os.path.join(get_other_data_folder(), '{0:d}_player_5v5_log.feather'.format(season))
 
 
-
 def get_season_schedule_filename(season):
     """
     Gets the filename for the season's schedule file
@@ -565,7 +528,6 @@ def get_season_schedule_filename(season):
     :return: /scrape/data/other/[season]_schedule.feather
     """
     return os.path.join(get_other_data_folder(), '{0:d}_schedule.feather'.format(season))
-
 
 
 def get_season_schedule(season):
@@ -577,7 +539,6 @@ def get_season_schedule(season):
     return _SCHEDULES[season]
 
 
-
 def _get_season_schedule(season):
     """
     Gets the the season's schedule file. Stored as a feather file for fast read/write
@@ -585,7 +546,6 @@ def _get_season_schedule(season):
     :return: file from /scrape/data/other/[season]_schedule.feather
     """
     return feather.read_dataframe(get_season_schedule_filename(season))
-
 
 
 def try_to_access_dict(base_dct, *keys, **kwargs):
@@ -611,7 +571,6 @@ def try_to_access_dict(base_dct, *keys, **kwargs):
         return default_return
     except TypeError:  # might not be a dictionary or list
         return default_return
-
 
 
 def generate_season_schedule_file(season, force_overwrite=True):
@@ -715,7 +674,6 @@ def generate_season_schedule_file(season, force_overwrite=True):
     _write_season_schedule(df, season, force_overwrite)
 
     ed.print_and_log('Done generating schedule for {0:d}'.format(season))
-    
 
 
 def update_schedule_with_pbp_scrape(season, game):
@@ -732,7 +690,6 @@ def update_schedule_with_pbp_scrape(season, game):
     _SCHEDULES[season] = df
 
 
-
 def update_schedule_with_toi_scrape(season, game):
     """
     Updates the schedule file saying that specified game's toi has been scraped.
@@ -745,7 +702,6 @@ def update_schedule_with_toi_scrape(season, game):
     _write_season_schedule(df, season, True)
     global _SCHEDULES
     _SCHEDULES[season] = df
-
 
 
 def _write_season_schedule(df, season, force_overwrite):
@@ -772,16 +728,14 @@ def _write_season_schedule(df, season, force_overwrite):
         feather.write_dataframe(newdf, get_season_schedule_filename(season))
 
 
-
 def get_player_ids_filename():
     return os.path.join(get_other_data_folder(), 'PLAYER_INFO.feather')
-
 
 
 def generate_player_ids_file():
     """
     Creates a dataframe with these columns:
-    
+
     - ID: int, player ID
     - Name: str, player name
     - DOB: str, date of birth
@@ -789,7 +743,7 @@ def generate_player_ids_file():
     - Pos: char, one of C/R/L/D/G
 
     It will be populated with Alex Ovechkin to start.
-    :return: nothing 
+    :return: nothing
     """
     df = pd.DataFrame({'ID': [8471214],
                        'Name': ['Alex Ovechkin'],
@@ -800,7 +754,6 @@ def generate_player_ids_file():
                        'Weight': [235],
                        'Nationality': ['RUS']})
     write_player_ids_file(df)
-
 
 
 def generate_player_log_file():
@@ -819,15 +772,13 @@ def generate_player_log_file():
     write_player_log_file(df)
 
 
-
 def write_player_log_file(df):
     """
     Writes the given dataframe to file as the player log filename
     :param df: pandas dataframe
     :return: nothing
     """
-    feather.write_dataframe(df, get_player_log_filename())
-
+    feather.write_dataframe(df.drop_duplicates(), get_player_log_filename())
 
 
 def get_player_log_file():
@@ -836,7 +787,6 @@ def get_player_log_file():
     :return: dataframe, the log
     """
     return _PLAYER_LOG
-
 
 
 def _get_player_log_file():
@@ -867,7 +817,6 @@ def get_player_log_filename():
     return os.path.join(get_other_data_folder(), 'PLAYER_LOG.feather')
 
 
-
 def get_player_ids_file():
     """
     Returns the player information file. This is stored as a feather file for fast read/write.
@@ -876,14 +825,12 @@ def get_player_ids_file():
     return _PLAYERS
 
 
-
 def _get_player_ids_file():
     """
     Runs at startup to read the player information file. This is stored as a feather file for fast read/write.
     :return: /scrape/data/other/PLAYER_INFO.feather
     """
     return feather.read_dataframe(get_player_ids_filename())
-
 
 
 def get_player_info_from_url(playerid):
@@ -912,7 +859,6 @@ def get_player_info_from_url(playerid):
     if info['Height'] is not None:
         info['Height'] = info['Height'].replace(' ', '')
     return info
-
 
 
 def update_player_ids_file(playerids, force_overwrite=False):
@@ -968,7 +914,6 @@ def update_player_ids_file(playerids, force_overwrite=False):
     # print(len(_PLAYERS.groupby('ID').count().query('Name >= 2'))) # not getting duplicates, so I think we're okay
 
 
-
 def update_player_log_file(playerids, seasons, games, teams, statuses):
     """
     Updates the player log file with given players. The player log file notes which players played in which games
@@ -1009,7 +954,6 @@ def update_player_log_file(playerids, seasons, games, teams, statuses):
     _PLAYER_LOG = _get_player_log_file()
 
 
-
 def rescrape_player(playerid):
     """
     If you notice that a player name, position, etc, is outdated, call this method on their ID. It will
@@ -1021,7 +965,6 @@ def rescrape_player(playerid):
     update_player_ids_file(playerid, True)
 
 
-
 def write_player_ids_file(df):
     """
     Writes the given dataframe to disk as the player ids mapping.
@@ -1029,7 +972,6 @@ def write_player_ids_file(df):
     :return: nothing
     """
     feather.write_dataframe(df, get_player_ids_filename())
-
 
 
 @functools.lru_cache(maxsize=128, typed=False)
@@ -1057,7 +999,6 @@ def team_as_id(team):
         return None
 
 
-
 @functools.lru_cache(maxsize=128, typed=False)
 def team_as_str(team, abbreviation=True):
     """
@@ -1067,7 +1008,7 @@ def team_as_str(team, abbreviation=True):
     :return: str, the team name
     """
     col_to_access = 'Abbreviation' if abbreviation else 'Name'
-    
+
     if isinstance(team, str):
         return team
     elif isinstance(team, int) or isinstance(team, np.int64):
@@ -1091,7 +1032,6 @@ def team_as_str(team, abbreviation=True):
     else:
         ed.print_and_log('Specified wrong type for team: {0:s}'.format(type(team)), 'warn')
         return None
-    
 
 
 @functools.lru_cache(maxsize=128, typed=False)
@@ -1155,6 +1095,8 @@ def playerlst_as_id(players, exact=False):
     df = pd.DataFrame({'Name': players})
     if df.Name.dtype != 'str':
         return df.Name
+    elif exact is False:
+        return df.merge(get_player_ids_file(), on='Name', how='left').ID
     else:
         df.loc[:, 'ID'] = df.Name.apply(lambda x: player_as_id(x))
         return df.ID
@@ -1185,7 +1127,6 @@ def player_as_str(player):
         return None
 
 
-
 def refresh_schedules():
     """
     Reloads schedules to memory. Use this after updating schedule file on disk, because get_season_schedule()
@@ -1194,7 +1135,6 @@ def refresh_schedules():
     """
     global _SCHEDULES
     _SCHEDULES = {season: _get_season_schedule(season) for season in range(2005, _CURRENT_SEASON + 1)}
-
 
 
 def refresh_team_info():
@@ -1212,7 +1152,7 @@ def convert_event(event):
     :param event: str, the event name
     :return: str, shortened event name
     """
-    return get_event_dictionary()[event] # TODO the event dictionary is missing some
+    return get_event_dictionary()[event]  # TODO the event dictionary is missing some
 
 
 @functools.lru_cache(maxsize=128, typed=False)
@@ -1310,6 +1250,7 @@ def get_game_result(season, game):
     """
     return get_game_data_from_schedule(season, game)['Result']
 
+
 def update_schedule_with_coaches(season, game, homecoach, roadcoach):
     """
     Updates the season schedule file with given coaches' names (which are listed 'N/A' at schedule generation)
@@ -1371,7 +1312,6 @@ def infer_season_from_date(date):
     return season
 
 
-
 @functools.lru_cache(maxsize=128, typed=False)
 def _get_event_dictionary():
     """
@@ -1399,14 +1339,12 @@ def _get_event_dictionary():
             'chal': 'official challenge', 'official challenge': 'official challenge'}
 
 
-
 def get_event_dictionary():
     """
     Returns the abbreviation: long name event mapping (in lowercase)
     :return: dict of str:str
     """
     return _EVENT_DICT
-
 
 
 @functools.lru_cache(maxsize=128, typed=False)
@@ -1417,7 +1355,6 @@ def get_event_longname(eventname):
     :return: the non-abbreviated event name
     """
     return get_event_dictionary()[eventname]
-
 
 
 def check_types(obj):
@@ -1459,13 +1396,14 @@ def _get_team_colordict():
             'VAN': ['#07346F', '#047A4A', '#A8A9AD'], 'LGK': ['#333F48', '#000000', '#89734C', '#C8102E;'],
             'WSH': ['#CF132B', '#00214E', '#000000'], 'WPG': ['#002E62', '#0168AB', '#A8A9AD']}
 
+
 def get_team_colors(team):
     """
     Returns primary and secondary color for this team.
     :param team: str or int, the team
     :return: tuple of hex colors
     """
-    return get_team_colordict[team_as_str(team)]
+    return get_team_colordict()[team_as_str(team)]
 
 
 def setup():

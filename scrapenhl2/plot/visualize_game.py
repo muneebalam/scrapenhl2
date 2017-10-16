@@ -1,20 +1,10 @@
-import scrapenhl2.scrape.scrape_setup as ss  # lots of helpful methods in this module
-import scrapenhl2.scrape.scrape_game as sg
-import scrapenhl2.manipulate.manipulate as manip
-import pandas as pd  # standard scientific python stack
-import numpy as np  # standard scientific python stack
-import os  # for files
-import os.path  # for files
-import json  # NHL API outputs JSONs
-import urllib.request  # for accessing internet pages
-import urllib.error  # for errors in accessing internet pages
-import zlib  # for compressing and saving files
-from time import sleep  # this frees up time for use as variable name
-import pyarrow  # related to feather; need to import to use an error
-import logging  # for error logging
-import halo  # terminal spinners
-import functools  # for the lru_cache decorator
 import matplotlib.pyplot as plt
+import numpy as np  # standard scientific python stack
+import pandas as pd  # standard scientific python stack
+
+import scrapenhl2.manipulate.manipulate as manip
+import scrapenhl2.scrape.scrape_game as sg
+import scrapenhl2.scrape.scrape_setup as ss  # lots of helpful methods in this module
 
 
 def game_timeline(season, game, save_file=None):
@@ -29,8 +19,8 @@ def game_timeline(season, game, save_file=None):
     hname = ss.team_as_str(ss.get_home_team(season, game))
     rname = ss.team_as_str(ss.get_road_team(season, game))
 
-    cf = {hname: _get_home_cf_for_timeline(season, game), rname:_get_road_cf_for_timeline(season, game)}
-    pps = {hname: _get_home_adv_for_timeline(season, game), rname:_get_road_adv_for_timeline(season, game)}
+    cf = {hname: _get_home_cf_for_timeline(season, game), rname: _get_road_cf_for_timeline(season, game)}
+    pps = {hname: _get_home_adv_for_timeline(season, game), rname: _get_road_adv_for_timeline(season, game)}
     gs = {hname: _get_home_goals_for_timeline(season, game), rname: _get_road_goals_for_timeline(season, game)}
     colors = {hname: plt.rcParams['axes.prop_cycle'].by_key()['color'][0],
               rname: plt.rcParams['axes.prop_cycle'].by_key()['color'][1]}
@@ -149,7 +139,6 @@ def _get_contiguous_times(times):
     return cont_times
 
 
-
 def _get_corsi_timeline_title(season, game):
     """
     Returns the default chart title for corsi timelines.
@@ -163,10 +152,9 @@ def _get_corsi_timeline_title(season, game):
     else:
         otso_str = ''
     # Add strings to a list then join them together with newlines
-    titletext = []
-    titletext.append('Shot attempt timeline for {0:d}-{1:s} Game {2:d} ({3:s})'.format(
-        int(season), str(int(season + 1))[2:], int(game), ss.get_game_date(season, game)))
-    titletext.append('{0:s} {1:d} at {2:s} {3:d}{4:s} ({5:s})'.format(
+    titletext = ('Shot attempt timeline for {0:d}-{1:s} Game {2:d} ({3:s})'.format(
+        int(season), str(int(season + 1))[2:], int(game), ss.get_game_date(season, game)),
+                 '{0:s} {1:d} at {2:s} {3:d}{4:s} ({5:s})'.format(
         ss.team_as_str(ss.get_road_team(season, game), abbreviation=False),
         ss.get_road_score(season, game),
         ss.team_as_str(ss.get_home_team(season, game), abbreviation=False),
@@ -193,7 +181,7 @@ def _goal_times_to_scatter_for_timeline(goal_times, cfdf):
         for j in range(cumgoals):
             goal_xs.append(goal_times[i])
             goal_ys.append(cf_at_time + j)
-    return (goal_xs, goal_ys)
+    return goal_xs, goal_ys
 
 
 def _get_home_goals_for_timeline(season, game, granularity='min'):
@@ -301,7 +289,7 @@ def _get_road_cf_for_timeline(season, game, granularity='min'):
     :param granularity: can respond in minutes, or seconds, elapsed in game
     :return: a two-column dataframe
     """
-    return _get_cf_for_timeline(season, game, 'R')
+    return _get_cf_for_timeline(season, game, 'R', granularity)
 
 
 def game_h2h(season, game, save_file=None):
@@ -319,14 +307,15 @@ def game_h2h(season, game, save_file=None):
     playerorder_r, numf_r = _get_h2h_chart_player_order(season, game, 'R')
 
     # TODO create chart and filter out RH, HH, and RR
-    _game_h2h_chart(season, game, ss.get_home_team(season, game), ss.get_road_team(season, game),
-                    h2hcorsi, h2htoi, playerorder_h, playerorder_r, numf_h, numf_r, save_file)
+    _game_h2h_chart(season, game, h2hcorsi, h2htoi, playerorder_h, playerorder_r, numf_h, numf_r, save_file)
 
 
-def _game_h2h_chart(season, game, home, road, corsi, toi, orderh, orderr, numf_h=None, numf_r=None, save_file=None):
+def _game_h2h_chart(season, game, corsi, toi, orderh, orderr, numf_h=None, numf_r=None, save_file=None):
     """
 
-    :param charttitle: str, chart will have this title
+    :param season: int, the season
+    :param game: int, the game
+    :param
     :param corsi: df of P1, P2, Corsi +/- for P1
     :param toi: df of P1, P2, H2H TOI
     :param orderh: list of float, player order on y-axis, top to bottom
@@ -336,10 +325,11 @@ def _game_h2h_chart(season, game, home, road, corsi, toi, orderh, orderr, numf_h
     :param save_file: str of file to save the figure to, or None to simply display
     :return: nothing
     """
-    hname = ss.team_as_str(home, True)
-    homename = ss.team_as_str(home, False)
-    rname = ss.team_as_str(road, True)
-    roadname = ss.team_as_str(road, False)
+
+    hname = ss.team_as_str(ss.get_home_team(season, game), True)
+    homename = ss.team_as_str(ss.get_home_team(season, game), False)
+    rname = ss.team_as_str(ss.get_road_team(season, game), True)
+    roadname = ss.team_as_str(ss.get_road_team(season, game), False)
 
     fig, ax = plt.subplots(1, figsize=[11, 7])
 
@@ -353,8 +343,8 @@ def _game_h2h_chart(season, game, home, road, corsi, toi, orderh, orderr, numf_h
     # Hist2D of TOI
     # I make the bins a little weird so my coordinates are centered in them. Otherwise, they're all on the edges.
     _, _, _, image = ax.hist2d(x=plotdf.X, y=plotdf.Y, bins=(np.arange(-0.5, len(orderr) + 0.5, 1),
-                                                      np.arange(-0.5, len(orderh) + 0.5, 1)),
-                        weights=plotdf.Min, cmap=plt.cm.summer)
+                                                             np.arange(-0.5, len(orderh) + 0.5, 1)),
+                               weights=plotdf.Min, cmap=plt.cm.summer)
 
     # Convert IDs to names and label axes and axes ticks
     ax.set_xlabel(roadname)
@@ -417,10 +407,10 @@ def _game_h2h_chart(season, game, home, road, corsi, toi, orderh, orderr, numf_h
     topax = ax.twiny()
     topax.set_xticks(range(len(xorder)))
     rtotals = pd.DataFrame({'PlayerID2': orderr}) \
-            .merge(toi[['PlayerID2', 'Secs']].groupby('PlayerID2').sum().reset_index(),
-                   how='left', on='PlayerID2') \
-            .merge(corsi[['PlayerID2', 'HomeCorsi']].groupby('PlayerID2').sum().reset_index(),
-                   how='left', on='PlayerID2')
+        .merge(toi[['PlayerID2', 'Secs']].groupby('PlayerID2').sum().reset_index(),
+               how='left', on='PlayerID2') \
+        .merge(corsi[['PlayerID2', 'HomeCorsi']].groupby('PlayerID2').sum().reset_index(),
+               how='left', on='PlayerID2')
     rtotals.loc[:, 'CorsiLabel'] = rtotals.HomeCorsi.apply(lambda x: _format_number_with_plus(-1 * int(x / 5)))
     rtotals.loc[:, 'TOILabel'] = rtotals.Secs.apply(lambda x: manip.time_to_mss(x / 5))
     toplabels = ['{0:s} in {1:s}'.format(x, y) for x, y, in zip(list(rtotals.CorsiLabel), list(rtotals.TOILabel))]
@@ -448,7 +438,6 @@ def _game_h2h_chart(season, game, home, road, corsi, toi, orderh, orderr, numf_h
 
     # plt.subplots_adjust(top=0.80)
     # topax.set_ylim(-0.5, len(orderh) - 0.5)
-
 
     # Add brief explanation for the top left cell at the bottom
     explanation = []
@@ -597,15 +586,18 @@ def _format_number_with_plus(stringnum):
     else:
         return '+' + str(stringnum)
 
+
 def _hex_to_rgb(value):
     """Return (red, green, blue) for the color given as #rrggbb."""
     value = value.lstrip('#')
     lv = len(value)
     return tuple(int(value[i:i + lv // 3], 16) for i in range(0, lv, lv // 3))
 
+
 def _rgb_to_hex(red, green, blue):
     """Return color as #rrggbb for the given color values."""
     return '#%02x%02x%02x' % (int(red), int(green), int(blue))
+
 
 def _make_color_darker(hex=None, rgb=None, returntype='hex'):
     """
@@ -649,8 +641,3 @@ def _make_color_lighter(hex=None, rgb=None, returntype='hex'):
     if returntype == 'rgb':
         return color
     return _rgb_to_hex(*color)
-
-if __name__ == '__main__':
-    # sg.autoupdate()
-    # game_h2h(2017, 20066)
-    game_timeline(2017, 20001)
