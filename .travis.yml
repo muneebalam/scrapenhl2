@@ -8,6 +8,6 @@ install:
   - pip install matplotlib
   - pip install seaborn
   - pip install pandas
-  - pip install feather
+  - pip install feather-format
   - pip install halo
   - pip install scikit-learn
