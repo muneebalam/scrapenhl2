@@ -666,20 +666,24 @@ def generate_5v5_player_log(season):
     _ = get_player_toion_toioff_file(season, force_create=True)
 
     for team in ss.get_teams_in_season(season):
-        goals = get_5v5_player_game_boxcars(season, team)  # G, A1, A2, SOG, iCF
-        cfca = get_5v5_player_game_cfca(season, team)  # CFON, CAON, CFOFF, CAOFF, and same for goals
-        toi = get_5v5_player_game_toi(season, team)  # TOION and TOIOFF
-        toicomp = get_5v5_player_game_toicomp(season, team)  # FQoC, F QoT, D QoC, D QoT, and respective Ns
-        shifts = get_5v5_player_game_shift_startend(season, team)  # OZ, NZ, DZ, OTF-O, OTF-D, OTF-N
+        try:
+            goals = get_5v5_player_game_boxcars(season, team)  # G, A1, A2, SOG, iCF
+            cfca = get_5v5_player_game_cfca(season, team)  # CFON, CAON, CFOFF, CAOFF, and same for goals
+            toi = get_5v5_player_game_toi(season, team)  # TOION and TOIOFF
+            toicomp = get_5v5_player_game_toicomp(season, team)  # FQoC, F QoT, D QoC, D QoT, and respective Ns
+            shifts = get_5v5_player_game_shift_startend(season, team)  # OZ, NZ, DZ, OTF-O, OTF-D, OTF-N
 
-        temp = df[df.Team == team].rename(columns={'ID': 'PlayerID'}) \
-            .merge(cfca, how='left', on=['PlayerID', 'Game']) \
-            .merge(toi, how='left', on=['PlayerID', 'Game']) \
-            .merge(toicomp.drop('Team', axis=1), how='left', on=['PlayerID', 'Game'])
-        # .merge(goals, how='left', on=['PlayerID', 'Game']) \
-        # .merge(shifts, how='left', on=['PlayerID', 'Game'])
+            temp = df[df.Team == team].rename(columns={'ID': 'PlayerID'}) \
+                .merge(cfca, how='left', on=['PlayerID', 'Game']) \
+                .merge(toi, how='left', on=['PlayerID', 'Game']) \
+                .merge(toicomp.drop('Team', axis=1), how='left', on=['PlayerID', 'Game'])
+            # .merge(goals, how='left', on=['PlayerID', 'Game']) \
+            # .merge(shifts, how='left', on=['PlayerID', 'Game'])
 
-        to_concat.append(temp)
+            to_concat.append(temp)
+        except Exception as e:
+            print('Issue with generating game-by-game for', season, team)
+            print(e)
 
     df = pd.concat(to_concat)
     for col in df.columns:
