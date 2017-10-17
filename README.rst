@@ -15,7 +15,7 @@ scrapenhl2 is a python package for scraping and manipulating NHL data pulled fro
 Installation
 -------------
 You need python3 and the python scientific stack (e.g. numpy, matplotlib, pandas, etc).
-Easiest way is to simply use `Anaconda<https://conda.io/docs/user-guide/install/index.html>`_.
+Easiest way is to simply use `Anaconda <https://conda.io/docs/user-guide/install/index.html>`_.
 To be safe, make sure you have python 3.5+, matplotlib 2.0+, and pandas 0.20+.
 
 After that, all you need to do is open up terminal or command line and enter::
@@ -28,7 +28,7 @@ For now, installation should be pretty quick, but in the future it may take awhi
 (depending on how many past years' files I make part of the package).
 
 As far as coding environments go, I recommend jupyter notebook or
-`Pycharm Community<https://www.jetbrains.com/pycharm/download/#section=mac>`_.
+`Pycharm Community <https://www.jetbrains.com/pycharm/download/#section=mac>`_.
 Some folks also like the PyDev plugin in Eclipse. The latter two are full-scale applications, while the former
 launches in your browser. Open up terminal or command line and run::
 
