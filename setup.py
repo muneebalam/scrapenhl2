@@ -12,7 +12,7 @@ def read(fname):
 
 setuptools.setup(
     name = "scrapenhl2",
-    version = "0.0.2",
+    version="0.0.202",
     author = "Muneeb Alam",
     author_email = "muneeb.alam@gmail.com",
     description = ("scrapenhl2 is a python package for scraping and manipulating NHL data pulled from the NHL website."),
@@ -21,7 +21,7 @@ setuptools.setup(
     url = "https://github.com/muneebalam/scrapenhl2",
     packages=['scrapenhl2', 'docs', 'tests'],
     install_requires=['numpy', 'scipy', 'matplotlib', 'seaborn', 'pandas', 'feather-format', 'halo', 'pyarrow',
-                      'scikit-learn', 'flask'],
+                      'scikit-learn', 'flask', 'setuptools'],
     long_description=read('README.rst'),
     classifiers=[
         "Development Status :: 2 - Pre-Alpha",

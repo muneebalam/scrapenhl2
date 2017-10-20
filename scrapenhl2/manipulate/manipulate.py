@@ -1098,8 +1098,3 @@ def player_columns_to_name(df, columns=None):
             newdf.loc[:, col] = df[col]
 
     return newdf
-
-
-if __name__ == '__main__':
-    for season in range(2010, 2017):
-        get_toicomp_file(season)
