@@ -20,8 +20,18 @@ setuptools.setup(
     keywords = "nhl",
     url = "https://github.com/muneebalam/scrapenhl2",
     packages=['scrapenhl2', 'docs', 'tests'],
-    install_requires=['numpy', 'scipy', 'matplotlib', 'seaborn', 'pandas', 'feather-format', 'halo', 'pyarrow',
-                      'scikit-learn', 'flask', 'setuptools'],
+    install_requires=['numpy',  # used by pandas
+                      'scipy',  # not currently used, but may be used for distribution fitting
+                      'matplotlib',  # graphing
+                      'seaborn',  # graphing; a little nicer than MPL
+                      'pandas',  # for handling and manipulating data
+                      'pyarrow',  # used by feather
+                      'feather-format',  # fast read-write format that plays nicely with R
+                      'halo',  # for spinners
+                      'scikit-learn',  # not currently used, but will be for machine learning
+                      'flask',  # for front end
+                      'python-Levenshtein',  # for fast fuzzy matching
+                      'fuzzywuzzy'],  # for fuzzy string matching
     long_description=read('README.rst'),
     classifiers=[
         "Development Status :: 2 - Pre-Alpha",

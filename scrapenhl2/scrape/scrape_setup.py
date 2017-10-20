@@ -18,6 +18,7 @@ import feather
 import halo
 import numpy as np
 import pandas as pd
+from fuzzywuzzy import fuzz
 
 import scrapenhl2.scrape.exception_decor as ed
 
@@ -1064,6 +1065,27 @@ def team_as_str(team, abbreviation=True):
         return None
 
 
+def fuzzy_match_player(name_provided, names, minimum_similarity=50):
+    """
+    This method checks similarity between each entry in names and the name_provided using token set matching and
+    returns the entry that matches best. Returns None if no similarity is greater than minimum_similarity.
+    (See e.g. http://chairnerd.seatgeek.com/fuzzywuzzy-fuzzy-string-matching-in-python/)
+    :param name_provided: str, name to look for
+    :param names: list (or ndarray, or similar) of
+    :param minimum_similarity: int from 0 to 100, minimum similarity. If all are below this, returns None.
+    :return: str, string in names that best matches name_provided
+    """
+    df = pd.DataFrame({'Name': names})
+    df.loc[:, 'SimScore'] = df.Name.apply(lambda x: fuzz.token_set_ratio(name_provided, x))
+    df = df.sort_values(by='SimScore', ascending=False).query('SimScore >= {0:f}'.format(minimum_similarity))
+    if len(df) == 0:
+        ed.print_and_log('Could not find match for {0:s}'.format(name_provided), 'warn')
+        return None
+    else:
+        print(df.iloc[0])
+        return df.Name.iloc[0]
+
+
 @functools.lru_cache(maxsize=128, typed=False)
 def player_as_id(player):
     """
@@ -1071,18 +1093,18 @@ def player_as_id(player):
     :param player: int, or str
     :return: int, the player ID
     """
+    pids = get_player_ids_file()
     if isinstance(player, int) or isinstance(player, np.int64):
         return player
     elif isinstance(player, str):
-        df = get_player_ids_file().query('Name == "{0:s}"'.format(player))
+        df = pids.query('Name == "{0:s}"'.format(player))
         if len(df) == 0:
-            ed.print_and_log('Could not find exact match for for {0:s}; trying exact substring match'.format(player))
-            df = get_player_ids_file()
+            # ed.print_and_log('Could not find exact match for for {0:s}; trying exact substring match'.format(player))
+            df = pids
             df = df[df.Name.str.contains(player)]
             if len(df) == 0:
-                ed.print_and_log('Could not find exact substring match; trying fuzzy matching')
-                # TODO fuzzy match
-                return None
+                # ed.print_and_log('Could not find exact substring match; trying fuzzy matching')
+                return fuzzy_match_player(player, pids.Name)
             elif len(df) == 1:
                 return df.ID.iloc[0]
             else:
