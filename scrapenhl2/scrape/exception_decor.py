@@ -1,8 +1,9 @@
 import functools
 import logging
-import pickle
 import os
 import os.path
+import pickle
+import time
 
 
 def print_and_log(message, level='info', print_and_log=True):
@@ -25,10 +26,27 @@ def print_and_log(message, level='info', print_and_log=True):
         logging.info(message)
 
 
+def once_per_second(function, calls_per_second=1):
+    """
+    A decorator that sleeps for one second after executing the function. Used when scraping NHL site.
+
+    This also means all functions that access the internet sleep for a second.
+    :param function: the function
+    :return: nothing
+    """
+
+    @functools.wraps(function)
+    def wrapper(*args, **kwargs):
+        time.sleep(1 / calls_per_second)
+        return function(*args, **kwargs)
+
+
 def log_exceptions(function):
     """
     A decorator that wraps the passed in function and logs
     exceptions should one occur
+    :param function: the function
+    :return: nothing
     """
 
     @functools.wraps(function)
@@ -43,10 +61,10 @@ def log_exceptions(function):
 
             # and write their args to file, named after function.
             index = 0  # used in case one function is called multiple times
-            fname = "../.logs/{0:s}{1:d}.pkl".format(function.__name__, index)
+            fname = get_logging_folder() + "{0:s}{1:d}.pkl".format(function.__name__, index)
             while os.path.exists(fname):
                 index += 1
-                fname = "../.logs/{0:s}{1:d}.pkl".format(function.__name__, index)
+                fname = get_logging_folder() + "{0:s}{1:d}.pkl".format(function.__name__, index)
 
             f = open(fname, "w")
             pickle.dump(args, f)
@@ -64,14 +82,21 @@ def log_exceptions(function):
     return wrapper
 
 
+def get_logging_folder():
+    return './.logs/'
+
+
 def start_logging():
     """Clears out logging folder, and starts the log in this folder"""
 
-    for file in os.listdir('../.logs/'):
-        os.remove(file)
+    if os.path.exists(get_logging_folder()):
+        for file in os.listdir(get_logging_folder()):
+            os.remove(get_logging_folder() + file)
+    else:
+        os.mkdir(get_logging_folder())
 
     logging.basicConfig(level=logging.DEBUG, filemode="w",
-                            format="%(asctime)-15s %(levelname)-8s %(message)s",
-                            filename='../.logs/logfile.log')
+                        format="%(asctime)-15s %(levelname)-8s %(message)s",
+                        filename=get_logging_folder() + 'logfile.log')
 
 start_logging()

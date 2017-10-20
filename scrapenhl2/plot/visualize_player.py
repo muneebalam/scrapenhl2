@@ -3,8 +3,8 @@ import numpy as np  # standard scientific python stack
 import pandas as pd  # standard scientific python stack
 
 import scrapenhl2.manipulate.manipulate as manip
-import scrapenhl2.scrape.scrape_game as sg
 import scrapenhl2.scrape.scrape_setup as ss  # lots of helpful methods in this module
+
 
 def rolling_player_cf(player, roll_len=25, startseason=None, endseason=None, save_file=None):
     """
@@ -95,17 +95,5 @@ def _get_rolling_cf_title(player, roll_len, startseason, endseason):
 
     player = ss.player_as_str(ss.player_as_id(player))
     return '{0:d}-game rolling CF% for {1:s}, {2:d}-{3:d}'.format(roll_len, player, startseason, endseason + 1)
-
-
-if __name__ == '__main__':
-    # sg.autoupdate()
-    # sg.parse_season_pbp(2016, True)
-    # sg.parse_season_toi(2016, True)
-    # sg.update_team_logs(2016, True)
-    # df = manip.get_5v5_player_game_cfca(2016, 'WSH')
-    for season in [2010, 2011, 2012, 2013]:
-        sg.parse_season_pbp(season, True)
-        sg.update_team_logs(season, True)
-    rolling_player_cf('Ovechkin', 40, 2010, 2017)
 
 

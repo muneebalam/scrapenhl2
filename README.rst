@@ -108,3 +108,12 @@ Change log
 10/7/17: Committed code to scrape 2010 onward and create team logs; still bugs to fix.
 
 9/24/17: Committed minimal structure.
+
+Major outstanding to-dos
+------------------------
+
+* Front end with Flask
+* Add more graph methods
+* Add more data search methods
+* Real-time game charts
+* Bring in old play by play and shifts from HTML

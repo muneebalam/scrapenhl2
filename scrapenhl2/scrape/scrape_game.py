@@ -332,7 +332,7 @@ def update_player_logs_from_page(pbp, season, game):
     # TODO: One issue is we do not see goalies (and maybe skaters) who dressed but did not play. How can this be fixed?
 
 
-def read_shifts_from_page(rawtoi, season, game):
+def read_shifts_from_page(rawtoi, season, game):  # TODO: for live games there is no shift data. Need to use HTML!
     """
     
     :param rawtoi:
@@ -839,7 +839,7 @@ def parse_game_toi(season, game, force_overwrite=False):
     if not force_overwrite and os.path.exists(filename):
         return False
 
-    # TODO for some earlier seasons I need to read HTML instead.
+    # TODO for some earlier seasons I need to read HTML instead. Also for live games
     # Looks like 2010-11 is the first year where this feed supplies more than just boxscore data
     rawtoi = get_raw_toi(season, game)
     try:
@@ -1022,14 +1022,3 @@ def autoupdate(season=None):
         update_team_logs(season, force_overwrite=False)
     except Exception as e:
         ed.print_and_log("Error with team logs in {0:d}: {1:s}".format(season, str(e)), 'warn')
-
-
-if __name__ == "__main__":
-    # autoupdate()
-    for season in range(2016, 2017):
-        ss.generate_season_schedule_file(season)
-        ss.refresh_schedules()
-        parse_season_toi(season, True)
-        # update_team_logs(season, True)
-
-    # autoupdate(2017)
