@@ -112,6 +112,7 @@ Change log
 Major outstanding to-dos
 ------------------------
 
+* Get package working on PyPI
 * Front end with Flask
 * Add more graph methods
 * Add more data search methods
