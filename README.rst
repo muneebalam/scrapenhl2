@@ -105,7 +105,7 @@ If you do make a donation, make me happy `and leave a record here <https://goo.g
 Change log
 ----------
 
-10/21/17: Added basic front end.
+10/21/17: Added basic front end. Committed early versions of 2017 logs.
 
 10/16/17: Added initial versions of game timelines, player rolling corsi, and game H2H graphs.
 
