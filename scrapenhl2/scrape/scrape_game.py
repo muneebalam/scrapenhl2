@@ -1274,6 +1274,11 @@ def autoupdate_new(season):
     read_final_games(games, season, old_final_games)
     spinner.stop()
 
+    try:
+        update_team_logs(season, force_overwrite=False)
+    except Exception as e:
+        ed.print_and_log("Error with team logs in {0:d}: {1:s}".format(season, str(e)), 'warn')
+
 
 def read_final_games(games, season, games_to_exclude=None):
     """
@@ -1310,11 +1315,6 @@ def read_final_games(games, season, games_to_exclude=None):
                 ed.print_and_log(str(e), 'warn')
 
             ed.print_and_log('Done with {0:d} {1:d} (final)'.format(season, game), print_and_log=False)
-
-    try:
-        update_team_logs(season, force_overwrite=False)
-    except Exception as e:
-        ed.print_and_log("Error with team logs in {0:d}: {1:s}".format(season, str(e)), 'warn')
 
 
 def read_inprogress_games(inprogressgames, season):

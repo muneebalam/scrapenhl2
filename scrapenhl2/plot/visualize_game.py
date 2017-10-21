@@ -532,22 +532,28 @@ def _get_h2h_chart_player_order(season, game, homeroad='H'):
         next_player = ftoi.PlayerID.iloc[0]
         top_line_for_next_player = combos[(combos.PlayerID1 == next_player) | (combos.PlayerID2 == next_player) |
                                           (combos.PlayerID3 == next_player)].sort_values(by='Secs', ascending=False)
-        thisline = [top_line_for_next_player.PlayerID1.iloc[0],
-                    top_line_for_next_player.PlayerID2.iloc[0],
-                    top_line_for_next_player.PlayerID3.iloc[0]]
-        thislinedf = ftoi[(ftoi.PlayerID == thisline[0]) | (ftoi.PlayerID == thisline[1]) |
-                          (ftoi.PlayerID == thisline[2])].sort_values(by='Secs', ascending=False)
+        if len(top_line_for_next_player) == 0:  # sometimes this happens. Special case
+            playerlist.append(next_player)
+            ftoi = ftoi[ftoi.PlayerID != next_player]
+            combos = combos[(combos.PlayerID1 != next_player) & (combos.PlayerID2 != next_player) &
+                            (combos.PlayerID3 != next_player)]
+        else:
+            thisline = [top_line_for_next_player.PlayerID1.iloc[0],
+                        top_line_for_next_player.PlayerID2.iloc[0],
+                        top_line_for_next_player.PlayerID3.iloc[0]]
+            thislinedf = ftoi[(ftoi.PlayerID == thisline[0]) | (ftoi.PlayerID == thisline[1]) |
+                              (ftoi.PlayerID == thisline[2])].sort_values(by='Secs', ascending=False)
 
-        playerlist += list(thislinedf.PlayerID.values)
+            playerlist += list(thislinedf.PlayerID.values)
 
-        # Remove these players from ftoi
-        ftoi = ftoi.merge(thislinedf[['PlayerID']], how='outer', indicator=True) \
-            .query('_merge == "left_only"') \
-            .drop('_merge', axis=1)
-        # Remove these players from combos df
-        for i in range(3):
-            combos = combos[(combos.PlayerID1 != thisline[i]) & (combos.PlayerID2 != thisline[i]) &
-                            (combos.PlayerID3 != thisline[i])]
+            # Remove these players from ftoi
+            ftoi = ftoi.merge(thislinedf[['PlayerID']], how='outer', indicator=True) \
+                .query('_merge == "left_only"') \
+                .drop('_merge', axis=1)
+            # Remove these players from combos df
+            for i in range(3):
+                combos = combos[(combos.PlayerID1 != thisline[i]) & (combos.PlayerID2 != thisline[i]) &
+                                (combos.PlayerID3 != thisline[i])]
 
     numf = len(playerlist)
 
@@ -557,20 +563,25 @@ def _get_h2h_chart_player_order(season, game, homeroad='H'):
         next_player = dtoi.PlayerID.iloc[0]
         top_line_for_next_player = pairs[(pairs.PlayerID1 == next_player) | (pairs.PlayerID2 == next_player)] \
             .sort_values(by='Secs', ascending=False)
-        thispair = [top_line_for_next_player.PlayerID1.iloc[0],
-                    top_line_for_next_player.PlayerID2.iloc[0]]
-        thispairdf = dtoi[(dtoi.PlayerID == thispair[0]) | (dtoi.PlayerID == thispair[1])] \
-            .sort_values(by='Secs', ascending=False)
+        if len(top_line_for_next_player) == 0:
+            playerlist.append(next_player)
+            dtoi = dtoi[dtoi.PlayerID != next_player]
+            pairs = pairs[(pairs.PlayerID1 != next_player) & (pairs.PlayerID2 != next_player)]
+        else:
+            thispair = [top_line_for_next_player.PlayerID1.iloc[0],
+                        top_line_for_next_player.PlayerID2.iloc[0]]
+            thispairdf = dtoi[(dtoi.PlayerID == thispair[0]) | (dtoi.PlayerID == thispair[1])] \
+                .sort_values(by='Secs', ascending=False)
 
-        playerlist += list(thispairdf.PlayerID.values)
+            playerlist += list(thispairdf.PlayerID.values)
 
-        # Remove these players from dtoi
-        dtoi = dtoi.merge(thispairdf[['PlayerID']], how='outer', indicator=True) \
-            .query('_merge == "left_only"') \
-            .drop('_merge', axis=1)
-        # Remove pairs including these players from pairs df
-        for i in range(2):
-            pairs = pairs[(pairs.PlayerID1 != thispair[i]) & (pairs.PlayerID2 != thispair[i])]
+            # Remove these players from dtoi
+            dtoi = dtoi.merge(thispairdf[['PlayerID']], how='outer', indicator=True) \
+                .query('_merge == "left_only"') \
+                .drop('_merge', axis=1)
+            # Remove pairs including these players from pairs df
+            for i in range(2):
+                pairs = pairs[(pairs.PlayerID1 != thispair[i]) & (pairs.PlayerID2 != thispair[i])]
 
     return playerlist, numf
 
@@ -641,3 +652,9 @@ def _make_color_lighter(hex=None, rgb=None, returntype='hex'):
     if returntype == 'rgb':
         return color
     return _rgb_to_hex(*color)
+
+
+if __name__ == '__main__':
+    season = 2017
+    sg.autoupdate()
+    sg.update_team_logs(season, True)
