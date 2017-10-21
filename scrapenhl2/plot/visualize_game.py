@@ -73,10 +73,11 @@ def game_timeline(season, game, save_file=None):
     # Set title
     plt.title(_get_corsi_timeline_title(season, game))
 
-    if save_file is None:
+    if save_file is not None:
         plt.show()
     else:
         plt.savefig(save_file)
+
 
 
 def _get_home_adv_for_timeline(season, game):
@@ -388,7 +389,12 @@ def _game_h2h_chart(season, game, corsi, toi, orderh, orderr, numf_h=None, numf_
         for x in range(len(orderr)):
             rpid = orderr[x]
 
-            cf = int(corsi[(corsi.PlayerID1 == hpid) & (corsi.PlayerID2 == rpid)].HomeCorsi.iloc[0])
+            cf = corsi[(corsi.PlayerID1 == hpid) & (corsi.PlayerID2 == rpid)]
+            if len(cf) == 0:  # In this case, player will not have been on ice for a corsi event
+                cf = 0
+            else:
+                cf = int(cf.HomeCorsi.iloc[0])
+
             if cf == 0:
                 cf = '0'
             elif cf > 0:
@@ -411,6 +417,7 @@ def _game_h2h_chart(season, game, corsi, toi, orderh, orderr, numf_h=None, numf_
                how='left', on='PlayerID2') \
         .merge(corsi[['PlayerID2', 'HomeCorsi']].groupby('PlayerID2').sum().reset_index(),
                how='left', on='PlayerID2')
+    rtotals.loc[:, 'HomeCorsi'] = rtotals.HomeCorsi.fillna(0)
     rtotals.loc[:, 'CorsiLabel'] = rtotals.HomeCorsi.apply(lambda x: _format_number_with_plus(-1 * int(x / 5)))
     rtotals.loc[:, 'TOILabel'] = rtotals.Secs.apply(lambda x: manip.time_to_mss(x / 5))
     toplabels = ['{0:s} in {1:s}'.format(x, y) for x, y, in zip(list(rtotals.CorsiLabel), list(rtotals.TOILabel))]
@@ -427,6 +434,7 @@ def _game_h2h_chart(season, game, corsi, toi, orderh, orderr, numf_h=None, numf_
                how='left', on='PlayerID1') \
         .merge(corsi[['PlayerID1', 'HomeCorsi']].groupby('PlayerID1').sum().reset_index(),
                how='left', on='PlayerID1')
+    htotals.loc[:, 'HomeCorsi'] = htotals.HomeCorsi.fillna(0)
     htotals.loc[:, 'CorsiLabel'] = htotals.HomeCorsi.apply(lambda x: _format_number_with_plus(int(x / 5)))
     htotals.loc[:, 'TOILabel'] = htotals.Secs.apply(lambda x: manip.time_to_mss(x / 5))
     rightlabels = ['{0:s} in {1:s}'.format(x, y) for x, y, in zip(list(htotals.CorsiLabel), list(htotals.TOILabel))]
@@ -655,6 +663,4 @@ def _make_color_lighter(hex=None, rgb=None, returntype='hex'):
 
 
 if __name__ == '__main__':
-    season = 2017
     sg.autoupdate()
-    sg.update_team_logs(season, True)
