@@ -1,6 +1,7 @@
 import json  # NHL API outputs JSONs
 import os  # for files
 import os.path  # for files
+import re  # regular expressions, used in html parsing
 import urllib.error  # for errors in accessing internet pages
 import urllib.request  # for accessing internet pages
 import zlib  # for compressing and saving files
@@ -15,16 +16,32 @@ import scrapenhl2.scrape.exception_decor as ed
 import scrapenhl2.scrape.scrape_setup as ss  # lots of helpful methods in this module
 
 
-# Known issues (non-exhaustive list)
-# 2016 20099, home team does not have players listed on ice for final 25 seconds of regulation
-# 2016 20163, road team does not have players listed last 8 seconds
-# Similar in 2016: 20408, 20419, 20421, 20475, 20510, 20511, 21163, 21194, 30185
-# 2016 20598 road team has too many players, losing a 9 second shift; 30144 loses an 8 second shift
+def scrape_game_pbp_from_html(season, game, force_overwrite=True):
+    """
+    This method scrapes the html pbp for the given game. Use for live games.
+    :param season: int, the season
+    :param game: int, the game
+    :param force_overwrite: bool. If file exists already, won't scrape again
+    :return: bool, False if not scraped, else True
+    """
+    filename = ss.get_game_pbplog_filename(season, game)
+    if not force_overwrite and os.path.exists(filename):
+        return False
+
+    page = ss.get_game_from_url(season, game)
+    save_raw_html_pbp(page, season, game)
+    ed.print_and_log('Scraped html pbp for {0:d} {1:d}'.format(season, game))
+    sleep(1)  # Don't want to overload NHL servers
+
+    # It's most efficient to parse with page in memory, but for sake of simplicity will do it later
+    # pbp = read_pbp_events_from_page(page)
+    # update_team_logs(pbp, season, schedule_item['Home'])
+    return True
 
 
 def scrape_game_pbp(season, game, force_overwrite=False):
     """
-    This method scrapes the pbp for the given game. It formats it nicely and saves in a compressed format to disk.
+    This method scrapes the pbp for the given game.
     :param season: int, the season
     :param game: int, the game
     :param force_overwrite: bool. If file exists already, won't scrape again
@@ -54,7 +71,7 @@ def scrape_game_pbp(season, game, force_overwrite=False):
 
 def scrape_game_toi(season, game, force_overwrite=False):
     """
-    This method scrapes the toi for the given game. It formats it nicely and saves in a compressed format to disk.
+    This method scrapes the toi for the given game.
     :param season: int, the season
     :param game: int, the game
     :param force_overwrite: bool. If file exists already, won't scrape again
@@ -74,6 +91,45 @@ def scrape_game_toi(season, game, force_overwrite=False):
     # It's most efficient to parse with page in memory, but for sake of simplicity will do it later
     # toi = read_toi_from_page(page)
     return True
+
+
+def scrape_game_toi_from_html(season, game, force_overwrite=True):
+    """
+    This method scrapes the toi html logs for the given game.
+    :param season: int, the season
+    :param game: int, the game
+    :param force_overwrite: bool. If file exists already, won't scrape again
+    :return: nothing
+    """
+    filenames = (ss.get_home_shiftlog_filename(season, game), ss.get_road_shiftlog_filename(season, game))
+    urls = (ss.get_home_shiftlog_url(season, game), ss.get_road_shiftlog_url(season, game))
+    filetypes = ('H', 'R')
+    for i in range(2):
+        filename = filenames[i]
+        if not force_overwrite and os.path.exists(filename):
+            pass
+
+        url = urls[i]
+        with urllib.request.urlopen(url) as reader:
+            page = reader.read()
+        save_raw_toi_from_html(page, season, game, filetypes[i])
+        sleep(1)  # Don't want to overload NHL servers
+
+    ed.print_and_log('Scraped html toi for {0:d} {1:d}'.format(season, game))
+
+
+def save_raw_html_pbp(page, season, game):
+    """
+    Takes the bytes page containing html pbp information and saves as such
+    :param page: bytes
+    :param season: int, the season
+    :param game: int, the game
+    :return: nothing
+    """
+    filename = ss.get_game_pbplog_filename(season, game)
+    w = open(filename, 'w')
+    w.write(page.decode('latin-1'))
+    w.close()
 
 
 def save_raw_pbp(page, season, game):
@@ -132,6 +188,24 @@ def save_raw_toi(page, season, game):
     w.close()
 
 
+def save_raw_toi_from_html(page, season, game, homeroad):
+    """
+    Takes the bytes page containing shift information and saves to disk as html.
+    :param page: bytes. str(page) would yield a string version of the json shifts
+    :param season: int, the season
+    :param game: int, the game
+    :param homeroad: str, 'H' or 'R'
+    :return: nothing
+    """
+    if homeroad == 'H':
+        filename = ss.get_home_shiftlog_filename(season, game)
+    elif homeroad == 'R':
+        filename = ss.get_road_shiftlog_filename(season, game)
+    w = open(filename, 'w')
+    w.write(page.decode('latin-1'))
+    w.close()
+
+
 def get_raw_pbp(season, game):
     """
     Loads the compressed json file containing this game's play by play from disk.
@@ -142,6 +216,34 @@ def get_raw_pbp(season, game):
     with open(ss.get_game_raw_pbp_filename(season, game), 'rb') as reader:
         page = reader.read()
     return json.loads(str(zlib.decompress(page).decode('latin-1')))
+
+
+def get_raw_html_pbp(season, game):
+    """
+    Loads the html file containing this game's play by play from disk.
+    :param season: int, the season
+    :param game: int, the game
+    :return: str, the html pbp
+    """
+    with open(ss.get_game_pbplog_filename(season, game), 'r') as reader:
+        page = reader.read()
+    return page
+
+
+def get_raw_html_toi(season, game, homeroad):
+    """
+    Loads the html file containing this game's toi from disk.
+    :param season: int, the season
+    :param game: int, the game
+    :return: str, the html toi
+    """
+    if homeroad == 'H':
+        filename = ss.get_home_shiftlog_filename(season, game)
+    elif homeroad == 'R':
+        filename = ss.get_road_shiftlog_filename(season, game)
+    with open(filename, 'r') as reader:
+        page = reader.read()
+    return page
 
 
 def get_raw_toi(season, game):
@@ -332,7 +434,97 @@ def update_player_logs_from_page(pbp, season, game):
     # TODO: One issue is we do not see goalies (and maybe skaters) who dressed but did not play. How can this be fixed?
 
 
-def read_shifts_from_page(rawtoi, season, game):  # TODO: for live games there is no shift data. Need to use HTML!
+def remove_leading_number(string):
+    """
+    Will convert 8 Alex Ovechkin to Alex Ovechkin, or Alex Ovechkin to Alex Ovechkin
+    :param string: a string
+    :return: string without leading numbers
+    """
+    newstring = string
+    while newstring[0] in {'1', '2', '3', '4', '5', '6', '7', '8', '9', '0'}:
+        newstring = newstring[1:]
+    return newstring.strip()
+
+
+def flip_first_last(name):
+    """
+    Changes Ovechkin, Alex to Alex Ovechkin. Also changes to title case.
+    :param name: str
+    :return: str, flipped if applicable
+    """
+    if ',' not in name:
+        return name
+
+    # What about case of , Jr or , IV? Ignore for now
+    newname = ' '.join([x.strip() for x in name.split(',')[::-1]])
+    return newname.title()
+
+
+def read_shifts_from_html_pages(rawtoi1, rawtoi2, teamid1, teamid2, season, game):
+    """
+
+    :param rawtoi:
+    :param season:
+    :param game:
+    :param teamid
+    :return:
+    """
+
+    from html_table_extractor.extractor import Extractor
+    dflst = []
+    for rawtoi, teamid in zip((rawtoi1, rawtoi2), (teamid1, teamid2)):
+        extractor = Extractor(rawtoi)
+        extractor.parse()
+        tables = extractor.return_list()
+
+        ids = []
+        periods = []
+        starts = []
+        ends = []
+        teams = []
+        durationtime = []
+        teams = []
+        i = 0
+        while i < len(tables):
+            # A convenient artefact of this package: search for [p, p, p, p, p, p, p, p]
+            if len(tables[i]) == 8 and ss.check_number_last_first_format(tables[i][0]):
+                pname = remove_leading_number(tables[i][0])
+                pname = flip_first_last(pname)
+                pname = ss.player_as_id(pname)
+                i += 2  # skip the header row
+                while re.match('\d{1,2}', tables[i][0]):  # First entry is shift number
+                    # print(tables[i])
+                    shiftnum, per, start, end, dur, ev = tables[i]
+                    ids.append(pname)
+                    periods.append(int(per))
+                    starts.append(start[:start.index('/')].strip())
+                    ends.append(end[:end.index('/')].strip())
+                    durationtime.append(ss.mmss_to_secs(dur))
+                    teams.append(teamid)
+                    i += 1
+                i += 1
+            else:
+                i += 1
+
+        startmin = [x[:x.index(':')] for x in starts]
+        startsec = [x[x.index(':') + 1:] for x in starts]
+        starttimes = [1200 * (p - 1) + 60 * int(m) + int(s) + 1 for p, m, s in zip(periods, startmin, startsec)]
+        starttimes = [0 if x == 1 else x for x in starttimes]
+        endmin = [x[:x.index(':')] for x in ends]
+        endsec = [x[x.index(':') + 1:] for x in ends]
+        # There is an extra -1 in endtimes to avoid overlapping start/end
+        endtimes = [1200 * (p - 1) + 60 * int(m) + int(s) for p, m, s in zip(periods, endmin, endsec)]
+
+        durationtime = [e - s for s, e in zip(starttimes, endtimes)]
+
+        df = pd.DataFrame({'PlayerID': ids, 'Period': periods, 'Start': starttimes, 'End': endtimes,
+                           'Team': teams, 'Duration': durationtime})
+        dflst.append(df)
+
+    return _finish_toidf_manipulations(pd.concat(dflst), season, game)
+
+
+def read_shifts_from_page(rawtoi, season, game):
     """
     
     :param rawtoi:
@@ -381,6 +573,20 @@ def read_shifts_from_page(rawtoi, season, game):  # TODO: for live games there i
 
     df = pd.DataFrame({'PlayerID': ids, 'Period': periods, 'Start': starttimes, 'End': endtimes,
                        'Team': teams, 'Duration': durationtime})
+
+    return _finish_toidf_manipulations(df, season, game)
+
+
+def _finish_toidf_manipulations(df, season, game):
+    """
+    Takes dataframe of shifts (one row per shift) and makes into a matrix of players on ice for each second.
+    :param df: dataframe
+    :param season: int, the season
+    :param game: int, the game
+    :return:
+    """
+    gameinfo = ss.get_game_data_from_schedule(season, game)
+
     # TODO don't read end times. Use duration, which has good coverage, to infer end. Then end + 1200 not needed below.
     # Sometimes shifts have the same start and time.
     # By the time we're here, they'll have start = end + 1
@@ -752,9 +958,34 @@ def parse_game_pbp(season, game, force_overwrite=False):
     if not force_overwrite and os.path.exists(filename):
         return False
 
-    # TODO for some earlier seasons I need to read HTML instead.
     # Looks like 2010-11 is the first year where this feed supplies more than just boxscore data
     rawpbp = get_raw_pbp(season, game)
+    update_player_ids_from_page(rawpbp)
+    update_player_logs_from_page(rawpbp, season, game)
+    update_schedule_with_coaches(rawpbp, season, game)
+    update_schedule_with_result(rawpbp, season, game)
+
+    parsedpbp = read_events_from_page(rawpbp, season, game)
+    save_parsed_pbp(parsedpbp, season, game)
+    ed.print_and_log('Parsed events for {0:d} {1:d}'.format(season, game), print_and_log=False)
+    return True
+
+
+def parse_game_pbp_from_html(season, game, force_overwrite=False):
+    """
+    Reads the raw pbp from file, updates player IDs, updates player logs, and parses the JSON to a pandas DF
+    and writes to file. Also updates team logs accordingly.
+    :param season: int, the season
+    :param game: int, the game
+    :param force_overwrite: bool. If True, will execute. If False, executes only if file does not exist yet.
+    :return: True if parsed, False if not
+    """
+
+    filename = ss.get_game_pbplog_filename(season, game)
+    if not force_overwrite and os.path.exists(filename):
+        return False
+
+    rawpbp = save(season, game)
     update_player_ids_from_page(rawpbp)
     update_player_logs_from_page(rawpbp, season, game)
     update_schedule_with_coaches(rawpbp, season, game)
@@ -859,7 +1090,35 @@ def parse_game_toi(season, game, force_overwrite=False):
     # ed.print_and_log('Parsed shifts for {0:d} {1:d}'.format(season, game))
     return True
 
-    # TODO
+
+def parse_game_toi_from_html(season, game, force_overwrite=False):
+    """
+
+    :param season: int, the season
+    :param game: int, the game
+    :param force_overwrite: bool. If True, will execute. If False, executes only if file does not exist yet.
+    :return: nothing
+    """
+    # TODO force_overwrite support
+    filenames = (ss.get_home_shiftlog_filename(season, game), ss.get_road_shiftlog_filename(season, game))
+    if force_overwrite is False and os.path.exists(ss.get_home_shiftlog_filename(season, game)) and \
+            os.path.exists(ss.get_home_shiftlog_filename(season, game)):
+        return False
+
+    gameinfo = ss.get_game_data_from_schedule(season, game)
+    try:
+        parsedtoi = read_shifts_from_html_pages(get_raw_html_toi(season, game, 'H'),
+                                                get_raw_html_toi(season, game, 'R'),
+                                                gameinfo['Home'], gameinfo['Road'],
+                                                season, game)
+    except ValueError as ve:
+        ed.print_and_log('Error with {0:d} {1:d}'.format(season, game), 'warning')
+        ed.print_and_log(str(ve), 'warning')
+        parsedtoi = None
+
+    save_parsed_toi(parsedtoi, season, game)
+    # ed.print_and_log('Parsed shifts for {0:d} {1:d}'.format(season, game))
+    return True
 
 
 def _intervals(lst, interval_pct=10):
@@ -943,25 +1202,48 @@ def autoupdate(season=None):
     :return: nothing
     """
 
-    # TODO: why does sometimes the schedule have the wrong game-team pairs, but when I regenerate, it's all ok?
     if season is None:
         season = ss.get_current_season()
 
+    if season < 2010:
+        autoupdate_old(season)
+    else:
+        autoupdate_new(season)
+
+
+def autoupdate_old(season):
+    """
+    Run this method to update local data. It reads the schedule file for given season and scrapes and parses
+    previously unscraped games that have gone final or are in progress. Use this for 2007, 2008, or 2009.
+    :param season: int, the season. If None (default), will do current season
+    :return: nothing
+    """
+    # TODO
+
+
+def autoupdate_new(season):
+    """
+    Run this method to update local data. It reads the schedule file for given season and scrapes and parses
+    previously unscraped games that have gone final or are in progress. Use this for 2010 or later.
+    :param season: int, the season. If None (default), will do current season
+    :return: nothing
+    """
+    # TODO: why does sometimes the schedule have the wrong game-team pairs, but when I regenerate, it's all ok?
+
     sch = ss.get_season_schedule(season)
 
-    # First, for all games that were in progress during last scrape, scrape again and parse again
-    # TODO check that this actually works!
-    #with halo.Halo(text="Updating previously in-progress games\n"):
-    if True:
-        inprogress = sch.query('Status == "In Progress"')
-        inprogressgames = inprogress.Game.values
-        inprogressgames.sort()
-        for game in inprogressgames:
-            scrape_game_pbp(season, game, True)
-            scrape_game_toi(season, game, True)
-            parse_game_pbp(season, game, True)
-            parse_game_toi(season, game, True)
-            ed.print_and_log('Done with {0:d} {1:d} (previously in progress)'.format(season, game))
+    spinner = halo.Halo()
+
+    # First, for all games that were in progress during last scrape, delete html charts
+    spinner.start(text="Deleting data from previously in-progress games")
+    inprogress = sch.query('Status == "In Progress"')
+    inprogressgames = inprogress.Game.values
+    inprogressgames.sort()
+    for game in inprogressgames:
+        ss.delete_game_html(season, game)
+
+    # Now keep tabs on old final games
+    old_final_games = set(sch.query('Status == "Final"').Game.values)
 
     # Update schedule to get current status
     ss.generate_season_schedule_file(season)
@@ -971,27 +1253,39 @@ def autoupdate(season=None):
     # Now, for games currently in progress, scrape.
     # But no need to force-overwrite. We handled games previously in progress above.
     # Games newly in progress will be written to file here.
-    with halo.Halo(text="Updating newly in-progress games\n"):
-        inprogressgames = sch.query('Status == "In Progress"')
-        inprogressgames = inprogressgames.Game.values
-        inprogressgames.sort()
-        for game in inprogressgames:
-            scrape_game_pbp(season, game, False)
-            scrape_game_toi(season, game, False)
-            parse_game_pbp(season, game, False)
-            parse_game_toi(season, game, False)
-            ed.print_and_log('Done with {0:d} {1:d} (in progress)'.format(season, game))
+    spinner.stop()
 
-    # Now, for any games that are final, run scrape_game, but don't necessarily force_overwrite
-    with halo.Halo(text='Updating final games\n'):
-        games = sch.query('Status == "Final"')
-        games = games.Game.values
-        games.sort()
-        for game in games:
-            gotpbp = False
-            gottoi = False
+    inprogressgames = sch.query('Status == "In Progress"')
+    inprogressgames = inprogressgames.Game.values
+    inprogressgames.sort()
+    spinner.start(text="Updating in-progress games")
+    read_inprogress_games(inprogressgames, season)
+    spinner.stop()
+
+    # For games done previously, set pbp and toi status to scraped
+    ss.update_schedule_with_pbp_scrape(season, old_final_games)
+    ss.update_schedule_with_toi_scrape(season, old_final_games)
+
+    # Now, for any games that are final, run scrape_game if not previously done
+    games = sch.query('Status == "Final"')
+    games = games.Game.values
+    games.sort()
+    spinner.start(text='Updating final games')
+    read_final_games(games, season, old_final_games)
+    spinner.stop()
+
+
+def read_final_games(games, season, games_to_exclude=None):
+    """
+
+    :param games:
+    :param season:
+    :return:
+    """
+    for game in games:
+        if games_to_exclude is None or game not in games_to_exclude:
             try:
-                gotpbp = scrape_game_pbp(season, game, False)
+                scrape_game_pbp(season, game, False)
                 ss.update_schedule_with_pbp_scrape(season, game)
                 parse_game_pbp(season, game, False)
             except urllib.error.HTTPError as he:
@@ -1003,7 +1297,7 @@ def autoupdate(season=None):
             except Exception as e:
                 ed.print_and_log(str(e), 'warn')
             try:
-                gottoi = scrape_game_toi(season, game, False)
+                scrape_game_toi(season, game, False)
                 ss.update_schedule_with_toi_scrape(season, game)
                 parse_game_toi(season, game, False)
             except urllib.error.HTTPError as he:
@@ -1015,10 +1309,34 @@ def autoupdate(season=None):
             except Exception as e:
                 ed.print_and_log(str(e), 'warn')
 
-            if gotpbp or gottoi:
-                ed.print_and_log('Done with {0:d} {1:d} (final)'.format(season, game), print_and_log=False)
+            ed.print_and_log('Done with {0:d} {1:d} (final)'.format(season, game), print_and_log=False)
 
     try:
         update_team_logs(season, force_overwrite=False)
     except Exception as e:
         ed.print_and_log("Error with team logs in {0:d}: {1:s}".format(season, str(e)), 'warn')
+
+
+def read_inprogress_games(inprogressgames, season):
+    """
+    Saves these games to file via html (for toi) and json (for pbp)
+    :param inprogressgames: list of int
+    :return:
+    """
+
+    for game in inprogressgames:
+        # scrape_game_pbp_from_html(season, game, False)
+        # parse_game_pbp_from_html(season, game, False)
+        # PBP JSON updates live, so I can just use that, as before
+        scrape_game_pbp(season, game, True)
+        parse_game_pbp(season, game, True)
+        scrape_game_toi_from_html(season, game, True)
+        parse_game_toi_from_html(season, game, True)
+        ed.print_and_log('Done with {0:d} {1:d} (in progress)'.format(season, game))
+
+
+if __name__ == '__main__':
+    for season in range(2017, 2009, -1):
+        sch = ss.get_season_schedule(season)
+        read_final_games(sch.Game, season)
+        update_team_logs(season)
