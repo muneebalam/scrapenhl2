@@ -18,7 +18,19 @@ You need python3 and the python scientific stack (e.g. numpy, matplotlib, pandas
 Easiest way is to simply use `Anaconda <https://conda.io/docs/user-guide/install/index.html>`_.
 To be safe, make sure you have python 3.5+, matplotlib 2.0+, and pandas 0.20+.
 
-After that, all you need to do is open up terminal or command line and enter::
+Next, if you are on Windows, you need to get python-Levenshtein.
+`You can find it here <http://www.lfd.uci.edu/~gohlke/pythonlibs/#python-levenshtein>`_. Download the appropriate .whl
+file and navigate to your downloads folder in command line. For example::
+
+    cd
+    cd muneebalam
+    cd Downloads
+
+Next, install the whl file using pip::
+
+    pip install [insert filename here].whl
+
+Now, all users can open up terminal or command line and enter::
 
     pip install scrapenhl2
 
@@ -75,7 +87,7 @@ To get a player rolling CF% graph, use::
 
 To launch the app to help you navigate use::
 
-    runapp()
+    run_app()
 
 When the docs are up, you should look through them. Also always feel free to contact me with questions or suggestions.
 
