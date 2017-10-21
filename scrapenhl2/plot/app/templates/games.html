@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Games in {{ season }}</title>
+</head>
+<body>
+<table border=1>
+    <tr>
+        {% for col in schedule.columns %}
+        <th> {{ col }}</th>
+        {% endfor %}
+    </tr>
+    {% for index, date, game, hname, rname, hscore, rscore, status, result, url1, url2 in schedule.itertuples() %}
+    <tr>
+        <th> {{ date }}</th>
+        <td> {{ game }}</td>
+        <td> {{ hname }}</td>
+        <td> {{ rname }}</td>
+        <td> {{ hscore }}</td>
+        <td> {{ rscore }}</td>
+        <td> {{ status }}</td>
+        <td> {{ result }}</td>
+        <td><a href="{{ url1 }}">Link</a></td>
+        <td><a href="{{ url2 }}">Link</a></td>
+    </tr>
+
+    {% endfor %}
+</table>
+</body>
+</html>

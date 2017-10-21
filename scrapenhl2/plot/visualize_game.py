@@ -2,9 +2,9 @@ import matplotlib.pyplot as plt
 import numpy as np  # standard scientific python stack
 import pandas as pd  # standard scientific python stack
 
-import scrapenhl2.manipulate.manipulate as manip
-import scrapenhl2.scrape.scrape_game as sg
-import scrapenhl2.scrape.scrape_setup as ss  # lots of helpful methods in this module
+from scrapenhl2.manipulate import manipulate as manip
+from scrapenhl2.scrape import scrape_game as sg
+from scrapenhl2.scrape import scrape_setup as ss  # lots of helpful methods in this module
 
 
 def game_timeline(season, game, save_file=None):
