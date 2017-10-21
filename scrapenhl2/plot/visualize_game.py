@@ -12,7 +12,8 @@ def game_timeline(season, game, save_file=None):
     Creates a shot attempt timeline as seen on @muneebalamcu
     :param season: int, the season
     :param game: int, the game
-    :param save_file: str, specify a valid filepath to save to file. If None, merely shows on screen.
+    :param save_file: str, specify a valid filepath to save to file. If None, merely shows on screen. Specify 'fig'
+    to return the figure
     :return: nothing
     """
 
@@ -73,8 +74,10 @@ def game_timeline(season, game, save_file=None):
     # Set title
     plt.title(_get_corsi_timeline_title(season, game))
 
-    if save_file is not None:
+    if save_file is None:
         plt.show()
+    elif save_file == 'fig':
+        return plt.gcf()
     else:
         plt.savefig(save_file)
 
@@ -308,7 +311,7 @@ def game_h2h(season, game, save_file=None):
     playerorder_r, numf_r = _get_h2h_chart_player_order(season, game, 'R')
 
     # TODO create chart and filter out RH, HH, and RR
-    _game_h2h_chart(season, game, h2hcorsi, h2htoi, playerorder_h, playerorder_r, numf_h, numf_r, save_file)
+    return _game_h2h_chart(season, game, h2hcorsi, h2htoi, playerorder_h, playerorder_r, numf_h, numf_r, save_file)
 
 
 def _game_h2h_chart(season, game, corsi, toi, orderh, orderr, numf_h=None, numf_r=None, save_file=None):
@@ -479,6 +482,8 @@ def _game_h2h_chart(season, game, corsi, toi, orderh, orderr, numf_h=None, numf_
     # fig.tight_layout()
     if save_file is None:
         plt.show()
+    elif save_file == 'fig':
+        return plt.gcf()
     else:
         plt.savefig(save_file)
 

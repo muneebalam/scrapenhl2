@@ -490,12 +490,13 @@ def read_shifts_from_html_pages(rawtoi1, rawtoi2, teamid1, teamid2, season, game
             if len(tables[i]) == 8 and ss.check_number_last_first_format(tables[i][0]):
                 pname = remove_leading_number(tables[i][0])
                 pname = flip_first_last(pname)
-                pname = ss.player_as_id(pname)
+                pid = ss.player_as_id(pname)
                 i += 2  # skip the header row
                 while re.match('\d{1,2}', tables[i][0]):  # First entry is shift number
                     # print(tables[i])
                     shiftnum, per, start, end, dur, ev = tables[i]
-                    ids.append(pname)
+                    # print(pname, pid, shiftnum, per, start, end)
+                    ids.append(pid)
                     periods.append(int(per))
                     starts.append(start[:start.index('/')].strip())
                     ends.append(end[:end.index('/')].strip())
@@ -598,8 +599,9 @@ def _finish_toidf_manipulations(df, season, game):
     if sum(df.End < df.Start) > 0:
         ed.print_and_log('Have to adjust a shift time', 'warn')
         # TODO I think I'm making a mistake with overtime shifts--end at 3900!
+        # TODO also, maybe only go to the end of the period, not to 1200
         ed.print_and_log(df[df.End < df.Start])
-        df.loc[df.End < df.Start, 'End'] = df.End + 1200
+        df.loc[df.End < df.Start, 'End'] = df.loc[df.End < df.Start, 'End'] + 1200
     # One issue coming up is when the above line comes into play--missing times are filled in as 0:00
     tempdf = df[['PlayerID', 'Start', 'End', 'Team', 'Duration']].query("Duration > 0")
     tempdf = tempdf.assign(Time=tempdf.Start)
@@ -1271,7 +1273,7 @@ def autoupdate_new(season):
     games = games.Game.values
     games.sort()
     spinner.start(text='Updating final games')
-    read_final_games(games, season, old_final_games)
+    read_final_games(games, season)
     spinner.stop()
 
     try:
@@ -1280,7 +1282,7 @@ def autoupdate_new(season):
         ed.print_and_log("Error with team logs in {0:d}: {1:s}".format(season, str(e)), 'warn')
 
 
-def read_final_games(games, season, games_to_exclude=None):
+def read_final_games(games, season):
     """
 
     :param games:
@@ -1288,33 +1290,32 @@ def read_final_games(games, season, games_to_exclude=None):
     :return:
     """
     for game in games:
-        if games_to_exclude is None or game not in games_to_exclude:
-            try:
-                scrape_game_pbp(season, game, False)
-                ss.update_schedule_with_pbp_scrape(season, game)
-                parse_game_pbp(season, game, False)
-            except urllib.error.HTTPError as he:
-                ed.print_and_log('Could not access pbp url for {0:d} {1:d}'.format(season, game), 'warn')
-                ed.print_and_log(str(he), 'warn')
-            except urllib.error.URLError as ue:
-                ed.print_and_log('Could not access pbp url for {0:d} {1:d}'.format(season, game), 'warn')
-                ed.print_and_log(str(ue), 'warn')
-            except Exception as e:
-                ed.print_and_log(str(e), 'warn')
-            try:
-                scrape_game_toi(season, game, False)
-                ss.update_schedule_with_toi_scrape(season, game)
-                parse_game_toi(season, game, False)
-            except urllib.error.HTTPError as he:
-                ed.print_and_log('Could not access toi url for {0:d} {1:d}'.format(season, game), 'warn')
-                ed.print_and_log(str(he), 'warn')
-            except urllib.error.URLError as ue:
-                ed.print_and_log('Could not access toi url for {0:d} {1:d}'.format(season, game), 'warn')
-                ed.print_and_log(str(ue), 'warn')
-            except Exception as e:
-                ed.print_and_log(str(e), 'warn')
+        try:
+            scrape_game_pbp(season, game, False)
+            # ss.update_schedule_with_pbp_scrape(season, game)
+            parse_game_pbp(season, game, False)
+        except urllib.error.HTTPError as he:
+            ed.print_and_log('Could not access pbp url for {0:d} {1:d}'.format(season, game), 'warn')
+            ed.print_and_log(str(he), 'warn')
+        except urllib.error.URLError as ue:
+            ed.print_and_log('Could not access pbp url for {0:d} {1:d}'.format(season, game), 'warn')
+            ed.print_and_log(str(ue), 'warn')
+        except Exception as e:
+            ed.print_and_log(str(e), 'warn')
+        try:
+            scrape_game_toi(season, game, False)
+            # ss.update_schedule_with_toi_scrape(season, game)
+            parse_game_toi(season, game, False)
+        except urllib.error.HTTPError as he:
+            ed.print_and_log('Could not access toi url for {0:d} {1:d}'.format(season, game), 'warn')
+            ed.print_and_log(str(he), 'warn')
+        except urllib.error.URLError as ue:
+            ed.print_and_log('Could not access toi url for {0:d} {1:d}'.format(season, game), 'warn')
+            ed.print_and_log(str(ue), 'warn')
+        except Exception as e:
+            ed.print_and_log(str(e), 'warn')
 
-            ed.print_and_log('Done with {0:d} {1:d} (final)'.format(season, game), print_and_log=False)
+        ed.print_and_log('Done with {0:d} {1:d} (final)'.format(season, game), print_and_log=False)
 
 
 def read_inprogress_games(inprogressgames, season):

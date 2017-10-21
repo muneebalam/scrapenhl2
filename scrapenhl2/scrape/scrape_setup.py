@@ -1049,8 +1049,8 @@ def team_as_id(team):
     :param team: int, or str
     :return: int, the team ID
     """
-    if isinstance(team, int) or isinstance(team, np.int64):
-        return team
+    if check_number(team):
+        return int(team)
     elif isinstance(team, str):
         df = get_team_info_file().query('Name == "{0:s}" | Abbreviation == "{0:s}"'.format(team))
         if len(df) == 0:
@@ -1079,7 +1079,7 @@ def team_as_str(team, abbreviation=True):
 
     if isinstance(team, str):
         return team
-    elif isinstance(team, int) or isinstance(team, np.int64):
+    elif check_number(team):
         df = get_team_info_file().query('ID == {0:d}'.format(team))
         if len(df) == 0:
             try:
@@ -1119,7 +1119,7 @@ def fuzzy_match_player(name_provided, names, minimum_similarity=50):
         ed.print_and_log('Could not find match for {0:s}'.format(name_provided), 'warn')
         return None
     else:
-        print(df.iloc[0])
+        # print(df.iloc[0])
         return df.Name.iloc[0]
 
 
@@ -1131,8 +1131,8 @@ def player_as_id(player):
     :return: int, the player ID
     """
     pids = get_player_ids_file()
-    if isinstance(player, int) or isinstance(player, np.int64):
-        return player
+    if check_number(player):
+        return int(player)
     elif isinstance(player, str):
         df = pids.query('Name == "{0:s}"'.format(player))
         if len(df) == 0:
@@ -1141,7 +1141,7 @@ def player_as_id(player):
             df = df[df.Name.str.contains(player)]
             if len(df) == 0:
                 # ed.print_and_log('Could not find exact substring match; trying fuzzy matching')
-                return fuzzy_match_player(player, pids.Name)
+                return player_as_id(fuzzy_match_player(player, pids.Name))
             elif len(df) == 1:
                 return df.ID.iloc[0]
             else:
@@ -1194,13 +1194,14 @@ def playerlst_as_id(players, exact=False):
 @functools.lru_cache(maxsize=128, typed=False)
 def player_as_str(player):
     """
-    A helper method. If player entered is str, returns that. If player is int, returns string name of that player.
+    A helper method. If player is int, returns string name of that player. Else returns standardized name.
     :param player: int, or str
     :return: str, the player name
     """
     if isinstance(player, str):
-        return player
-    elif isinstance(player, int) or isinstance(player, np.int64):
+        return player_as_str(player_as_id(player))
+    elif check_number(player):
+        player = int(player)
         df = get_player_ids_file().query('ID == {0:d}'.format(player))
         if len(df) == 0:
             ed.print_and_log('Could not find name for {0:d}'.format(player), 'warn')
@@ -1452,7 +1453,16 @@ def check_types(obj):
     :param obj: the object to check the type
     :return: bool
     """
-    return isinstance(obj, int) or isinstance(obj, float) or isinstance(obj, str) or isinstance(obj, np.number)
+    return check_number(obj) or isinstance(obj, str)
+
+
+def check_number(obj):
+    """
+    A helper method to check if obj is int, float, np.int64, etc. This is frequently needed, so is helpful.
+    :param obj: the object to check the type
+    :return: bool
+    """
+    return isinstance(obj, int) or isinstance(obj, float) or isinstance(obj, np.number)
 
 
 def get_team_colordict():
@@ -1528,6 +1538,36 @@ def mmss_to_secs(strtime):
     """
     min, sec = strtime.split(':')
     return 60 * int(min) + int(sec)
+
+
+def most_recent_game_id(team1, team2):
+    """
+    A convenience function to get the most recent game (this season) between two teams.
+    :param team1: str, a team
+    :param team2: str, a team
+    :return: int, a game number
+    """
+    return find_recent_games(team1, team2).Game.iloc[0]
+
+
+def find_recent_games(team1, team2=None, limit=1):
+    """
+    A convenience function that lists the most recent in progress or final games for specified team(s)
+    :param team1: str, a team
+    :param team2: str, a team (optional)
+    :param limit: How many games to return
+    :return: df with relevant rows
+    """
+    sch = get_season_schedule(get_current_season())
+    sch = sch[sch.Status != "Scheduled"]
+
+    t1 = team_as_id(team1)
+    sch = sch[(sch.Home == t1) | (sch.Road == t1)]
+    if team2 is not None:
+        t2 = team_as_id(team2)
+        sch = sch[(sch.Home == t2) | (sch.Road == t2)]
+
+    return sch.sort_values('Game', ascending=False).iloc[:limit, :]
 
 
 def setup():

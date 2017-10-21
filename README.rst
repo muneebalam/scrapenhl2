@@ -73,6 +73,10 @@ To get a player rolling CF% graph, use::
 
 .. image:: examples/Ovechkin_rolling_cf.png
 
+To launch the app to help you navigate use::
+
+    runapp()
+
 When the docs are up, you should look through them. Also always feel free to contact me with questions or suggestions.
 
 Contact
@@ -101,6 +105,8 @@ If you do make a donation, make me happy `and leave a record here <https://goo.g
 Change log
 ----------
 
+10/21/17: Added basic front end.
+
 10/16/17: Added initial versions of game timelines, player rolling corsi, and game H2H graphs.
 
 10/10/17: Bug fixes on scraping and team logs. Started methods to aggregate 5v5 game-by-game data for players.
@@ -112,9 +118,7 @@ Change log
 Major outstanding to-dos
 ------------------------
 
-* Get package working on PyPI
 * Front end with Flask
 * Add more graph methods
 * Add more data search methods
-* Real-time game charts
 * Bring in old play by play and shifts from HTML

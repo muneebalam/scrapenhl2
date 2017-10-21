@@ -933,8 +933,8 @@ def get_game_h2h_corsi(season, game):
     # TODO add strength arg
     toi = sg.get_parsed_toi(season, game)
     pbp = sg.get_parsed_pbp(season, game)
-    toi.to_csv('/Users/muneebalam/Desktop/toi.csv')
-    pbp.to_csv('/Users/muneebalam/Desktop/pbp.csv')
+    # toi.to_csv('/Users/muneebalam/Desktop/toi.csv')
+    # pbp.to_csv('/Users/muneebalam/Desktop/pbp.csv')
     # pbp.loc[:, 'Event'] = pbp.Event.apply(lambda x: ss.convert_event(x))
     pbp = pbp[['Time', 'Event', 'Team']] \
         .merge(toi[['Time', 'R1', 'R2', 'R3', 'R4', 'R5', 'H1', 'H2', 'H3', 'H4', 'H5',

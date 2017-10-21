@@ -11,3 +11,8 @@ install:
   - pip install feather-format
   - pip install halo
   - pip install scikit-learn
+  - pip install flask
+  - pip install python-Levenshtein
+  - pip install fuzzywuzzy
+  - pip install beautifulsoup
+  - pip install html-table-extractor
