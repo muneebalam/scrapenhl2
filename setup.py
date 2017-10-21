@@ -31,7 +31,10 @@ setuptools.setup(
                       'scikit-learn',  # not currently used, but will be for machine learning
                       'flask',  # for front end
                       'python-Levenshtein',  # for fast fuzzy matching
-                      'fuzzywuzzy'],  # for fuzzy string matching
+                      'fuzzywuzzy',  # for fuzzy string matching
+                      'beautifulsoup',  # for html parsing
+                      'html-table-extractor'  # for html parsing
+                      ],
     long_description=read('README.rst'),
     classifiers=[
         "Development Status :: 2 - Pre-Alpha",

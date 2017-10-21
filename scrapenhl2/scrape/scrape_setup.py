@@ -11,6 +11,7 @@ import json
 import os
 import os.path
 import os.path
+import re
 import urllib.error
 import urllib.request
 
@@ -494,7 +495,7 @@ def get_game_url(season, game):
     return 'https://statsapi.web.nhl.com/api/v1/game/{0:d}0{1:d}/feed/live'.format(season, game)
 
 
-def get_game_pbp_url(season, game):
+def get_game_pbplog_url(season, game):
     """
     Gets the url for a page containing pbp information for specified game from HTML tables.
     :param season: int, the season
@@ -504,7 +505,17 @@ def get_game_pbp_url(season, game):
     return 'http://www.nhl.com/scores/htmlreports/{0:d}{1:d}/PL0{2:d}.HTM'.format(season, season + 1, game)
 
 
-def get_home_shiftlog_url(season, game, logtype='json'):
+def get_game_pbplog_filename(season, game):
+    """
+    Returns the filename of the parsed pbp html game pbp
+    :param season: int, current season
+    :param game: int, game
+    :return: /scrape/data/raw/pbp/[season]/[game].html
+    """
+    return os.path.join(get_season_raw_pbp_folder(season), str(game) + '.html')
+
+
+def get_home_shiftlog_url(season, game):
     """
     Gets the url for a page containing shift information for specified game from HTML tables for home team.
     :param season: int, the season
@@ -514,7 +525,17 @@ def get_home_shiftlog_url(season, game, logtype='json'):
     return 'http://www.nhl.com/scores/htmlreports/{0:d}{1:d}/TH0{2:d}.HTM'.format(season, season + 1, game)
 
 
-def get_road_shiftlog_url(season, game, logtype='json'):
+def get_home_shiftlog_filename(season, game):
+    """
+    Returns the filename of the parsed toi html home shifts
+    :param season: int, current season
+    :param game: int, game
+    :return: /scrape/data/raw/pbp/[season]/[game]H.html
+    """
+    return os.path.join(get_season_raw_toi_folder(season), str(game) + 'H.html')
+
+
+def get_road_shiftlog_url(season, game):
     """
     Gets the url for a page containing shift information for specified game from HTML tables for road team.
     :param season: int, the season
@@ -524,7 +545,17 @@ def get_road_shiftlog_url(season, game, logtype='json'):
     return 'http://www.nhl.com/scores/htmlreports/{0:d}{1:d}/TV0{2:d}.HTM'.format(season, season + 1, game)
 
 
-def get_shift_url(season, game, logtype='json'):
+def get_road_shiftlog_filename(season, game):
+    """
+    Returns the filename of the parsed toi html road shifts
+    :param season: int, current season
+    :param game: int, game
+    :return: /scrape/data/raw/pbp/[season]/[game]H.html
+    """
+    return os.path.join(get_season_raw_toi_folder(season), str(game) + 'R.html')
+
+
+def get_shift_url(season, game):
     """
     Gets the url for a page containing shift information for specified game from NHL API.
     :param season: int, the season
@@ -711,11 +742,14 @@ def update_schedule_with_pbp_scrape(season, game):
     """
     Updates the schedule file saying that specified game's pbp has been scraped.
     :param season: int, the season
-    :param game: int, the game
+    :param game: int, the game, or list of ints
     :return: nothing
     """
     df = get_season_schedule(season)
-    df.loc[df.Game == game, "PBPStatus"] = "Scraped"
+    if check_types(game):
+        df.loc[df.Game == game, "PBPStatus"] = "Scraped"
+    else:
+        df.loc[df.Game.isin(game), "PBPStatus"] = "Scraped"
     _write_season_schedule(df, season, True)
     global _SCHEDULES
     _SCHEDULES[season] = df
@@ -725,11 +759,14 @@ def update_schedule_with_toi_scrape(season, game):
     """
     Updates the schedule file saying that specified game's toi has been scraped.
     :param season: int, the season
-    :param game: int, the game
+    :param game: int, the game, or list of int
     :return: nothing
     """
     df = get_season_schedule(season)
-    df.loc[df.Game == game, "TOIStatus"] = "Scraped"
+    if check_types(game):
+        df.loc[df.Game == game, "TOIStatus"] = "Scraped"
+    else:
+        df.loc[df.Game.isin(game), "TOIStatus"] = "Scraped"
     _write_season_schedule(df, season, True)
     global _SCHEDULES
     _SCHEDULES[season] = df
@@ -1456,6 +1493,41 @@ def get_team_colors(team):
     :return: tuple of hex colors
     """
     return get_team_colordict()[team_as_str(team)]
+
+
+def check_number_last_first_format(name):
+    """
+    Checks if specified name looks like "8 Ovechkin, Alex"
+    :param name: str
+    :return: bool
+    """
+    if re.match('^\d{1,2}\s*[A-Z]+\s*[A-Z]+', name) is None:
+        return False
+    return True
+
+
+def delete_game_html(season, game):
+    """
+    Deletes html files. HTML files are used for live game charts, but deleted in favor of JSONs when games go final.
+    :param season: int, the season
+    :param game: int, the game
+    :return: nothing
+    """
+
+    for fun in (get_game_pbplog_filename, get_home_shiftlog_filename, get_road_shiftlog_filename):
+        filename = fun(season, game)
+        if os.path.exists(filename):
+            os.remove(filename)
+
+
+def mmss_to_secs(strtime):
+    """
+    Converts time from mm:ss to seconds
+    :param strtime: str
+    :return: int
+    """
+    min, sec = strtime.split(':')
+    return 60 * int(min) + int(sec)
 
 
 def setup():
