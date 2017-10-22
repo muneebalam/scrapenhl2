@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Games in {{ season }}</title>
+    <title>{{ pagetitle }}</title>
 </head>
 <body>
 <table border=1>
@@ -11,7 +11,7 @@
         <th> {{ col }}</th>
         {% endfor %}
     </tr>
-    {% for index, date, game, hname, rname, hscore, rscore, status, result, url1, url2 in schedule.itertuples() %}
+    {% for index, date, game, hname, rname, hscore, rscore, status, result, url in schedule.itertuples() %}
     <tr>
         <th> {{ date }}</th>
         <td> {{ game }}</td>
@@ -21,8 +21,7 @@
         <td> {{ rscore }}</td>
         <td> {{ status }}</td>
         <td> {{ result }}</td>
-        <td><a href="{{ url1 }}">Link</a></td>
-        <td><a href="{{ url2 }}">Link</a></td>
+        <td><a href="{{ url }}">Link</a></td>
     </tr>
 
     {% endfor %}

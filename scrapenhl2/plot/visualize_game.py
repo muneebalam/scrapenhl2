@@ -510,7 +510,7 @@ def _get_game_h2h_chart_title(season, game, homecf_diff=None, totaltoi=None):
     # Note if a game was OT or SO
     otso_str = ss.get_game_result(season, game)
     if otso_str[:2] == 'OT' or otso_str[:2] == 'SO':
-        otso_str = '({0:s})'.format(otso_str[:2])
+        otso_str = ' ({0:s})'.format(otso_str[:2])
     else:
         otso_str = ''
     # Add strings to a list then join them together with newlines
@@ -678,6 +678,4 @@ def _make_color_lighter(hex=None, rgb=None, returntype='hex'):
 
 if __name__ == '__main__':
     # sg.autoupdate()
-    game = ss.most_recent_game_id('WSH', 'FLA')
-    game_timeline(2017, game)
-    game_h2h(2017, game)
+    pinfo = ss.get_player_ids_file()
