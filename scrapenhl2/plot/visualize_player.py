@@ -12,9 +12,10 @@ def rolling_player_cf(player, roll_len=25, startseason=None, endseason=None, sav
     :param players: int or str
     :param startseason: int, the season to start (inclusive). Defaults to 3 years ago.
     :param endseason: int, the season to finish (inclusive). If not specified, startseason. Else, current.
-    :param save_file: str to save, or None to show
-    :return: nothing
+    :param save_file: str to save, or None to show. Or 'fig' to return figure
+    :return: nothing, or figure
     """
+    plt.clf()
     if startseason is None and endseason is None:
         endseason = ss.get_current_season()
         startseason = endseason - 3
@@ -77,10 +78,12 @@ def rolling_player_cf(player, roll_len=25, startseason=None, endseason=None, sav
     ticks = list(np.arange(0.3, 0.71, 0.05))
     plt.yticks(ticks, ['{0:.0f}%'.format(100 * tick) for tick in ticks])
 
-    if save_file is not None:
-        plt.savefig(save_file)
-    else:
+    if save_file is None:
         plt.show()
+    elif save_file == 'fig':
+        return plt.gcf()
+    else:
+        plt.savefig(save_file)
 
 
 def _get_rolling_cf_title(player, roll_len, startseason, endseason):

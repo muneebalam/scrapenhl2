@@ -291,9 +291,9 @@ def update_team_logs(season, force_overwrite=False):
 
     spinner = halo.Halo()
 
-    new_games_to_do = ss.get_season_schedule(season) \
-        .query('PBPStatus == "Scraped" & TOIStatus == "Scraped"')
-    allteams = list(new_games_to_do.Home.append(new_games_to_do.Road).unique())
+    new_games_to_do = ss.get_season_schedule(season).query('Status == "Final"')
+    new_games_to_do = new_games_to_do[(new_games_to_do.Game >= 20001) & (new_games_to_do.Game <= 30417)]
+    allteams = sorted(list(new_games_to_do.Home.append(new_games_to_do.Road).unique()))
 
     for teami, team in enumerate(allteams):
         spinner.start(text='Updating team log for {0:d} {1:s}\n'.format(season, ss.team_as_str(team)))
@@ -965,7 +965,7 @@ def parse_game_pbp(season, game, force_overwrite=False):
     update_player_ids_from_page(rawpbp)
     update_player_logs_from_page(rawpbp, season, game)
     update_schedule_with_coaches(rawpbp, season, game)
-    update_schedule_with_result(rawpbp, season, game)
+    update_schedule_with_result_using_pbp(rawpbp, season, game)
 
     parsedpbp = read_events_from_page(rawpbp, season, game)
     save_parsed_pbp(parsedpbp, season, game)
@@ -999,7 +999,7 @@ def parse_game_pbp_from_html(season, game, force_overwrite=False):
     return True
 
 
-def update_schedule_with_result(pbp, season, game):
+def update_schedule_with_result_using_pbp(pbp, season, game):
     """
     Uses the PbP to update results for this game.
     :param pbp: json, the pbp for this game
@@ -1252,6 +1252,10 @@ def autoupdate_new(season):
     ss.refresh_schedules()
     sch = ss.get_season_schedule(season)
 
+    # For games done previously, set pbp and toi status to scraped
+    _ = ss.update_schedule_with_pbp_scrape(season, old_final_games)
+    sch = ss.update_schedule_with_toi_scrape(season, old_final_games)
+
     # Now, for games currently in progress, scrape.
     # But no need to force-overwrite. We handled games previously in progress above.
     # Games newly in progress will be written to file here.
@@ -1264,17 +1268,14 @@ def autoupdate_new(season):
     read_inprogress_games(inprogressgames, season)
     spinner.stop()
 
-    # For games done previously, set pbp and toi status to scraped
-    ss.update_schedule_with_pbp_scrape(season, old_final_games)
-    ss.update_schedule_with_toi_scrape(season, old_final_games)
-
-    # Now, for any games that are final, run scrape_game if not previously done
-    games = sch.query('Status == "Final"')
+    # Now, for any games that are final, scrape and parse if not previously done
+    games = sch.query('Status == "Final" & PBPStatus != "N/A"')
     games = games.Game.values
     games.sort()
     spinner.start(text='Updating final games')
     read_final_games(games, season)
     spinner.stop()
+    ss.refresh_schedules()
 
     try:
         update_team_logs(season, force_overwrite=False)
@@ -1291,9 +1292,9 @@ def read_final_games(games, season):
     """
     for game in games:
         try:
-            scrape_game_pbp(season, game, False)
-            # ss.update_schedule_with_pbp_scrape(season, game)
-            parse_game_pbp(season, game, False)
+            scrape_game_pbp(season, game, True)
+            _ = ss.update_schedule_with_pbp_scrape(season, game)
+            parse_game_pbp(season, game, True)
         except urllib.error.HTTPError as he:
             ed.print_and_log('Could not access pbp url for {0:d} {1:d}'.format(season, game), 'warn')
             ed.print_and_log(str(he), 'warn')
@@ -1303,9 +1304,9 @@ def read_final_games(games, season):
         except Exception as e:
             ed.print_and_log(str(e), 'warn')
         try:
-            scrape_game_toi(season, game, False)
-            # ss.update_schedule_with_toi_scrape(season, game)
-            parse_game_toi(season, game, False)
+            scrape_game_toi(season, game, True)
+            _ = ss.update_schedule_with_toi_scrape(season, game)
+            parse_game_toi(season, game, True)
         except urllib.error.HTTPError as he:
             ed.print_and_log('Could not access toi url for {0:d} {1:d}'.format(season, game), 'warn')
             ed.print_and_log(str(he), 'warn')
@@ -1337,7 +1338,8 @@ def read_inprogress_games(inprogressgames, season):
 
 
 if __name__ == '__main__':
-    for season in range(2017, 2009, -1):
+    autoupdate()
+    for season in range(2010, 2009, -1):
         sch = ss.get_season_schedule(season)
         read_final_games(sch.Game, season)
         update_team_logs(season)

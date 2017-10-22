@@ -743,7 +743,7 @@ def update_schedule_with_pbp_scrape(season, game):
     Updates the schedule file saying that specified game's pbp has been scraped.
     :param season: int, the season
     :param game: int, the game, or list of ints
-    :return: nothing
+    :return: updated schedule
     """
     df = get_season_schedule(season)
     if check_types(game):
@@ -753,6 +753,8 @@ def update_schedule_with_pbp_scrape(season, game):
     _write_season_schedule(df, season, True)
     global _SCHEDULES
     _SCHEDULES[season] = df
+    refresh_schedules()
+    return get_season_schedule(season)
 
 
 def update_schedule_with_toi_scrape(season, game):
@@ -770,6 +772,8 @@ def update_schedule_with_toi_scrape(season, game):
     _write_season_schedule(df, season, True)
     global _SCHEDULES
     _SCHEDULES[season] = df
+    refresh_schedules()
+    return get_season_schedule(season)
 
 
 def _write_season_schedule(df, season, force_overwrite):
@@ -1102,6 +1106,17 @@ def team_as_str(team, abbreviation=True):
         return None
 
 
+def add_sim_scores(df, name):
+    """
+    Adds fuzzywuzzy's token set similarity scores to provded dataframe
+    :param df: pandas dataframe with column Name
+    :param name: str, name to compare to
+    :return: df with an additional column SimScore
+    """
+    df.loc[:, 'SimScore'] = df.Name.apply(lambda x: fuzz.token_set_ratio(name, x))
+    return df
+
+
 def fuzzy_match_player(name_provided, names, minimum_similarity=50):
     """
     This method checks similarity between each entry in names and the name_provided using token set matching and
@@ -1113,7 +1128,7 @@ def fuzzy_match_player(name_provided, names, minimum_similarity=50):
     :return: str, string in names that best matches name_provided
     """
     df = pd.DataFrame({'Name': names})
-    df.loc[:, 'SimScore'] = df.Name.apply(lambda x: fuzz.token_set_ratio(name_provided, x))
+    df = add_sim_scores(df, name_provided)
     df = df.sort_values(by='SimScore', ascending=False).query('SimScore >= {0:f}'.format(minimum_similarity))
     if len(df) == 0:
         ed.print_and_log('Could not find match for {0:s}'.format(name_provided), 'warn')

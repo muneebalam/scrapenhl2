@@ -657,11 +657,6 @@ def generate_5v5_player_log(season):
 
     to_concat = []
 
-    # Left join onto this
-    # Filter for players who played
-    df = ss.get_player_log_file().query('Status == "P"').drop('Status', axis=1)
-    df = df[df.Season == season]
-
     # Recreate TOI60 file.
     _ = get_player_toion_toioff_file(season, force_create=True)
 
@@ -673,9 +668,8 @@ def generate_5v5_player_log(season):
             toicomp = get_5v5_player_game_toicomp(season, team)  # FQoC, F QoT, D QoC, D QoT, and respective Ns
             shifts = get_5v5_player_game_shift_startend(season, team)  # OZ, NZ, DZ, OTF-O, OTF-D, OTF-N
 
-            temp = df[df.Team == team].rename(columns={'ID': 'PlayerID'}) \
+            temp = toi \
                 .merge(cfca, how='left', on=['PlayerID', 'Game']) \
-                .merge(toi, how='left', on=['PlayerID', 'Game']) \
                 .merge(toicomp.drop('Team', axis=1), how='left', on=['PlayerID', 'Game'])
             # .merge(goals, how='left', on=['PlayerID', 'Game']) \
             # .merge(shifts, how='left', on=['PlayerID', 'Game'])
