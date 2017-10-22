@@ -16,6 +16,7 @@ def game_timeline(season, game, save_file=None):
     to return the figure
     :return: nothing
     """
+    plt.clf()
 
     hname = ss.team_as_str(ss.get_home_team(season, game))
     rname = ss.team_as_str(ss.get_road_team(season, game))
@@ -55,7 +56,10 @@ def game_timeline(season, game, save_file=None):
                 colors_to_use = darkercolors
             for i, (start, end) in enumerate(pps[team][pptype]):
                 cf_at_time_min = cf[team].loc[cf[team].Time == start//60].CumCF.iloc[0] - 2
-                cf_at_time_max = cf[team][cf[team].Time == end//60 + 1].CumCF.iloc[0] + 2
+                if end // 60 == cf[team].Time.max():  # might happen for live games
+                    cf_at_time_max = cf[team][cf[team].Time == end // 60].CumCF.iloc[0] + 2
+                else:
+                    cf_at_time_max = cf[team][cf[team].Time == end // 60 + 1].CumCF.iloc[0] + 2
                 if i == 0:
                     plt.gca().axvspan(start / 60, end / 60, ymin=cf_at_time_min/ymax,
                                       ymax=cf_at_time_max/ymax, alpha=0.5, facecolor=colors_to_use[team],
@@ -123,12 +127,13 @@ def _get_road_adv_for_timeline(season, game):
     return df
 
 
-def _get_contiguous_times(times):
+def _get_contiguous_times(times, tolerance=2):
     """
     Returns tuples of start and end times inferred from list of all times.
 
     For example, [1, 2, 3, 5, 6, 7, 10] would yield ((1, 3), (5, 7), (10, 10))
     :param times: a list or series of ints. Must be sorted ascending.
+    :param tolerance: gaps must be at least this long to be registered. E.g. 2 skips 1-sec shift anomalies
     :return: tuple of tuple-2s of ints
     """
     cont_times = []
@@ -140,6 +145,7 @@ def _get_contiguous_times(times):
                 cont_times[-1][-1] = times[i]
             else:
                 cont_times.append([times[i], times[i]])
+    cont_times = ((s, e) for s, e in cont_times if e - s >= tolerance)
     return cont_times
 
 
@@ -181,7 +187,9 @@ def _goal_times_to_scatter_for_timeline(goal_times, cfdf):
     cumgoals = 0
     for i in range(len(goal_times)):
         cumgoals += 1
-        cf_at_time = cfdf[cfdf.Time == goal_times[i]].CumCF.iloc[0]
+        cf_at_time = cfdf[cfdf.Time - 1 <= goal_times[i]]
+        cf_at_time = cf_at_time.sort_values('Time', ascending=False).CumCF.iloc[0]
+        # cf_at_time = cfdf[cfdf.Time == goal_times[i]].CumCF.iloc[0]  # if I use float times need filter etc
         for j in range(cumgoals):
             goal_xs.append(goal_times[i])
             goal_ys.append(cf_at_time + j)
@@ -228,7 +236,7 @@ def get_goals_for_timeline(season, game, homeroad, granularity='min'):
     pbp = pbp[pbp.Team == teamid]
 
     if granularity == 'min':
-        pbp.loc[:, 'Time'] = pbp.Time // 60
+        pbp.loc[:, 'Time'] = pbp.Time / 60
 
     goals = pbp[pbp.Event == 'Goal'].sort_values('Time')
     return list(goals.Time)
@@ -256,20 +264,21 @@ def _get_cf_for_timeline(season, game, homeroad, granularity='min'):
     maxtime = len(sg.get_parsed_toi(season, game))
     df = pd.DataFrame({'Time': list(range(maxtime))})
     df = df.merge(pbp[['Time']].assign(CF=1), how='left', on='Time')
-    df.loc[:, 'Time'] = df.Time + 1
+    # df.loc[:, 'Time'] = df.Time + 1
     df.loc[:, 'CF'] = df.CF.fillna(0)
     df.loc[:, 'CumCF'] = df.CF.cumsum()
 
     df.drop('CF', axis=1, inplace=True)
 
     # Now let's shift things down. Right now a shot at 30 secs will mean Time = 0 has CumCF = 1.
-    # I want it soccer style, so Time = 0 always has CumCF = 0, and that first shot at 30sec will register for Time=1
-    df = pd.concat([pd.DataFrame({'Time': [-1], 'CumCF': [0]}), df])
-    df.loc[:, 'Time'] = df.Time + 1
 
     if granularity == 'min':
         df.loc[:, 'Time'] = df.Time // 60
         df = df.groupby('Time').max().reset_index()
+
+    # I want it soccer style, so Time = 0 always has CumCF = 0, and that first shot at 30sec will register for Time=1
+    df = pd.concat([pd.DataFrame({'Time': [-1], 'CumCF': [0]}), df])
+    df.loc[:, 'Time'] = df.Time + 1
 
     return df
 
@@ -304,7 +313,7 @@ def game_h2h(season, game, save_file=None):
     :param save_file: str, specify a valid filepath to save to file. If None, merely shows on screen.
     :return: nothing
     """
-
+    plt.clf()
     h2htoi = manip.get_game_h2h_toi(season, game).query('Team1 == "H" & Team2 == "R"')
     h2hcorsi = manip.get_game_h2h_corsi(season, game).query('Team1 == "H" & Team2 == "R"')
     playerorder_h, numf_h = _get_h2h_chart_player_order(season, game, 'H')
@@ -668,4 +677,7 @@ def _make_color_lighter(hex=None, rgb=None, returntype='hex'):
 
 
 if __name__ == '__main__':
-    sg.autoupdate()
+    # sg.autoupdate()
+    game = ss.most_recent_game_id('WSH', 'FLA')
+    game_timeline(2017, game)
+    game_h2h(2017, game)

@@ -12,7 +12,7 @@ def read(fname):
 
 setuptools.setup(
     name = "scrapenhl2",
-    version="0.0.303",
+    version="0.0.304",
     author="Muneeb Alam",
     author_email="muneeb.alam@gmail.com",
     description=("scrapenhl2 is a python package for scraping and manipulating NHL data pulled from the NHL website."),
@@ -32,7 +32,7 @@ setuptools.setup(
                       'flask',  # for front end
                       'python-Levenshtein',  # for fast fuzzy matching
                       'fuzzywuzzy',  # for fuzzy string matching
-                      'beautifulsoup',  # for html parsing
+                      'beautifulsoup4',  # for html parsing
                       'html-table-extractor'  # for html parsing
                       ],
     long_description=read('README.rst'),
