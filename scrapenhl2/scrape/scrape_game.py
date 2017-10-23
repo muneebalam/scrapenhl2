@@ -872,6 +872,7 @@ def read_events_from_page(rawpbp, season, game):
 
     # Switch blocked shots from being an event for player who blocked, to player who took shot that was blocked
     # That means switching team attribution and actor/recipient.
+    # TODO: why does schedule have str, not int, home and road here?
     gameinfo = ss.get_game_data_from_schedule(season, game)
     switch_teams = {gameinfo['Home']: gameinfo['Road'], gameinfo['Road']: gameinfo['Home']}
     team_sw = [team[i] if event[i] != "Blocked Shot" else switch_teams[team[i]] for i in range(len(team))]
@@ -1269,7 +1270,7 @@ def autoupdate_new(season):
     spinner.stop()
 
     # Now, for any games that are final, scrape and parse if not previously done
-    games = sch.query('Status == "Final" & PBPStatus != "N/A"')
+    games = sch.query('Status == "Final" & PBPStatus == "N/A"')
     games = games.Game.values
     games.sort()
     spinner.start(text='Updating final games')
@@ -1331,15 +1332,11 @@ def read_inprogress_games(inprogressgames, season):
         # parse_game_pbp_from_html(season, game, False)
         # PBP JSON updates live, so I can just use that, as before
         scrape_game_pbp(season, game, True)
-        parse_game_pbp(season, game, True)
         scrape_game_toi_from_html(season, game, True)
+        parse_game_pbp(season, game, True)
         parse_game_toi_from_html(season, game, True)
         ed.print_and_log('Done with {0:d} {1:d} (in progress)'.format(season, game))
 
 
 if __name__ == '__main__':
-    autoupdate()
-    for season in range(2010, 2009, -1):
-        sch = ss.get_season_schedule(season)
-        read_final_games(sch.Game, season)
-        update_team_logs(season)
+    pass

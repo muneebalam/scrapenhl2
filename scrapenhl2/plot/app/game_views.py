@@ -8,8 +8,9 @@ This file manages pages for looking at and updating game data.
 """
 
 import io
+from functools import update_wrapper, wraps
 
-from flask import render_template, send_file, url_for, redirect
+from flask import render_template, send_file, url_for, redirect, make_response
 
 from scrapenhl2.plot import app
 from scrapenhl2.plot import visualize_game as vg
@@ -17,7 +18,17 @@ from scrapenhl2.scrape import scrape_game as sg
 from scrapenhl2.scrape import scrape_setup as ss
 
 
-def get_active_chart_types():
+def nocache(f):
+    @wraps(f)
+    def new_func(*args, **kwargs):
+        resp = make_response(f(*args, **kwargs))
+        resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, post-check=0, pre-check=0'
+        return resp
+
+    return update_wrapper(new_func, f)
+
+
+def get_active_game_chart_types():
     return {'h2h': vg.game_h2h, 'timeline': vg.game_timeline}
 
 
@@ -56,7 +67,7 @@ def game_game_index(season, game):
     hname = ss.team_as_str(gameinfo['Home'])
     rname = ss.team_as_str(gameinfo['Road'])
     links = {charttype: get_game_chart_page_url(season, game, charttype) for
-             charttype in get_active_chart_types()}
+             charttype in get_active_game_chart_types()}
     return render_template('index.html', linklist=links,
                            pagetitle='{0:d}-{1:s} {2:d}\n{3:s} at {4:s}\n{5:s}'.format(
                                season, str(season + 1)[2:], game, rname, hname, gameinfo['Date']))
@@ -71,6 +82,7 @@ def get_game_chart_fig_url(season, game, charttype):
 
 
 @app.app.route('/games/<int:season>/<int:game>/<charttype>/')
+@nocache
 def game_chart(season, game, charttype):
     title = '{0:d}-{1:s} {2:d} {3:s}'.format(season, str(season + 1)[2:], game, charttype)
     status = ss.get_game_status(season, game)
@@ -79,14 +91,16 @@ def game_chart(season, game, charttype):
 
 
 @app.app.route('/games/<int:season>/<int:game>/<charttype>/refresh')
+@nocache
 def game_chart_refresh(season, game, charttype):
     sg.read_inprogress_games([game], season)
     return redirect(url_for('game_chart', season=season, game=game, charttype=charttype))
 
 
 @app.app.route('/games/<int:season>/<int:game>/<charttype>/fig')
+@nocache
 def game_chart_background(season, game, charttype):
-    fig = get_active_chart_types()[charttype](season, game, 'fig')
+    fig = get_active_game_chart_types()[charttype](season, game, 'fig')
     img = io.BytesIO()
     fig.savefig(img)
     img.seek(0)

@@ -1167,9 +1167,17 @@ def player_as_id(player):
         elif len(df) == 1:
             return df.ID.iloc[0]
         else:
-            ed.print_and_log('Multiple results when searching for {0:s}; returning first result'.format(player), 'warn')
-            ed.print_and_log(df.to_string(), 'warn')
-            return df.ID.iloc[0]
+            default = check_default_player_id(player)
+            if default is None:
+                ed.print_and_log('Multiple results when searching for {0:s}; returning first result'.format(player),
+                                 'warn')
+                ed.print_and_log(df.to_string(), 'warn')
+                return df.ID.iloc[0]
+            else:
+                ed.print_and_log('Multiple results when searching for {0:s}; returning default'.format(player),
+                                 'warn')
+                ed.print_and_log(df.to_string(), 'warn')
+                return default
     else:
         ed.print_and_log('Specified wrong type for player: {0:s}'.format(type(player)), 'warn')
         return None
@@ -1583,6 +1591,17 @@ def find_recent_games(team1, team2=None, limit=1):
         sch = sch[(sch.Home == t2) | (sch.Road == t2)]
 
     return sch.sort_values('Game', ascending=False).iloc[:limit, :]
+
+
+def check_default_player_id(playername):
+    """
+    E.g. For Mike Green, I should automatically assume we mean 8471242 (WSH/DET), not 8468436.
+    Returns None if not in dict.
+    :param playername: str
+    :return: int, or None
+    """
+    # TODO gradually add to this
+    return try_to_access_dict({'Mike Green': 8471242}, playername)
 
 
 def setup():

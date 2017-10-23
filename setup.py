@@ -34,6 +34,11 @@ setuptools.setup(
                       'fuzzywuzzy',  # for fuzzy string matching
                       'beautifulsoup4',  # for html parsing
                       'html-table-extractor'  # for html parsing
+                      'plotly',  # for interactive charts
+                      'dash',
+                      'dash-renderer',
+                      'dash-html-components',
+                      'dash-core-components'
                       ],
     long_description=read('README.rst'),
     classifiers=[
