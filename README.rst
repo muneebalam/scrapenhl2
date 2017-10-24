@@ -7,6 +7,12 @@
    :alt: Code Health
 .. image:: https://badge.fury.io/py/scrapenhl2.svg
     :target: https://badge.fury.io/py/scrapenhl2
+.. image:: https://api.codeclimate.com/v1/badges/63e04a03b3aab131e262/maintainability
+    :target: https://codeclimate.com/github/muneebalam/scrapenhl2/maintainability
+   :alt: Maintainability
+.. image:: https://readthedocs.org/projects/scrapenhl2/badge/?version=latest
+    :target: https://readthedocs.org/projects/scrapenhl2/?badge=latest
+   :alt: Documentation Status
 Introduction
 ------------
 
@@ -85,9 +91,12 @@ To get a player rolling CF% graph, use::
 
 .. image:: examples/Ovechkin_rolling_cf.png
 
-To launch the app to help you navigate use::
+There is also a very bare-bones app that appears in your browser. To launch the app to help you navigate use::
 
     run_app()
+
+But this package is targeted for script use, so I recommend familiarizing yourself with python.
+(This is not intended to be a replacement for a site like Corsica.)
 
 When the docs are up, you should look through them. Also always feel free to contact me with questions or suggestions.
 
