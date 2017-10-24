@@ -14,5 +14,5 @@ install:
   - pip install flask
   - pip install python-Levenshtein
   - pip install fuzzywuzzy
-  - pip install beautifulsoup
+  - pip install beautifulsoup3
   - pip install html-table-extractor
