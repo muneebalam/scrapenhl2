@@ -33,7 +33,7 @@ setuptools.setup(
                       'python-Levenshtein',  # for fast fuzzy matching
                       'fuzzywuzzy',  # for fuzzy string matching
                       'beautifulsoup4',  # for html parsing
-                      'html-table-extractor'  # for html parsing
+                      'html-table-extractor',  # for html parsing
                       'plotly',  # for interactive charts
                       'dash',
                       'dash-renderer',
