@@ -21,7 +21,8 @@ import numpy as np
 import pandas as pd
 from fuzzywuzzy import fuzz
 
-import scrapenhl2.scrape.exception_decor as ed
+import scrapenhl2.scrape.get_filenames as get_filenames
+import scrapenhl2.scrape.get_urls as get_urls
 
 
 def _get_current_season():
@@ -43,7 +44,6 @@ def get_current_season():
     return _CURRENT_SEASON
 
 
-
 def _create_folders_and_files():
     """
     Creates folders for data storage if needed:
@@ -61,26 +61,26 @@ def _create_folders_and_files():
     """
     # ------- Raw -------
     for season in range(2005, _CURRENT_SEASON + 1):
-        _check_create_folder(get_season_raw_pbp_folder(season))
+        get_filenames.check_create_folder(get_filenames.get_season_raw_pbp_folder(season))
     for season in range(2005, _CURRENT_SEASON + 1):
-        _check_create_folder(get_season_raw_toi_folder(season))
+        get_filenames.check_create_folder(get_filenames.get_season_raw_toi_folder(season))
 
     # ------- Parsed -------
     for season in range(2005, _CURRENT_SEASON + 1):
-        _check_create_folder(get_season_parsed_pbp_folder(season))
+        get_filenames.check_create_folder(get_filenames.get_season_parsed_pbp_folder(season))
     for season in range(2005, _CURRENT_SEASON + 1):
-        _check_create_folder(get_season_parsed_toi_folder(season))
+        get_filenames.check_create_folder(get_filenames.get_season_parsed_toi_folder(season))
 
     # ------- Team logs -------
     for season in range(2005, _CURRENT_SEASON + 1):
-        _check_create_folder(get_season_team_pbp_folder(season))
+        get_filenames.check_create_folder(get_filenames.get_season_team_pbp_folder(season))
     for season in range(2005, _CURRENT_SEASON + 1):
-        _check_create_folder(get_season_team_toi_folder(season))
+        get_filenames.check_create_folder(get_filenames.get_season_team_toi_folder(season))
 
     # ------- Other stuff -------
-    _check_create_folder(get_other_data_folder())
+    get_filenames.check_create_folder(get_filenames.get_other_data_folder())
 
-    if not os.path.exists(get_team_info_filename()):
+    if not os.path.exists(get_filenames.get_team_info_filename()):
         generate_team_ids_file()  # team IDs file
 
     for season in range(2005, _CURRENT_SEASON + 1):
@@ -97,88 +97,6 @@ def _create_folders_and_files():
     if not os.path.exists(get_player_log_filename()):
         generate_player_log_file()
 
-
-def get_team_pbp(season, team):
-    """
-    Returns the pbp of given team in given season across all games.
-    :param season: int, the season
-    :param team: int or str, the team abbreviation.
-    :return: df, the pbp of given team in given season
-    """
-    return feather.read_dataframe(get_team_pbp_filename(season, team_as_str(team, True)))
-
-
-def get_team_toi(season, team):
-    """
-    Returns the toi of given team in given season across all games.
-    :param season: int, the season
-    :param team: int or str, the team abbreviation.
-    :return: df, the toi of given team in given season
-    """
-    return feather.read_dataframe(get_team_toi_filename(season, team_as_str(team, True)))
-
-
-def write_team_pbp(pbp, season, team):
-    """
-    Writes the given pbp dataframe to file.
-    :param pbp: df, the pbp of given team in given season
-    :param season: int, the season
-    :param team: int or str, the team abbreviation.
-    :return: nothing
-    """
-    if pbp is None:
-        ed.print_and_log('PBP df is None, will not write team log', 'warn')
-        return
-    feather.write_dataframe(pbp, get_team_pbp_filename(season, team_as_str(team, True)))
-
-
-def write_team_toi(toi, season, team):
-    """
-
-    :param toi: df, team toi for this season
-    :param season: int, the season
-    :param team: int or str, the team abbreviation.
-    :return:
-    """
-    if toi is None:
-        ed.print_and_log('TOI df is None, will not write team log', 'warn')
-        return
-    try:
-        feather.write_dataframe(toi, get_team_toi_filename(season, team_as_str(team, True)))
-    except ValueError:
-        # Need dtypes to be numbers or strings. Sometimes get objs instead
-        for col in toi:
-            try:
-                toi.loc[:, col] = pd.to_numeric(toi[col])
-            except ValueError:
-                toi.loc[:, col] = toi[col].astype(str)
-        feather.write_dataframe(toi, get_team_toi_filename(season, team_as_str(team, True)))
-
-
-def _get_team_info_file():
-    """
-    Returns the team information file. This is stored as a feather file for fast read/write.
-    :return: file from /scrape/data/other/TEAM_INFO.feather
-    """
-    return feather.read_dataframe(get_team_info_filename())
-
-
-def get_team_info_file():
-    """
-    Returns the team information file. This is stored as a feather file for fast read/write.
-    :return: file from /scrape/data/other/TEAM_INFO.feather
-    """
-    return _TEAMS
-
-
-def write_team_info_file(df):
-    """
-    Writes the team information file. This is stored as a feather file for fast read/write.
-    :param df: the (team information) dataframe to write to file
-    """
-    feather.write_dataframe(df, get_team_info_filename())
-
-
 def get_team_info_from_url(teamid):
     """
     Pulls ID, abbreviation, and name from the NHL API.
@@ -187,7 +105,7 @@ def get_team_info_from_url(teamid):
     """
 
     teamid = int(teamid)
-    url = get_team_info_url(teamid)
+    url = get_urls.get_team_info_url(teamid)
     with urllib.request.urlopen(url) as reader:
         page = reader.read()
     teaminfo = json.loads(page.decode('latin-1'))
@@ -1169,7 +1087,7 @@ def infer_season_from_date(date):
     return season
 
 
-@functools.lru_cache(maxsize=128, typed=False)
+@functools.lru_cache(maxsize=1, typed=False)
 def _get_event_dictionary():
     """
     Runs at startup to get a mapping of event name abbreviations to long versions.
@@ -1204,7 +1122,7 @@ def get_event_dictionary():
     return _EVENT_DICT
 
 
-@functools.lru_cache(maxsize=128, typed=False)
+@functools.lru_cache(maxsize=10, typed=False)
 def get_event_longname(eventname):
     """
     A method for translating event abbreviations to full names (for pbp matching)

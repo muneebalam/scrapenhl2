@@ -5,7 +5,7 @@ This module contains methods for getting filenames.
 import os
 
 
-def _check_create_folder(*args):
+def check_create_folder(*args):
     """
     A helper method to create a folder if it doesn't exist already
     :param args: the parts of the filepath. These are joined together with the base directory
