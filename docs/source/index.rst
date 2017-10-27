@@ -6,16 +6,22 @@ contain the root `toctree` directive.
 Welcome to scrapenhl2's documentation!
 ======================================
 
+.. include:: ../../README.rst
+    :start-after: inclusion-marker-for-sphinx
+
 .. toctree::
 :maxdepth: 2
-       :caption: Contents:
 
-.. automodule:: /scrapenhl2/scrape/scrape_setup.py
-
-
+       scrape
+       scrape_setup
+       scrape_game
+       manipulate
+       plot
+       visualize_game
+       visualize_player
 
 Indices and tables
-==================
+------------------
 
 * :ref:`genindex`
 * :ref:`modindex`
