@@ -5,7 +5,6 @@ At import, this module creates folders for data storage if need be.
 It also creates a team ID mapping and schedule files from 2005 through the current season (if the files do not exist).
 """
 
-import datetime
 import functools
 import json
 import os
@@ -22,26 +21,8 @@ import pandas as pd
 from fuzzywuzzy import fuzz
 
 import scrapenhl2.scrape.get_filenames as get_filenames
+import scrapenhl2.scrape.get_files as get_files
 import scrapenhl2.scrape.get_urls as get_urls
-
-
-def _get_current_season():
-    """
-    Runs at import only. Sets current season as today's year minus 1, or today's year if it's September or later
-    :return: int, current season
-    """
-    season = datetime.datetime.now().year - 1
-    if datetime.datetime.now().month >= 9:
-        season += 1
-    return season
-
-
-def get_current_season():
-    """
-    Returns the current season.
-    :return: The current season variable (generated at import from _get_current_season)
-    """
-    return _CURRENT_SEASON
 
 
 def _create_folders_and_files():
@@ -60,21 +41,21 @@ def _create_folders_and_files():
     :return: nothing
     """
     # ------- Raw -------
-    for season in range(2005, _CURRENT_SEASON + 1):
+    for season in range(2005, get_files.get_current_season() + 1):
         get_filenames.check_create_folder(get_filenames.get_season_raw_pbp_folder(season))
-    for season in range(2005, _CURRENT_SEASON + 1):
+    for season in range(2005, get_files.get_current_season() + 1):
         get_filenames.check_create_folder(get_filenames.get_season_raw_toi_folder(season))
 
     # ------- Parsed -------
-    for season in range(2005, _CURRENT_SEASON + 1):
+    for season in range(2005, get_files.get_current_season() + 1):
         get_filenames.check_create_folder(get_filenames.get_season_parsed_pbp_folder(season))
-    for season in range(2005, _CURRENT_SEASON + 1):
+    for season in range(2005, get_files.get_current_season() + 1):
         get_filenames.check_create_folder(get_filenames.get_season_parsed_toi_folder(season))
 
     # ------- Team logs -------
-    for season in range(2005, _CURRENT_SEASON + 1):
+    for season in range(2005, get_files.get_current_season() + 1):
         get_filenames.check_create_folder(get_filenames.get_season_team_pbp_folder(season))
-    for season in range(2005, _CURRENT_SEASON + 1):
+    for season in range(2005, get_files.get_current_season() + 1):
         get_filenames.check_create_folder(get_filenames.get_season_team_toi_folder(season))
 
     # ------- Other stuff -------
@@ -83,19 +64,20 @@ def _create_folders_and_files():
     if not os.path.exists(get_filenames.get_team_info_filename()):
         generate_team_ids_file()  # team IDs file
 
-    for season in range(2005, _CURRENT_SEASON + 1):
-        if not os.path.exists(get_season_schedule_filename(season)):
+    for season in range(2005, get_files.get_current_season() + 1):
+        if not os.path.exists(get_filenames.get_season_schedule_filename(season)):
             generate_season_schedule_file(season)  # season schedule
         # There is a potential issue here for current season.
         # For current season, we'll update this as we go along.
         # But original creation first time you start up in a new season is automatic, here.
         # When we autoupdate season date, we need to make sure to re-access this file and add in new entries
 
-    if not os.path.exists(get_player_ids_filename()):
+    if not os.path.exists(get_filenames.get_player_ids_filename()):
         generate_player_ids_file()
 
-    if not os.path.exists(get_player_log_filename()):
+    if not os.path.exists(get_filenames.get_player_log_filename()):
         generate_player_log_file()
+
 
 def get_team_info_from_url(teamid):
     """
@@ -131,8 +113,8 @@ def add_team_to_info_file(teamid):
     tname = info[2]
 
     df = pd.DataFrame({'ID': [tid], 'Abbreviation': [tabbrev], 'Name': [tname]})
-    teaminfo = pd.concat([df, get_team_info_file()])
-    write_team_info_file(teaminfo)
+    teaminfo = pd.concat([df, get_files.get_team_info_file()])
+    get_files.write_team_info_file(teaminfo)
     refresh_team_info()
 
     return info
@@ -164,9 +146,8 @@ def generate_team_ids_file(teamids=None):
     if teamids is None:
         # Read from current team ids file, if it exists
         try:
-            teamids = set(get_team_info_file().ID.values)
+            teamids = set(get_files.get_team_info_file().ID.values)
         except:
-            ed.print_and_log('Generating team info with default limits, 1 to 110', 'warn', False)
             teamids = list(range(1, default_limit + 1))
 
     for i in teamids:
@@ -182,8 +163,7 @@ def generate_team_ids_file(teamids=None):
             pass
 
     teaminfo = pd.DataFrame({'ID': ids, 'Abbreviation': abbrevs, 'Name': names})
-    write_team_info_file(teaminfo)
-    ed.print_and_log('Done writing team IDs')
+    get_files.write_team_info_file(teaminfo)
     spinner.stop()
 
 
@@ -196,80 +176,13 @@ def get_game_from_url(season, game):
     :param game: int, the game
     :return: str, the page at the url
     """
-    url = get_game_url(season, game)
+    url = get_urls.get_game_url(season, game)
     with urllib.request.urlopen(url) as reader:
         page = reader.read()
     return page
 
 
 
-def get_game_pbplog_filename(season, game):
-    """
-    Returns the filename of the parsed pbp html game pbp
-    :param season: int, current season
-    :param game: int, game
-    :return: /scrape/data/raw/pbp/[season]/[game].html
-    """
-    return os.path.join(get_season_raw_pbp_folder(season), str(game) + '.html')
-
-
-
-def get_home_shiftlog_filename(season, game):
-    """
-    Returns the filename of the parsed toi html home shifts
-    :param season: int, current season
-    :param game: int, game
-    :return: /scrape/data/raw/pbp/[season]/[game]H.html
-    """
-    return os.path.join(get_season_raw_toi_folder(season), str(game) + 'H.html')
-
-
-
-def get_road_shiftlog_filename(season, game):
-    """
-    Returns the filename of the parsed toi html road shifts
-    :param season: int, current season
-    :param game: int, game
-    :return: /scrape/data/raw/pbp/[season]/[game]H.html
-    """
-    return os.path.join(get_season_raw_toi_folder(season), str(game) + 'R.html')
-
-
-
-def get_player_5v5_log_filename(season):
-    """
-    Gets the filename for the season's player log file. Includes 5v5 CF, CA, TOI, and more.
-    :param season: int, the season
-    :return: /scrape/data/other/[season]_player_log.feather
-    """
-    return os.path.join(get_other_data_folder(), '{0:d}_player_5v5_log.feather'.format(season))
-
-
-def get_season_schedule_filename(season):
-    """
-    Gets the filename for the season's schedule file
-    :param season: int, the season
-    :return: /scrape/data/other/[season]_schedule.feather
-    """
-    return os.path.join(get_other_data_folder(), '{0:d}_schedule.feather'.format(season))
-
-
-def get_season_schedule(season):
-    """
-    Gets the the season's schedule file. Stored as a feather file for fast read/write
-    :param season: int, the season
-    :return: file from /scrape/data/other/[season]_schedule.feather
-    """
-    return _SCHEDULES[season]
-
-
-def _get_season_schedule(season):
-    """
-    Gets the the season's schedule file. Stored as a feather file for fast read/write
-    :param season: int, the season
-    :return: file from /scrape/data/other/[season]_schedule.feather
-    """
-    return feather.read_dataframe(get_season_schedule_filename(season))
 
 
 def try_to_access_dict(base_dct, *keys, **kwargs):
@@ -459,11 +372,7 @@ def _write_season_schedule(df, season, force_overwrite):
         where_diff = df.Key.isin(game_diff)
         newdf = pd.concat(olddf, df[where_diff], ignore_index=True)
 
-        feather.write_dataframe(newdf, get_season_schedule_filename(season))
-
-
-def get_player_ids_filename():
-    return os.path.join(get_other_data_folder(), 'PLAYER_INFO.feather')
+        feather.write_dataframe(newdf, get_filenames.get_season_schedule_filename(season))
 
 
 def generate_player_ids_file():
@@ -501,35 +410,9 @@ def generate_player_log_file():
                        'Status': ['P'],  # P for played, S for scratch.  # TODO can I do healthy vs injured?
                        'Season': [2016],  # Season (2016-17)
                        'Game': [30221]})  # Game (G1 vs PIT)
-    if os.path.exists(get_player_log_filename()):
-        ed.print_and_log('Warning: overwriting existing player log with default, one-line df!', 'warn')
-    write_player_log_file(df)
-
-
-def write_player_log_file(df):
-    """
-    Writes the given dataframe to file as the player log filename
-    :param df: pandas dataframe
-    :return: nothing
-    """
-    feather.write_dataframe(df.drop_duplicates(), get_player_log_filename())
-
-
-def get_player_log_file():
-    """
-    Returns the player log file from memory.
-    :return: dataframe, the log
-    """
-    return _PLAYER_LOG
-
-
-def _get_player_log_file():
-    """
-    Returns the player log file, reading from file. This is stored as a feather file for fast read/write.
-    :return: dataframe from /scrape/data/other/PLAYER_LOG.feather
-    """
-    return feather.read_dataframe(get_player_log_filename())
-
+    if os.path.exists(get_filenames.get_player_log_filename()):
+        pass  # ed.print_and_log('Warning: overwriting existing player log with default, one-line df!', 'warn')
+    get_files.write_player_log_file(df)
 
 def get_teams_in_season(season):
     """
@@ -538,33 +421,10 @@ def get_teams_in_season(season):
     :return: set of team IDs
     """
 
-    sch = get_season_schedule(season)
+    sch = get_files.get_season_schedule(season)
     allteams = set(sch.Road).union(sch.Home)
     return set(allteams)
 
-
-def get_player_log_filename():
-    """
-    Returns the player log filename.
-    :return: str, /scrape/data/other/PLAYER_LOG.feather
-    """
-    return os.path.join(get_other_data_folder(), 'PLAYER_LOG.feather')
-
-
-def get_player_ids_file():
-    """
-    Returns the player information file. This is stored as a feather file for fast read/write.
-    :return: /scrape/data/other/PLAYER_INFO.feather
-    """
-    return _PLAYERS
-
-
-def _get_player_ids_file():
-    """
-    Runs at startup to read the player information file. This is stored as a feather file for fast read/write.
-    :return: /scrape/data/other/PLAYER_INFO.feather
-    """
-    return feather.read_dataframe(get_player_ids_filename())
 
 
 def get_player_info_from_url(playerid):
@@ -573,7 +433,7 @@ def get_player_info_from_url(playerid):
     :param playerid: int, the player id
     :return: dict with player ID, name, handedness, position, etc
     """
-    with urllib.request.urlopen(get_player_url(playerid)) as reader:
+    with urllib.request.urlopen(get_urls.get_player_url(playerid)) as reader:
         page = reader.read().decode('latin-1')
     data = json.loads(page)
 
@@ -615,7 +475,7 @@ def update_player_ids_file(playerids, force_overwrite=False):
     weights = []
     nationalities = []
 
-    current_players = get_player_ids_file()
+    current_players = get_files.get_player_ids_file()
 
     if not force_overwrite:
         # Pull only ones we don't have already
@@ -718,7 +578,7 @@ def team_as_id(team):
     if check_number(team):
         return int(team)
     elif isinstance(team, str):
-        df = get_team_info_file().query('Name == "{0:s}" | Abbreviation == "{0:s}"'.format(team))
+        df = get_files.get_team_info_file().query('Name == "{0:s}" | Abbreviation == "{0:s}"'.format(team))
         if len(df) == 0:
             ed.print_and_log('Could not find ID for {0:s}'.format(team), 'warn')
             return None
@@ -1243,7 +1103,7 @@ def find_recent_games(team1, team2=None, limit=1):
     :param limit: How many games to return
     :return: df with relevant rows
     """
-    sch = get_season_schedule(get_current_season())
+    sch = get_files.get_season_schedule(get_files.get_current_season())
     sch = sch[sch.Status != "Scheduled"]
 
     t1 = team_as_id(team1)
@@ -1271,15 +1131,11 @@ def setup():
     Loads current season, base directory, etc. Always run this method first!
     :return: nothing
     """
-    global _CURRENT_SEASON, _BASE_DIR, _TEAMS, _PLAYERS, _PLAYER_LOG, _SCHEDULES, _EVENT_DICT, _TEAM_COLORS
+    get_files.setup()
+    global _EVENT_DICT, _TEAM_COLORS
 
-    _CURRENT_SEASON = _get_current_season()
-    _BASE_DIR = _get_base_dir()
+
     _create_folders_and_files()
-    _TEAMS = _get_team_info_file()
-    _PLAYERS = _get_player_ids_file()
-    _PLAYER_LOG = _get_player_log_file()
-    _SCHEDULES = {season: _get_season_schedule(season) for season in range(2005, _CURRENT_SEASON + 1)}
     _EVENT_DICT = _get_event_dictionary()
     _TEAM_COLORS = _get_team_colordict()
 

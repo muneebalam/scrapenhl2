@@ -69,7 +69,7 @@ def get_raw_data_folder():
     Returns the folder containing raw data
     :return: /scrape/data/raw/
     """
-    return os.path.join(_get_base_dir(), 'data', 'raw')
+    return os.path.join(get_base_dir(), 'data', 'raw')
 
 
 def get_parsed_data_folder():
@@ -77,7 +77,7 @@ def get_parsed_data_folder():
     Returns the folder containing parsed data
     :return: /scrape/data/parsed/
     """
-    return os.path.join(_get_base_dir(), 'data', 'parsed')
+    return os.path.join(get_base_dir(), 'data', 'parsed')
 
 
 def get_team_data_folder():
@@ -85,7 +85,7 @@ def get_team_data_folder():
     Returns the folder containing team log data
     :return: /scrape/data/teams/
     """
-    return os.path.join(_get_base_dir(), 'data', 'teams')
+    return os.path.join(get_base_dir(), 'data', 'teams')
 
 
 def get_other_data_folder():
@@ -93,7 +93,7 @@ def get_other_data_folder():
     Returns the folder containing other data
     :return: /scrape/data/other/
     """
-    return os.path.join(_get_base_dir(), 'data', 'other')
+    return os.path.join(get_base_dir(), 'data', 'other')
 
 
 def get_season_raw_pbp_folder(season):
@@ -178,3 +178,63 @@ def get_team_info_filename():
     :return: /scrape/data/other/TEAM_INFO.feather
     """
     return os.path.join(get_other_data_folder(), 'TEAM_INFO.feather')
+
+
+def get_player_log_filename():
+    """
+    Returns the player log filename.
+    :return: str, /scrape/data/other/PLAYER_LOG.feather
+    """
+    return os.path.join(get_other_data_folder(), 'PLAYER_LOG.feather')
+
+
+def get_player_5v5_log_filename(season):
+    """
+    Gets the filename for the season's player log file. Includes 5v5 CF, CA, TOI, and more.
+    :param season: int, the season
+    :return: /scrape/data/other/[season]_player_log.feather
+    """
+    return os.path.join(get_other_data_folder(), '{0:d}_player_5v5_log.feather'.format(season))
+
+
+def get_season_schedule_filename(season):
+    """
+    Gets the filename for the season's schedule file
+    :param season: int, the season
+    :return: /scrape/data/other/[season]_schedule.feather
+    """
+    return os.path.join(get_other_data_folder(), '{0:d}_schedule.feather'.format(season))
+
+
+def get_game_pbplog_filename(season, game):
+    """
+    Returns the filename of the parsed pbp html game pbp
+    :param season: int, current season
+    :param game: int, game
+    :return: /scrape/data/raw/pbp/[season]/[game].html
+    """
+    return os.path.join(get_season_raw_pbp_folder(season), str(game) + '.html')
+
+
+def get_home_shiftlog_filename(season, game):
+    """
+    Returns the filename of the parsed toi html home shifts
+    :param season: int, current season
+    :param game: int, game
+    :return: /scrape/data/raw/pbp/[season]/[game]H.html
+    """
+    return os.path.join(get_season_raw_toi_folder(season), str(game) + 'H.html')
+
+
+def get_road_shiftlog_filename(season, game):
+    """
+    Returns the filename of the parsed toi html road shifts
+    :param season: int, current season
+    :param game: int, game
+    :return: /scrape/data/raw/pbp/[season]/[game]H.html
+    """
+    return os.path.join(get_season_raw_toi_folder(season), str(game) + 'R.html')
+
+
+def get_player_ids_filename():
+    return os.path.join(get_other_data_folder(), 'PLAYER_INFO.feather')

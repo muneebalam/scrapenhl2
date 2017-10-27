@@ -13,6 +13,7 @@ import pandas as pd  # standard scientific python stack
 import pyarrow  # related to feather; need to import to use an error
 
 import scrapenhl2.scrape.exception_decor as ed
+import scrapenhl2.scrape.get_files as get_files
 import scrapenhl2.scrape.scrape_setup as ss  # lots of helpful methods in this module
 
 
@@ -1157,7 +1158,7 @@ def parse_season_pbp(season, force_overwrite=False):
     spinner = halo.Halo(text='Parsing pbp from {0:d}'.format(season))
     spinner.start()
     if season is None:
-        season = ss.get_current_season()
+        season = get_files.get_current_season()
 
     sch = ss.get_season_schedule(season)
     games = sch[sch.Status == "Final"].Game.values
@@ -1187,7 +1188,7 @@ def parse_season_toi(season, force_overwrite=False):
 
     spinner = halo.Halo(text='Parsing toi from {0:d}'.format(season))
     if season is None:
-        season = ss.get_current_season()
+        season = get_files.get_current_season()
 
     sch = ss.get_season_schedule(season)
     games = sch[sch.Status == "Final"].Game.values
@@ -1206,7 +1207,7 @@ def autoupdate(season=None):
     """
 
     if season is None:
-        season = ss.get_current_season()
+        season = get_files.get_current_season()
 
     if season < 2010:
         autoupdate_old(season)
@@ -1233,7 +1234,7 @@ def autoupdate_new(season):
     """
     # TODO: why does sometimes the schedule have the wrong game-team pairs, but when I regenerate, it's all ok?
 
-    sch = ss.get_season_schedule(season)
+    sch = get_files.get_season_schedule(season)
 
     spinner = halo.Halo()
 
@@ -1251,7 +1252,7 @@ def autoupdate_new(season):
     # Update schedule to get current status
     ss.generate_season_schedule_file(season)
     ss.refresh_schedules()
-    sch = ss.get_season_schedule(season)
+    sch = get_files.get_season_schedule(season)
 
     # For games done previously, set pbp and toi status to scraped
     _ = ss.update_schedule_with_pbp_scrape(season, old_final_games)
@@ -1339,4 +1340,4 @@ def read_inprogress_games(inprogressgames, season):
 
 
 if __name__ == '__main__':
-    pass
+    autoupdate()
