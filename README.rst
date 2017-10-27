@@ -16,6 +16,8 @@
 Introduction
 ------------
 
+.. inclusion-marker-for-sphinx
+
 scrapenhl2 is a python package for scraping and manipulating NHL data pulled from the NHL website.
 
 Installation
@@ -26,7 +28,8 @@ To be safe, make sure you have python 3.5+, matplotlib 2.0+, and pandas 0.20+.
 
 Next, if you are on Windows, you need to get python-Levenshtein.
 `You can find it here <http://www.lfd.uci.edu/~gohlke/pythonlibs/#python-levenshtein>`_. Download the appropriate .whl
-file and navigate to your downloads folder in command line. For example::
+file--connect your version of python with the "cp" you see and use the one with "amd64" if you have an AMD
+64-bit processor--and navigate to your downloads folder in command line. For example::
 
     cd
     cd muneebalam

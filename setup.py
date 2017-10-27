@@ -12,7 +12,7 @@ def read(fname):
 
 setuptools.setup(
     name = "scrapenhl2",
-    version="0.0.304",
+    version="0.3.7",
     author="Muneeb Alam",
     author_email="muneeb.alam@gmail.com",
     description=("scrapenhl2 is a python package for scraping and manipulating NHL data pulled from the NHL website."),
@@ -25,15 +25,15 @@ setuptools.setup(
                       'matplotlib',  # graphing
                       'seaborn',  # graphing; a little nicer than MPL
                       'pandas',  # for handling and manipulating data
-                      'pyarrow',  # used by feather
+                      # 'pyarrow',  # used by feather
                       'feather-format',  # fast read-write format that plays nicely with R
                       'halo',  # for spinners
                       'scikit-learn',  # not currently used, but will be for machine learning
                       'flask',  # for front end
                       'python-Levenshtein',  # for fast fuzzy matching
                       'fuzzywuzzy',  # for fuzzy string matching
-                      'beautifulsoup4',  # for html parsing
                       'html-table-extractor',  # for html parsing
+                      # 'beautifulsoup4',  # for html parsing
                       'plotly',  # for interactive charts
                       'dash',
                       'dash-renderer',
