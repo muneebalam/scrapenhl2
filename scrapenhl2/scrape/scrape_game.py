@@ -7,14 +7,13 @@ import urllib.request  # for accessing internet pages
 import zlib  # for compressing and saving files
 from time import sleep  # this frees up time for use as variable name
 
-import halo  # terminal spinners
 import numpy as np  # standard scientific python stack
 import pandas as pd  # standard scientific python stack
 import pyarrow  # related to feather; need to import to use an error
 import scrapenhl2.scrape.exception_decor as ed
+import scrapenhl2.scrape.get_filenames as get_filenames
 import scrapenhl2.scrape.get_files as get_files
 
-import scrapenhl2.scrape.get_filenames as get_filenames
 import scrapenhl2.scrape.scrape_setup as ss  # lots of helpful methods in this module
 
 
