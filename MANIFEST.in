@@ -7,4 +7,6 @@ include scrapenhl2/data/parsed/toi/2017/*
 include scrapenhl2/scrape/*
 include scrapenhl2/manipulate/*
 include scrapenhl2/plot/*
-include scrapenhl2/docs/*
+include scrapenhl2/docs/source/
+include scrapenhl2/docs/Makefile
+include scrapenhl2/docs/make.bat
