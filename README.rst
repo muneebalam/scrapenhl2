@@ -13,10 +13,11 @@
 .. image:: https://readthedocs.org/projects/scrapenhl2/badge/?version=latest
     :target: https://readthedocs.org/projects/scrapenhl2/?badge=latest
    :alt: Documentation Status
-Introduction
-------------
 
 .. inclusion-marker-for-sphinx
+
+Introduction
+------------
 
 scrapenhl2 is a python package for scraping and manipulating NHL data pulled from the NHL website.
 
@@ -128,6 +129,8 @@ If you do make a donation, make me happy `and leave a record here <https://goo.g
 
 Change log
 ----------
+
+10/28/17: Major refactoring in scrapenhl2/scrape/
 
 10/21/17: Added basic front end. Committed early versions of 2017 logs.
 

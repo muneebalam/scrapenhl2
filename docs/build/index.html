@@ -26,6 +26,7 @@
     <script type="text/javascript" src="_static/doctools.js"></script>
     <link rel="index" title="Index" href="genindex.html"/>
     <link rel="search" title="Search" href="search.html"/>
+    <link rel="next" title="Scrape" href="scrape.html"/>
 </head>
 <body role="document">
 <div class="related" role="navigation" aria-label="related navigation">
@@ -37,6 +38,10 @@
         <li class="right">
             <a href="py-modindex.html" title="Python Module Index"
             >modules</a> |
+        </li>
+        <li class="right">
+            <a href="scrape.html" title="Scrape"
+               accesskey="N">next</a> |
         </li>
         <li class="nav-item nav-item-0"><a href="#">scrapenhl2 0.4.0 documentation</a> &#187;</li>
     </ul>
@@ -54,8 +59,64 @@
                     <h1>Welcome to scrapenhl2&#8217;s documentation!<a class="headerlink"
                                                                        href="#welcome-to-scrapenhl2-s-documentation"
                                                                        title="Permalink to this headline">¶</a></h1>
-                    <p>scrapenhl2 is a python package for scraping and manipulating NHL data pulled from the NHL
-                        website.</p>
+                    <div class="section" id="table-of-contents">
+                        <h2>Table of Contents<a class="headerlink" href="#table-of-contents"
+                                                title="Permalink to this headline">¶</a></h2>
+                        <div class="toctree-wrapper compound">
+                            <ul>
+                                <li class="toctree-l1"><a class="reference internal" href="scrape.html">Scraping</a>
+                                    <ul>
+                                        <li class="toctree-l2"><a class="reference internal"
+                                                                  href="scrape.html#useful-examples">Useful examples</a>
+                                        </li>
+                                        <li class="toctree-l2"><a class="reference internal" href="scrape.html#methods">Methods</a>
+                                        </li>
+                                    </ul>
+                                </li>
+                                <li class="toctree-l1"><a class="reference internal"
+                                                          href="manipulate.html">Manipulating</a>
+                                    <ul>
+                                        <li class="toctree-l2"><a class="reference internal"
+                                                                  href="manipulate.html#useful-examples">Useful
+                                            examples</a></li>
+                                        <li class="toctree-l2"><a class="reference internal"
+                                                                  href="manipulate.html#module-scrapenhl2.manipulate.manipulate">Methods</a>
+                                        </li>
+                                    </ul>
+                                </li>
+                                <li class="toctree-l1"><a class="reference internal" href="plot.html">Plot</a></li>
+                                <li class="toctree-l1"><a class="reference internal" href="plot.html#useful-examples">Useful
+                                    examples</a>
+                                    <ul>
+                                        <li class="toctree-l2"><a class="reference internal"
+                                                                  href="plot.html#module-scrapenhl2.plot.visualize_game">Methods</a>
+                                        </li>
+                                    </ul>
+                                </li>
+                                <li class="toctree-l1"><a class="reference internal" href="support.html">Support</a>
+                                    <ul>
+                                        <li class="toctree-l2"><a class="reference internal" href="support.html#docs">Docs</a>
+                                        </li>
+                                        <li class="toctree-l2"><a class="reference internal" href="support.html#github">Github</a>
+                                        </li>
+                                        <li class="toctree-l2"><a class="reference internal"
+                                                                  href="support.html#contact">Contact</a></li>
+                                        <li class="toctree-l2"><a class="reference internal"
+                                                                  href="support.html#collaboration">Collaboration</a>
+                                        </li>
+                                        <li class="toctree-l2"><a class="reference internal"
+                                                                  href="support.html#donations">Donations</a></li>
+                                    </ul>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="section" id="introduction">
+                        <h2>Introduction<a class="headerlink" href="#introduction"
+                                           title="Permalink to this headline">¶</a></h2>
+                        <p>scrapenhl2 is a python package for scraping and manipulating NHL data pulled from the NHL
+                            website.</p>
+                    </div>
                     <div class="section" id="installation">
                         <h2>Installation<a class="headerlink" href="#installation"
                                            title="Permalink to this headline">¶</a></h2>
@@ -205,6 +266,7 @@
                     <div class="section" id="change-log">
                         <h2>Change log<a class="headerlink" href="#change-log" title="Permalink to this headline">¶</a>
                         </h2>
+                        <p>10/28/17: Major refactoring in scrapenhl2/scrape/</p>
                         <p>10/21/17: Added basic front end. Committed early versions of 2017 logs.</p>
                         <p>10/16/17: Added initial versions of game timelines, player rolling corsi, and game H2H
                             graphs.</p>
@@ -222,22 +284,6 @@
                             <li>Add more data search methods</li>
                             <li>Bring in old play by play and shifts from HTML</li>
                         </ul>
-                        <div class="toctree-wrapper compound">
-                        </div>
-                        <table class="docutils field-list" frame="void" rules="none">
-                            <col class="field-name"/>
-                            <col class="field-body"/>
-                            <tbody valign="top">
-                            <tr class="field-odd field">
-                                <th class="field-name">maxdepth:</th>
-                                <td class="field-body"><p class="first">2</p>
-                                    <p class="last">scrape
-                                        manipulate
-                                        plot</p>
-                                </td>
-                            </tr>
-                            </tbody>
-                        </table>
                     </div>
                     <div class="section" id="indices-and-tables">
                         <h2>Indices and tables<a class="headerlink" href="#indices-and-tables"
@@ -263,6 +309,8 @@
             <ul>
                 <li><a class="reference internal" href="#">Welcome to scrapenhl2&#8217;s documentation!</a>
                     <ul>
+                        <li><a class="reference internal" href="#table-of-contents">Table of Contents</a></li>
+                        <li><a class="reference internal" href="#introduction">Introduction</a></li>
                         <li><a class="reference internal" href="#installation">Installation</a></li>
                         <li><a class="reference internal" href="#use">Use</a></li>
                         <li><a class="reference internal" href="#contact">Contact</a></li>
@@ -276,6 +324,9 @@
                 </li>
             </ul>
 
+            <h4>Next topic</h4>
+            <p class="topless"><a href="scrape.html"
+                                  title="next chapter">Scrape</a></p>
             <div role="note" aria-label="source link">
                 <h3>This Page</h3>
                 <ul class="this-page-menu">
@@ -306,6 +357,10 @@
         <li class="right">
             <a href="py-modindex.html" title="Python Module Index"
             >modules</a> |
+        </li>
+        <li class="right">
+            <a href="scrape.html" title="Scrape"
+            >next</a> |
         </li>
         <li class="nav-item nav-item-0"><a href="#">scrapenhl2 0.4.0 documentation</a> &#187;</li>
     </ul>
