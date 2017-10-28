@@ -3,7 +3,9 @@ This module contains methods related to individual player info.
 """
 
 import functools
+import json
 import os.path
+import urllib.request
 
 import feather
 import pandas as pd
@@ -107,7 +109,7 @@ def write_player_ids_file(df):
     :return: nothing
     """
     feather.write_dataframe(df, get_player_ids_filename())
-    
+
 
 def get_player_url(playerid):
     """
@@ -306,6 +308,34 @@ def player_as_str(player):
     else:
         print('Specified wrong type for player: {0:d}'.format(type(player)))
         return None
+
+
+def get_player_info_from_url(playerid):
+    """
+    Gets ID, Name, Hand, Pos, DOB, Height, Weight, and Nationality from the NHL API.
+    :param playerid: int, the player id
+    :return: dict with player ID, name, handedness, position, etc
+    """
+    with urllib.request.urlopen(get_player_url(playerid)) as reader:
+        page = reader.read().decode('latin-1')
+    data = json.loads(page)
+
+    info = {}
+    vars_to_get = {'ID': ['people', 0, 'id'],
+                   'Name': ['people', 0, 'fullName'],
+                   'Hand': ['people', 0, 'shootsCatches'],
+                   'Pos': ['people', 0, 'primaryPosition', 'code'],
+                   'DOB': ['people', 0, 'birthDate'],
+                   'Height': ['people', 0, 'height'],
+                   'Weight': ['people', 0, 'weight'],
+                   'Nationality': ['people', 0, 'nationality']}
+    for key, val in vars_to_get.items():
+        info[key] = helpers.try_to_access_dict(data, *val)
+
+    # Remove the space in the middle of height
+    if info['Height'] is not None:
+        info['Height'] = info['Height'].replace(' ', '')
+    return info
 
 
 _PLAYERS = None

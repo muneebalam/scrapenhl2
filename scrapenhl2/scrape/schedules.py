@@ -192,6 +192,18 @@ def get_season_schedule_url(season):
            '{0:d}-09-01&endDate={1:d}-06-25'.format(season, season + 1)
 
 
+def get_teams_in_season(season):
+    """
+    Returns all teams that have a game in the schedule for this season
+    :param season: int, the season
+    :return: set of team IDs
+    """
+
+    sch = get_season_schedule(season)
+    allteams = set(sch.Road).union(sch.Home)
+    return set(allteams)
+
+
 def schedule_setup():
     """
     Reads current season and schedules into memory.

@@ -5,7 +5,6 @@ At import, this module creates folders for data storage if need be.
 It also creates a team ID mapping and schedule files from 2005 through the current season (if the files do not exist).
 """
 
-import json
 import os
 import os.path
 import os.path
@@ -130,46 +129,6 @@ def generate_player_log_file():
     if os.path.exists(get_filenames.get_player_log_filename()):
         pass  # ed.print_and_log('Warning: overwriting existing player log with default, one-line df!', 'warn')
     get_files.write_player_log_file(df)
-
-def get_teams_in_season(season):
-    """
-    Returns all teams that have a game in the schedule for this season
-    :param season: int, the season
-    :return: set of team IDs
-    """
-
-    sch = get_files.get_season_schedule(season)
-    allteams = set(sch.Road).union(sch.Home)
-    return set(allteams)
-
-
-
-def get_player_info_from_url(playerid):
-    """
-    Gets ID, Name, Hand, Pos, DOB, Height, Weight, and Nationality from the NHL API.
-    :param playerid: int, the player id
-    :return: dict with player ID, name, handedness, position, etc
-    """
-    with urllib.request.urlopen(get_urls.get_player_url(playerid)) as reader:
-        page = reader.read().decode('latin-1')
-    data = json.loads(page)
-
-    info = {}
-    vars_to_get = {'ID': ['people', 0, 'id'],
-                   'Name': ['people', 0, 'fullName'],
-                   'Hand': ['people', 0, 'shootsCatches'],
-                   'Pos': ['people', 0, 'primaryPosition', 'code'],
-                   'DOB': ['people', 0, 'birthDate'],
-                   'Height': ['people', 0, 'height'],
-                   'Weight': ['people', 0, 'weight'],
-                   'Nationality': ['people', 0, 'nationality']}
-    for key, val in vars_to_get.items():
-        info[key] = try_to_access_dict(data, *val)
-
-    # Remove the space in the middle of height
-    if info['Height'] is not None:
-        info['Height'] = info['Height'].replace(' ', '')
-    return info
 
 
 
