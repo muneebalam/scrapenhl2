@@ -148,7 +148,6 @@ def read_shifts_from_html_pages(rawtoi1, rawtoi2, teamid1, teamid2, season, game
         periods = []
         starts = []
         ends = []
-        teams = []
         durationtime = []
         teams = []
         i = 0
@@ -448,7 +447,7 @@ def _finish_toidf_manipulations(df, season, game):
     # For games in the first, HG and RG may not exist yet. Have dummy replacements in there.
     # Will be wrong for when goalie is pulled in first, but oh well...
     if 'HG' not in toi.columns:
-        newcol = [0 for i in range(len(toi))]
+        newcol = [0 for _ in range(len(toi))]
         toi.insert(loc=toi.columns.get_loc('R1'), column='HG', value=newcol)
     if 'RG' not in toi.columns:
         toi.loc[:, 'RG'] = 0

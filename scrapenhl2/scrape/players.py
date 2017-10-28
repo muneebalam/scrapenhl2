@@ -87,6 +87,12 @@ def player_setup():
     """
     global _PLAYERS, _PLAYER_LOG
 
+    if not os.path.exists(get_player_ids_filename()):
+        generate_player_ids_file()
+
+    if not os.path.exists(get_player_log_filename()):
+        generate_player_log_file()
+
     _PLAYERS = _get_player_ids_file()
     _PLAYER_LOG = _get_player_log_file()
 
@@ -377,8 +383,6 @@ def generate_player_log_file():
     if os.path.exists(get_player_log_filename()):
         pass  # ed.print_and_log('Warning: overwriting existing player log with default, one-line df!', 'warn')
     write_player_log_file(df)
-
-
 
 
 _PLAYERS = None

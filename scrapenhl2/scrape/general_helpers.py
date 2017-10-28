@@ -35,22 +35,22 @@ def print_and_log(message, level='info', print_and_log=True):
         logging.info(message)
 
 
-def once_per_second(function, calls_per_second=1):
+def once_per_second(fn, calls_per_second=1):
     """
     A decorator that sleeps for one second after executing the function. Used when scraping NHL site.
 
     This also means all functions that access the internet sleep for a second.
-    :param function: the function
+    :param fn: the function
     :return: nothing
     """
 
-    @functools.wraps(function)
+    @functools.wraps(fn)
     def wrapper(*args, **kwargs):
         time.sleep(1 / calls_per_second)
-        return function(*args, **kwargs)
+        return fn(*args, **kwargs)
 
 
-def log_exceptions(function):
+def log_exceptions(fn):
     """
     A decorator that wraps the passed in function and logs
     exceptions should one occur
@@ -58,22 +58,22 @@ def log_exceptions(function):
     :return: nothing
     """
 
-    @functools.wraps(function)
+    @functools.wraps(fn)
     def wrapper(*args, **kwargs):
         try:
-            return function(*args, **kwargs)
+            return fn(*args, **kwargs)
         except:
             # log the exception
             err = "There was an exception in  "
-            err += function.__name__
+            err += fn.__name__
             logging.exception(err)
 
             # and write their args to file, named after function.
             index = 0  # used in case one function is called multiple times
-            fname = get_logging_folder() + "{0:s}{1:d}.pkl".format(function.__name__, index)
+            fname = get_logging_folder() + "{0:s}{1:d}.pkl".format(fn.__name__, index)
             while os.path.exists(fname):
                 index += 1
-                fname = get_logging_folder() + "{0:s}{1:d}.pkl".format(function.__name__, index)
+                fname = get_logging_folder() + "{0:s}{1:d}.pkl".format(fn.__name__, index)
 
             f = open(fname, "w")
             pickle.dump(args, f)
@@ -160,8 +160,8 @@ def mmss_to_secs(strtime):
     :param strtime: str
     :return: int
     """
-    min, sec = strtime.split(':')
-    return 60 * int(min) + int(sec)
+    mins, sec = strtime.split(':')
+    return 60 * int(mins) + int(sec)
 
 
 def try_to_access_dict(base_dct, *keys, **kwargs):
@@ -231,7 +231,7 @@ def intervals(lst, interval_pct=10):
     """
 
     lst = sorted(lst)
-    intervals = []
+    dfintervals = []
     i = 0
     while True:
         frac = interval_pct / 100 * i
@@ -239,9 +239,9 @@ def intervals(lst, interval_pct=10):
         if index >= len(lst):
             break
         val = lst[index]
-        intervals.append((index, val))
+        dfintervals.append((index, val))
         i += 1
-    return intervals
+    return dfintervals
 
 
 def remove_leading_number(string):
