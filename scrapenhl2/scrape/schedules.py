@@ -54,7 +54,7 @@ def _get_season_schedule(season):
     :param season: int, the season
     :return: file from /scrape/data/other/[season]_schedule.feather
     """
-    return feather.read_dataframe(organization.get_filenames.get_season_schedule_filename(season))
+    return feather.read_dataframe(get_season_schedule_filename(season))
 
 
 def _write_season_schedule(df, season, force_overwrite):
@@ -92,4 +92,6 @@ def schedule_setup():
     _SCHEDULES = {season: _get_season_schedule(season) for season in range(2005, _CURRENT_SEASON + 1)}
 
 
+_CURRENT_SEASON = None
+_SCHEDULES = None
 schedule_setup()
