@@ -12,6 +12,7 @@ import pandas as pd
 
 import scrapenhl2.scrape.general_helpers as helpers
 import scrapenhl2.scrape.organization as organization
+import scrapenhl2.scrape.schedules as schedules
 import scrapenhl2.scrape.team_info as team_info
 
 
@@ -383,6 +384,55 @@ def generate_player_log_file():
     if os.path.exists(get_player_log_filename()):
         pass  # ed.print_and_log('Warning: overwriting existing player log with default, one-line df!', 'warn')
     write_player_log_file(df)
+
+
+def update_player_ids_from_page(pbp):
+    """
+    Reads the list of players listed in the game file and adds to the player IDs file if they are not there already.
+    :param pbp: json, the raw pbp
+    :return: nothing
+    """
+    playerdict = pbp['gameData']['players']  # yields the subdictionary with players
+    ids = [key[2:] for key in playerdict]  # keys are format "ID[PlayerID]"; pull that PlayerID part
+    update_player_ids_file(ids)
+
+
+def update_player_logs_from_page(pbp, season, game):
+    """
+    Takes the game play by play and adds players to the master player log file, noting that they were on the roster
+    for this game, which team they played for, and their status (P for played, S for scratch).
+    :param season: int, the season
+    :param game: int, the game
+    :param pbp: json, the pbp of the game
+    :return: nothing
+    """
+
+    # Get players who played, and scratches, from boxscore
+    home_played = helpers.try_to_access_dict(pbp, 'liveData', 'boxscore', 'teams', 'home', 'players')
+    road_played = helpers.try_to_access_dict(pbp, 'liveData', 'boxscore', 'teams', 'away', 'players')
+    home_scratches = helpers.try_to_access_dict(pbp, 'liveData', 'boxscore', 'teams', 'home', 'scratches')
+    road_scratches = helpers.try_to_access_dict(pbp, 'liveData', 'boxscore', 'teams', 'away', 'scratches')
+
+    # Played are both dicts, so make them lists
+    home_played = [int(pid[2:]) for pid in home_played]
+    road_played = [int(pid[2:]) for pid in road_played]
+
+    # Played may include scratches, so make sure to remove them
+    home_played = list(set(home_played).difference(set(home_scratches)))
+    road_played = list(set(road_played).difference(set(road_scratches)))
+
+    # Get home and road names
+    gameinfo = schedules.get_game_data_from_schedule(season, game)
+
+    # Update player logs
+    update_player_log_file(home_played, season, game, gameinfo['Home'], 'P')
+    update_player_log_file(home_scratches, season, game, gameinfo['Home'], 'S')
+    update_player_log_file(road_played, season, game, gameinfo['Road'], 'P')
+    update_player_log_file(road_scratches, season, game, gameinfo['Road'], 'S')
+
+    # TODO: One issue is we do not see goalies (and maybe skaters) who dressed but did not play. How can this be fixed?
+
+
 
 
 _PLAYERS = None

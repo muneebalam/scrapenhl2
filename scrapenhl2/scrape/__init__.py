@@ -1,14 +1,17 @@
 """
 Indicates to import all .py files
 """
-__all__ = ['general_helpers',
-           'organization',
+__all__ = ['autoupdate',
            'events',
-           'team_info',
-           'teams',
-           'schedules',
+           'games'
+           'general_helpers',
            'manipulate_schedules',
-           'games',
+           'organization',
+           'parse_pbp',
+           'parse_toi',
            'players',
-           'scrape_setup',
-           'scrape_game']
+           'schedules',
+           'scrape_pbp',
+           'scrape_toi',
+           'team_info',
+           'teams']

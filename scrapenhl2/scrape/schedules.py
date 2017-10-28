@@ -213,6 +213,7 @@ def schedule_setup():
     :return: nothing
     """
     global _SCHEDULES, _CURRENT_SEASON
+    _CURRENT_SEASON = _get_current_season()
     for season in range(2005, get_current_season() + 1):
         if not os.path.exists(get_season_schedule_filename(season)):
             generate_season_schedule_file(season)  # season schedule
@@ -220,7 +221,6 @@ def schedule_setup():
             # For current season, we'll update this as we go along.
             # But original creation first time you start up in a new season is automatic, here.
             # When we autoupdate season date, we need to make sure to re-access this file and add in new entries
-    _CURRENT_SEASON = _get_current_season()
     _SCHEDULES = {season: _get_season_schedule(season) for season in range(2005, _CURRENT_SEASON + 1)}
 
 

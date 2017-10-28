@@ -27,7 +27,7 @@ def update_schedule_with_result(season, game, result):
     schedules.write_season_schedule(df, season, True)
 
 
-def update_schedule_with_coaches(season, game, homecoach, roadcoach):
+def _update_schedule_with_coaches(season, game, homecoach, roadcoach):
     """
     Updates the season schedule file with given coaches' names (which are listed 'N/A' at schedule generation)
     :param season: int, the season
@@ -144,4 +144,4 @@ def update_schedule_with_coaches(pbp, season, game):
                                            'fullName')
     roadcoach = helpers.try_to_access_dict(pbp, 'liveData', 'boxscore', 'teams', 'away', 'coaches', 0, 'person',
                                            'fullName')
-    update_schedule_with_coaches(season, game, homecoach, roadcoach)
+    _update_schedule_with_coaches(season, game, homecoach, roadcoach)

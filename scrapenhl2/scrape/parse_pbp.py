@@ -228,17 +228,6 @@ def get_game_parsed_pbp_filename(season, game):
     return os.path.join(organization.get_season_parsed_pbp_folder(season), str(game) + '.h5')
 
 
-def update_player_ids_from_page(pbp):
-    """
-    Reads the list of players listed in the game file and adds to the player IDs file if they are not there already.
-    :param pbp: json, the raw pbp
-    :return: nothing
-    """
-    players = pbp['gameData']['players']  # yields the subdictionary with players
-    ids = [key[2:] for key in players]  # keys are format "ID[PlayerID]"; pull that PlayerID part
-    players.update_player_ids_file(ids)
-
-
 def parse_game_pbp(season, game, force_overwrite=False):
     """
     Reads the raw pbp from file, updates player IDs, updates player logs, and parses the JSON to a pandas DF
@@ -255,7 +244,7 @@ def parse_game_pbp(season, game, force_overwrite=False):
 
     # Looks like 2010-11 is the first year where this feed supplies more than just boxscore data
     rawpbp = scrape_pbp.get_raw_pbp(season, game)
-    update_player_ids_from_page(rawpbp)
+    players.update_player_ids_from_page(rawpbp)
     players.update_player_logs_from_page(rawpbp, season, game)
     manipulate_schedules.update_schedule_with_coaches(rawpbp, season, game)
     manipulate_schedules.update_schedule_with_result_using_pbp(rawpbp, season, game)
