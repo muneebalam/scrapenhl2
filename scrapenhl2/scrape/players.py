@@ -107,6 +107,17 @@ def write_player_ids_file(df):
     :return: nothing
     """
     feather.write_dataframe(df, get_player_ids_filename())
+    
+
+def get_player_url(playerid):
+    """
+    Gets the url for a page containing information for specified player from NHL API.
+    :param playerid: int
+        the player ID
+    :return: str
+        https://statsapi.web.nhl.com/api/v1/people/[playerid]
+    """
+    return 'https://statsapi.web.nhl.com/api/v1/people/{0:s}'.format(str(playerid))
 
 
 def update_player_ids_file(playerids, force_overwrite=False):

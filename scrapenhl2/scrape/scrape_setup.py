@@ -13,10 +13,6 @@ import urllib.error
 import urllib.request
 
 import pandas as pd
-import scrapenhl2.scrape.get_files as get_files
-
-import scrapenhl2.scrape.get_filenames as get_filenames
-import scrapenhl2.scrape.get_urls as get_urls
 
 
 def _create_folders_and_files():
