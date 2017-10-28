@@ -15,6 +15,8 @@ import scrapenhl2.scrape.organization as organization
 import scrapenhl2.scrape.schedules as schedules
 import scrapenhl2.scrape.team_info as team_info
 
+_PLAYERS = None
+_PLAYER_LOG = None
 
 def get_player_log_file():
     """
@@ -115,7 +117,7 @@ def write_player_ids_file(df):
     :param df: pandas dataframe, player ids file
     :return: nothing
     """
-    feather.write_dataframe(df, get_player_ids_filename())
+    feather.write_dataframe(df.drop_duplicates(), get_player_ids_filename())
 
 
 def get_player_url(playerid):
@@ -219,13 +221,15 @@ def update_player_log_file(playerids, seasons, games, teams, statuses):
 
 
 @functools.lru_cache(maxsize=128, typed=False)
-def player_as_id(player):
+def player_as_id(player, filterdf=get_player_ids_file()):
     """
     A helper method. If player entered is int, returns that. If player is str, returns integer id of that player.
     :param player: int, or str
+    :param filterdf: df
+        a dataframe of players to choose from. Defaults to all.
     :return: int, the player ID
     """
-    pids = get_player_ids_file()
+    pids = filterdf
     if helpers.check_number(player):
         return int(player)
     elif isinstance(player, str):
@@ -236,7 +240,7 @@ def player_as_id(player):
             df = df[df.Name.str.contains(player)]
             if len(df) == 0:
                 # ed.print_and_log('Could not find exact substring match; trying fuzzy matching')
-                return player_as_id(helpers.fuzzy_match_player(player, pids.Name))
+                return player_as_id(helpers.fuzzy_match_player(player, pids.Name), filterdf)
             elif len(df) == 1:
                 return df.ID.iloc[0]
             else:
@@ -260,49 +264,55 @@ def player_as_id(player):
         return None
 
 
-def playerlst_as_str(players):
+def playerlst_as_str(players, filterdf=get_player_ids_file()):
     """
     Similar to player_as_str, but less robust against errors, and works on a list of players
     :param players: a list of int, or str
+    :param filterdf: df
+        a dataframe of players to choose from. Defaults to all.
     :return: a list of str
     """
     df = pd.DataFrame({'ID': players})
-    if df.ID.dtype == 'str':
+    if df.ID.dtype == 'str' or df.ID.dtype == 'O':
         return df.ID
     else:
-        df = df.merge(get_player_ids_file(), how='left', on='ID')
+        df = df.merge(filterdf, how='left', on='ID')
         return df.Name
 
 
-def playerlst_as_id(players, exact=False):
+def playerlst_as_id(playerlst, exact=False, filterdf=get_player_ids_file()):
     """
     Similar to player_as_id, but less robust against errors, and works on a list of players.
     :param players: a list of int, or str
     :param exact: bool. If True, looks for exact matches. If False, does not, using player_as_id (but will be slower)
+    :param filterdf: df
+        a dataframe of players to choose from. Defaults to all.
     :return: a list of int/float
     """
-    df = pd.DataFrame({'Name': players})
-    if df.Name.dtype != 'str':
+    df = pd.DataFrame({'Name': playerlst})
+    if not (df.Name.dtype == 'str' or df.Name.dtype == 'O'):
         return df.Name
-    elif exact is False:
-        return df.merge(get_player_ids_file(), on='Name', how='left').ID
+    elif exact is True:
+        return df.merge(filterdf, on='Name', how='left').PlayerID
     else:
-        df.loc[:, 'ID'] = df.Name.apply(lambda x: player_as_id(x))
+        df.loc[:, 'ID'] = df.Name.apply(lambda x: player_as_id(x, filterdf))
         return df.ID
 
 
 @functools.lru_cache(maxsize=128, typed=False)
-def player_as_str(player):
+def player_as_str(player, filterdf):
     """
     A helper method. If player is int, returns string name of that player. Else returns standardized name.
     :param player: int, or str
+    :param filterdf: df
+        a dataframe of players to choose from. Defaults to all.
     :return: str, the player name
     """
     if isinstance(player, str):
-        return player_as_str(player_as_id(player))
+        return player_as_str(player_as_id(player, filterdf))
     elif helpers.check_number(player):
         player = int(player)
-        df = get_player_ids_file().query('ID == {0:d}'.format(player))
+        df = filterdf.query('ID == {0:d}'.format(player))
         if len(df) == 0:
             print('Could not find name for {0:d}'.format(player))
             return None
@@ -432,9 +442,4 @@ def update_player_logs_from_page(pbp, season, game):
 
     # TODO: One issue is we do not see goalies (and maybe skaters) who dressed but did not play. How can this be fixed?
 
-
-
-
-_PLAYERS = None
-_PLAYER_LOG = None
 player_setup()

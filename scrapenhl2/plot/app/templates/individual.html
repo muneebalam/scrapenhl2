@@ -2,10 +2,33 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>{{ pname }}</title>
+    <title>{{ pagetitle }}</title>
 </head>
 <body>
-<p>For a rolling corsi chart, enter /player/[ID]/rollingcf/[Season1]-[Season2]/ in url.
-    For example, <a href="{{ examplelink }}">2016-2018</a></p>
+<form action="{{ url_for('player_chart', playerid=playerid, startseason=startseason, endseason=endseason, charttype=charttype)}}"
+      method='post'>
+    <h3>Chart Type</h3>
+    <select name='charttype'>
+        {% for charttype in charttypes%}
+        <option value='{{ charttype }}'>{{ charttype }}</option>
+        {% endfor %}
+    </select>
+    <h3>Start season</h3>
+    <select name='startseason'>
+        {% for yr in range(2010, currentseason+1) %}
+        <option value='{{ yr }}'>{{ yr }}</option>
+        {% endfor %}
+    </select>
+    <h3>End season</h3>
+    <select name='endseason'>
+        {% for yr in range(2011, currentseason+2) %}
+        <option value='{{ yr }}'>{{ yr }}</option>
+        {% endfor %}
+    </select>
+
+    <input type='submit' value='submit'>
+</form>
+<img src="{{ url_for('player_chart_background', playerid=playerid, startseason=startseason, endseason=endseason, charttype=charttype)}}"
+     alt="Loading...">
 </body>
 </html>

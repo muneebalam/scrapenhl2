@@ -32,7 +32,6 @@ def delete_game_html(season, game):
             os.remove(filename)
 
 
-
 def autoupdate(season=None):
     """
     Run this method to update local data. It reads the schedule file for given season and scrapes and parses

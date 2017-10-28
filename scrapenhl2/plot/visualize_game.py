@@ -3,8 +3,11 @@ import numpy as np  # standard scientific python stack
 import pandas as pd  # standard scientific python stack
 
 from scrapenhl2.manipulate import manipulate as manip
-from scrapenhl2.scrape import scrape_game as sg
-from scrapenhl2.scrape import scrape_setup as ss  # lots of helpful methods in this module
+from scrapenhl2.scrape import autoupdate
+from scrapenhl2.scrape import parse_pbp
+from scrapenhl2.scrape import parse_toi
+from scrapenhl2.scrape import schedules
+from scrapenhl2.scrape import team_info
 
 
 def game_timeline(season, game, save_file=None):
@@ -18,8 +21,8 @@ def game_timeline(season, game, save_file=None):
     """
     plt.clf()
 
-    hname = ss.team_as_str(ss.get_home_team(season, game))
-    rname = ss.team_as_str(ss.get_road_team(season, game))
+    hname = team_info.team_as_str(schedules.get_home_team(season, game))
+    rname = team_info.team_as_str(schedules.get_road_team(season, game))
 
     cf = {hname: _get_home_cf_for_timeline(season, game), rname: _get_road_cf_for_timeline(season, game)}
     pps = {hname: _get_home_adv_for_timeline(season, game), rname: _get_road_adv_for_timeline(season, game)}
@@ -96,7 +99,7 @@ def _get_home_adv_for_timeline(season, game):
     """
     # TODO add functionality for extra attacker
 
-    toi = sg.get_parsed_toi(season, game)
+    toi = parse_toi.get_parsed_toi(season, game)
 
     pp1 = toi[((toi.HomeStrength == "5") & (toi.RoadStrength == "4")) |
               ((toi.HomeStrength == "4") & (toi.RoadStrength == "3"))].Time
@@ -116,7 +119,7 @@ def _get_road_adv_for_timeline(season, game):
     """
     # TODO add functionality for extra attacker
 
-    toi = sg.get_parsed_toi(season, game)
+    toi = parse_toi.get_parsed_toi(season, game)
 
     pp1 = toi[((toi.HomeStrength == "4") & (toi.RoadStrength == "5")) |
               ((toi.HomeStrength == "3") & (toi.RoadStrength == "4"))].Time
@@ -156,20 +159,20 @@ def _get_corsi_timeline_title(season, game):
     :param game: int, the game
     :return: str, the title
     """
-    otso_str = ss.get_game_result(season, game)
+    otso_str = schedules.get_game_result(season, game)
     if otso_str[:2] == 'OT' or otso_str[:2] == 'SO':
         otso_str = ' ({0:s})'.format(otso_str[:2])
     else:
         otso_str = ''
     # Add strings to a list then join them together with newlines
     titletext = ('Shot attempt timeline for {0:d}-{1:s} Game {2:d} ({3:s})'.format(
-        int(season), str(int(season + 1))[2:], int(game), ss.get_game_date(season, game)),
+        int(season), str(int(season + 1))[2:], int(game), schedules.get_game_date(season, game)),
                  '{0:s} {1:d} at {2:s} {3:d}{4:s} ({5:s})'.format(
-        ss.team_as_str(ss.get_road_team(season, game), abbreviation=False),
-        ss.get_road_score(season, game),
-        ss.team_as_str(ss.get_home_team(season, game), abbreviation=False),
-        ss.get_home_score(season, game),
-        otso_str, ss.get_game_status(season, game)))
+                     team_info.team_as_str(schedules.get_road_team(season, game), abbreviation=False),
+                     schedules.get_road_score(season, game),
+                     team_info.team_as_str(schedules.get_home_team(season, game), abbreviation=False),
+                     schedules.get_home_score(season, game),
+                     otso_str, schedules.get_game_status(season, game)))
 
     return '\n'.join(titletext)
 
@@ -228,11 +231,11 @@ def get_goals_for_timeline(season, game, homeroad, granularity='min'):
     :return: a list of int, seconds elapsed
     """
 
-    pbp = sg.get_parsed_pbp(season, game)
+    pbp = parse_pbp.get_parsed_pbp(season, game)
     if homeroad == 'H':
-        teamid = ss.get_home_team(season, game)
+        teamid = schedules.get_home_team(season, game)
     elif homeroad == 'R':
-        teamid = ss.get_road_team(season, game)
+        teamid = schedules.get_road_team(season, game)
     pbp = pbp[pbp.Team == teamid]
 
     if granularity == 'min':
@@ -252,16 +255,16 @@ def _get_cf_for_timeline(season, game, homeroad, granularity='min'):
     :return: a dataframe with two columns
     """
 
-    pbp = sg.get_parsed_pbp(season, game)
+    pbp = parse_pbp.get_parsed_pbp(season, game)
     pbp = manip.filter_for_corsi(pbp)
 
     if homeroad == 'H':
-        teamid = ss.get_home_team(season, game)
+        teamid = schedules.get_home_team(season, game)
     elif homeroad == 'R':
-        teamid = ss.get_road_team(season, game)
+        teamid = schedules.get_road_team(season, game)
     pbp = pbp[pbp.Team == teamid]
 
-    maxtime = len(sg.get_parsed_toi(season, game))
+    maxtime = len(parse_toi.get_parsed_toi(season, game))
     df = pd.DataFrame({'Time': list(range(maxtime))})
     df = df.merge(pbp[['Time']].assign(CF=1), how='left', on='Time')
     # df.loc[:, 'Time'] = df.Time + 1
@@ -320,6 +323,7 @@ def game_h2h(season, game, save_file=None):
     playerorder_r, numf_r = _get_h2h_chart_player_order(season, game, 'R')
 
     # TODO create chart and filter out RH, HH, and RR
+    # TODO link players by ID. When I link by name have issue with Mike Green for example
     return _game_h2h_chart(season, game, h2hcorsi, h2htoi, playerorder_h, playerorder_r, numf_h, numf_r, save_file)
 
 
@@ -339,10 +343,10 @@ def _game_h2h_chart(season, game, corsi, toi, orderh, orderr, numf_h=None, numf_
     :return: nothing
     """
 
-    hname = ss.team_as_str(ss.get_home_team(season, game), True)
-    homename = ss.team_as_str(ss.get_home_team(season, game), False)
-    rname = ss.team_as_str(ss.get_road_team(season, game), True)
-    roadname = ss.team_as_str(ss.get_road_team(season, game), False)
+    hname = team_info.team_as_str(schedules.get_home_team(season, game), True)
+    homename = team_info.team_as_str(schedules.get_home_team(season, game), False)
+    rname = team_info.team_as_str(schedules.get_road_team(season, game), True)
+    roadname = team_info.team_as_str(schedules.get_road_team(season, game), False)
 
     fig, ax = plt.subplots(1, figsize=[11, 7])
 
@@ -362,8 +366,8 @@ def _game_h2h_chart(season, game, corsi, toi, orderh, orderr, numf_h=None, numf_
     # Convert IDs to names and label axes and axes ticks
     ax.set_xlabel(roadname)
     ax.set_ylabel(homename)
-    xorder = ss.playerlst_as_str(orderr)
-    yorder = ss.playerlst_as_str(orderh)[::-1]  # need to go top to bottom, so reverse order
+    xorder = players.playerlst_as_str(orderr)
+    yorder = players.playerlst_as_str(orderh)[::-1]  # need to go top to bottom, so reverse order
     ax.set_xticks(range(len(xorder)))
     ax.set_yticks(range(len(yorder)))
     ax.set_xticklabels(xorder, fontsize=10, rotation=45, ha='right')
@@ -508,7 +512,7 @@ def _get_game_h2h_chart_title(season, game, homecf_diff=None, totaltoi=None):
     """
     titletext = []
     # Note if a game was OT or SO
-    otso_str = ss.get_game_result(season, game)
+    otso_str = schedules.get_game_result(season, game)
     if otso_str[:2] == 'OT' or otso_str[:2] == 'SO':
         otso_str = ' ({0:s})'.format(otso_str[:2])
     else:
@@ -516,14 +520,14 @@ def _get_game_h2h_chart_title(season, game, homecf_diff=None, totaltoi=None):
     # Add strings to a list then join them together with newlines
     titletext.append('H2H Corsi and TOI for {0:d}-{1:s} Game {2:d}'.format(season, str(season + 1)[2:], game))
     titletext.append('{0:s} {1:d} at {2:s} {3:d}{4:s} ({5:s})'.format(
-        ss.team_as_str(ss.get_road_team(season, game), abbreviation=False),
-        ss.get_road_score(season, game),
-        ss.team_as_str(ss.get_home_team(season, game), abbreviation=False),
-        ss.get_home_score(season, game),
-        otso_str, ss.get_game_status(season, game)))
+        team_info.team_as_str(schedules.get_road_team(season, game), abbreviation=False),
+        schedules.get_road_score(season, game),
+        team_info.team_as_str(schedules.get_home_team(season, game), abbreviation=False),
+        schedules.get_home_score(season, game),
+        otso_str, schedules.get_game_status(season, game)))
     if homecf_diff is not None and totaltoi is not None:
         titletext.append('{0:s} {1:s} in 5v5 attempts in {2:s}'.format(
-            ss.team_as_str(ss.get_home_team(season, game)),
+            team_info.team_as_str(schedules.get_home_team(season, game)),
             _format_number_with_plus(int(homecf_diff)), manip.time_to_mss(int(totaltoi))))
     return '\n'.join(titletext)
 
@@ -677,5 +681,5 @@ def _make_color_lighter(hex=None, rgb=None, returntype='hex'):
 
 
 if __name__ == '__main__':
-    # sg.autoupdate()
-    pinfo = ss.get_player_ids_file()
+    autoupdate.autoupdate()
+    game_timeline(2017, 20155)

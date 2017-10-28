@@ -4,11 +4,10 @@ import os.path
 import os.path
 
 import feather
-import halo
 import pandas as pd
 
-import scrapenhl2.scrape.scrape_game as sg
-import scrapenhl2.scrape.scrape_setup as ss
+from scrapenhl2.scrape import general_helpers as helpers
+from scrapenhl2.scrape import organization, schedules, teams, parse_pbp, parse_toi, players, events, team_info
 
 
 def get_player_toion_toioff_filename(season):
@@ -17,7 +16,7 @@ def get_player_toion_toioff_filename(season):
     :param season: int, the season
     :return:
     """
-    return os.path.join(ss.get_other_data_folder(), '{0:d}_season_toi60.csv'.format(season))
+    return os.path.join(organization.get_other_data_folder(), '{0:d}_season_toi60.csv'.format(season))
 
 
 def save_player_toion_toioff_file(df, season):
@@ -113,13 +112,13 @@ def get_pbp_events(*args, **kwargs):
     :param kwargs: keyword arguments specifying filters (applied "AND", not "OR")
     :return: df, a pandas dataframe
     """
-
+    # TODO finish
     # Read from team logs. Since I store by team, first, read relevant teams' logs
     all_teams_to_read = _teams_to_read(**kwargs)
     all_seasons_to_read = _seasons_to_read(**kwargs)
 
     for season in all_seasons_to_read:
-        df = pd.concat([ss.get_team_pbp(season, team) for team in all_teams_to_read])
+        df = pd.concat([teams.get_team_pbp(season, team) for team in all_teams_to_read])
         df = _filter_for_team(df, **kwargs)
 
         df = _filter_for_games(df, **kwargs)
@@ -132,6 +131,7 @@ def get_pbp_events(*args, **kwargs):
 
         # This could take longest, since it involved reading TOI, so leave it until the end
         df = _filter_for_players(df, **kwargs)
+    return df
 
 
 def _filter_for_event_types(data, *args):
@@ -146,7 +146,7 @@ def _filter_for_event_types(data, *args):
 
     dflst = []
     for arg in args:
-        dflst.append(data[data.Event2 == ss.get_event_longname(arg)])
+        dflst.append(data[data.Event2 == events.get_event_longname(arg)])
     data = pd.concat(dflst).drop('Event2', axis=1)
     return data
 
@@ -239,11 +239,11 @@ def _filter_for_players(data, **kwargs):
     """
 
     if 'acting_player' in kwargs:
-        p = ss.player_as_id(kwargs['acting_player'])
+        p = players.player_as_id(kwargs['acting_player'])
         data = data[data.Actor == p]
 
     if 'receiving_player' in kwargs:
-        p = ss.player_as_id(kwargs['receiving_player'])
+        p = players.player_as_id(kwargs['receiving_player'])
         data = data[data.Recipient == p]
 
     if 'add_on_ice' in kwargs or 'players_on_ice' in kwargs or 'players_on_ice_for' in kwargs or \
@@ -257,14 +257,14 @@ def _filter_for_players(data, **kwargs):
         data2 = pd.concat(dflst)
 
         if 'players_on_ice' in kwargs:
-            players = set()
+            playersonice = set()
             key = 'players_on_ice'
             if key in kwargs:
-                if ss.check_types(kwargs[key]):
-                    players.add(kwargs[key])
+                if helpers.check_types(kwargs[key]):
+                    playersonice.add(kwargs[key])
                 else:
-                    players = players.union(kwargs[key])
-            players = {ss.player_as_id(p) for p in players}
+                    playersonice = playersonice.union(kwargs[key])
+            playersonice = {playersonice.player_as_id(p) for p in playersonice}
 
             querystrings = []
             for hr in ('H', 'R'):
@@ -295,9 +295,9 @@ def _join_on_ice_players_to_pbp(season, game, pbp=None, toi=None):
     """
 
     if pbp is None:
-        pbp = sg.get_parsed_pbp(season, game)
+        pbp = parse_pbp.get_parsed_pbp(season, game)
     if toi is None:
-        toi = sg.get_parsed_toi(season, game)
+        toi = parse_toi.get_parsed_toi(season, game)
 
     newpbp = pbp.merge(toi, how='left', on='Time')
     return newpbp
@@ -312,20 +312,20 @@ def _filter_for_team(data, **kwargs):
     """
 
     if 'team' in kwargs:
-        teamid = ss.team_as_id(kwargs['team'])
+        teamid = team_info.team_as_id(kwargs['team'])
         data = data[(data.Home == teamid) | (data.Road == teamid)]
     if 'team_for' in kwargs:
-        teamid = ss.team_as_id(kwargs['team_for'])
+        teamid = team_info.team_as_id(kwargs['team_for'])
         data = data[data.Team == teamid]
     if 'team_ag' in kwargs:
-        teamid = ss.team_as_id(kwargs['team_ag'])
+        teamid = team_info.team_as_id(kwargs['team_ag'])
         data = data[((data.Home == teamid) | (data.Road == teamid)) & (data.Team != teamid)]
 
     if 'home_team' in kwargs:
-        teamid = ss.team_as_id(kwargs['home_team'])
+        teamid = team_info.team_as_id(kwargs['home_team'])
         data = data[data.Home == teamid]
     if 'road_team' in kwargs:
-        teamid = ss.team_as_id(kwargs['road_team'])
+        teamid = team_info.team_as_id(kwargs['road_team'])
         data = data[data.Road == teamid]
 
     return data
@@ -339,17 +339,17 @@ def _seasons_to_read(**kwargs):
     """
 
     minseason = 2011
-    maxseason = ss.get_current_season()
+    maxseason = schedules.get_current_season()
 
     if 'start_season' in kwargs:
         minseason = max(kwargs['start_season'], minseason)
     if 'start_date' in kwargs:
-        minseason = max(ss.infer_season_from_date(kwargs['start_date']), minseason)
+        minseason = max(helpers.infer_season_from_date(kwargs['start_date']), minseason)
 
     if 'end_season' in kwargs:
         maxseason = min(kwargs['end_season'], maxseason)
     if 'end_date' in kwargs:
-        maxseason = max(ss.infer_season_from_date(kwargs['end_date']), maxseason)
+        maxseason = max(helpers.infer_season_from_date(kwargs['end_date']), maxseason)
 
     return list(range(minseason, maxseason + 1))
 
@@ -365,10 +365,10 @@ def _teams_to_read(**kwargs):
     for key in ('team', 'team_for', 'team_ag'):
         if key in kwargs:
             if isinstance(kwargs[key], str) or isinstance(kwargs[key], int):
-                teamlst.add(ss.team_as_id(kwargs[key]))
+                teamlst.add(team_info.team_as_id(kwargs[key]))
             else:
                 for val in kwargs[key]:
-                    teamlst.add(ss.team_as_id(val))
+                    teamlst.add(team_info.team_as_id(val))
     return teamlst
 
 
@@ -379,7 +379,7 @@ def get_5v5_player_game_toi(season, team):
     :param team: int, team id
     :return: df with game, player, TOION, and TOIOFF
     """
-    fives = ss.get_team_toi(season, team) \
+    fives = teams.get_team_toi(season, team) \
         .query('TeamStrength == "5" & OppStrength == "5"') \
         .filter(items=['Game', 'Time', 'Team1', 'Team2', 'Team3', 'Team4', 'Team5'])
 
@@ -422,18 +422,14 @@ def generate_player_toion_toioff(season):
     :return: df with columns Player, TOION, TOIOFF, and TOI60.
     """
 
-    spinner = halo.Halo()
-    spinner.start(text='Generating TOI60 for {0:d}'.format(season))
-
     team_by_team = []
-    allteams = ss.get_teams_in_season(season)
+    allteams = schedules.get_teams_in_season(season)
     for i, team in enumerate(allteams):
-        if os.path.exists(ss.get_team_toi_filename(season, team)):
-            spinner.start(text='Generating TOI60 for {0:d} {1:s} ({2:d}/{3:d})'.format(
-                season, ss.team_as_str(team), i + 1, len(allteams)))
+        if os.path.exists(teams.get_team_toi_filename(season, team)):
+            print('Generating TOI60 for {0:d} {1:s} ({2:d}/{3:d})'.format(
+                season, team_info.team_as_str(team), i + 1, len(allteams)))
             toi_indiv = get_5v5_player_season_toi(season, team)
             team_by_team.append(toi_indiv)
-            spinner.stop()
 
     toi60 = pd.concat(team_by_team)
     toi60 = toi60.groupby('PlayerID').sum().reset_index()
@@ -449,7 +445,7 @@ def get_player_positions():
     :return: df with colnames ID and position
     """
 
-    return ss.get_player_ids_file()[['ID', 'Pos']]
+    return players.get_player_ids_file()[['ID', 'Pos']]
 
 
 def get_toicomp_file(season, force_create=False):
@@ -476,7 +472,7 @@ def get_toicomp_filename(season):
     :param season: int, the season
     :return:
     """
-    return os.path.join(ss.get_other_data_folder(), '{0:d}_toicomp.csv'.format(season))
+    return os.path.join(organization.get_other_data_folder(), '{0:d}_toicomp.csv'.format(season))
 
 
 def save_toicomp_file(df, season):
@@ -496,26 +492,22 @@ def generate_toicomp(season):
     :return: df,
     """
 
-    spinner = halo.Halo()
-    spinner.start(text='Generating TOICOMP for {0:d}'.format(season))
-
     team_by_team = []
-    allteams = ss.get_teams_in_season(season)
+    allteams = team_info.get_teams_in_season(season)
     for i, team in enumerate(allteams):
-        if os.path.exists(ss.get_team_toi_filename(season, team)):
-            spinner.start(text='Generating TOICOMP for {0:d} {1:s} ({2:d}/{3:d})'.format(
-                season, ss.team_as_str(team), i + 1, len(allteams)))
+        if os.path.exists(teams.get_team_toi_filename(season, team)):
+            print('Generating TOICOMP for {0:d} {1:s} ({2:d}/{3:d})'.format(
+                season, team_info.team_as_str(team), i + 1, len(allteams)))
 
             qct = get_5v5_player_game_toicomp(season, team)
             if qct is not None:
                 team_by_team.append(qct)
-            spinner.stop()
 
     df = pd.concat(team_by_team)
     return df
 
 
-def get_player_5v5_log(season, force_create=False):
+def get_5v5_player_log(season, force_create=False):
     """
 
     :param season: int, the season
@@ -528,7 +520,7 @@ def get_player_5v5_log(season, force_create=False):
     else:
         df = generate_5v5_player_log(season)
         save_5v5_player_log(df, season)
-        return get_player_5v5_log(season)
+        return get_5v5_player_log(season)
 
 
 def get_5v5_player_log_filename(season):
@@ -537,7 +529,7 @@ def get_5v5_player_log_filename(season):
     :param season: int, the season
     :return:
     """
-    return os.path.join(ss.get_other_data_folder(), '{0:d}_player_5v5_log.feather'.format(season))
+    return os.path.join(organization.get_other_data_folder(), '{0:d}_player_5v5_log.feather'.format(season))
 
 
 def save_5v5_player_log(df, season):
@@ -549,8 +541,83 @@ def save_5v5_player_log(df, season):
     return feather.write_dataframe(df, get_5v5_player_log_filename(season))
 
 
+def filter_for_team(pbp, team):
+    """
+    Filters dataframe for rows where Team == team
+    :param pbp: dataframe
+        Needs to have column Team
+    :param team: int or str
+        Team ID or name
+    :return: dataframe
+        Rows filtered
+    """
+    return pbp[pbp.Team == team_info.team_as_id(team)]
+
+
+def count_by_keys(df, *args):
+    """
+    A convenience method that isolates specified columns in the dataframe and gets counts. Drops when keys have NAs.
+    :param df: dataframe
+    :param args: str
+        column names in dataframe
+    :return: df
+        dataframe with each of *args and an additional column, Count
+    """
+    args = list(args)
+    return df[args].dropna().assign(Count=1).groupby(args).count().reset_index()
+
+
 def get_5v5_player_game_boxcars(season, team):
-    return pd.DataFrame({'PlayerID': [0], 'Game': [0]})
+    df = teams.get_team_pbp(season, team)
+    fives = filter_for_five_on_five(df)
+    fives = filter_for_team(fives, team)
+
+    # iCF
+    icf = count_by_keys(filter_for_corsi(fives), 'Game', 'Actor') \
+        .rename(columns={'Actor': 'PlayerID', 'Count': 'iCF'})
+
+    # iFF
+    iff = count_by_keys(filter_for_fenwick(fives), 'Game', 'Actor') \
+        .rename(columns={'Actor': 'PlayerID', 'Count': 'iFF'})
+
+    # iSOG
+    isog = count_by_keys(filter_for_sog(fives), 'Game', 'Actor') \
+        .rename(columns={'Actor': 'PlayerID', 'Count': 'iSOG'})
+
+    # iG
+    goals = filter_for_goals(fives)
+    ig = count_by_keys(goals, 'Game', 'Actor') \
+        .rename(columns={'Actor': 'PlayerID', 'Count': 'iG'})
+
+    # iA1--use Recipient column
+    primaries = count_by_keys(goals, 'Game', 'Recipient') \
+        .rename(columns={'Recipient': 'PlayerID', 'Count': 'iA1'})
+
+    # iA1
+    secondaries = goals[['Game', 'Note']]
+    # Extract using regex: ...assists: [stuff] (num), [stuff] (num)
+    # The first "stuff" is A1, second is A2. Nums are number of assists to date in season
+    secondaries.loc[:, 'Player'] = secondaries.Note.str.extract('assists: .*\(\d+\),\s(.*)\s\(\d+\)')
+    secondaries = count_by_keys(secondaries, 'Game', 'Player') \
+        .rename(columns={'Count': 'iA2'})
+    # I also need to change these to player IDs. Use iCF for help.
+    # Assume single team won't have 2 players with same name in same season
+    playerlst = icf[['PlayerID']] \
+        .merge(players.get_player_ids_file().rename(columns={'ID': 'PlayerID'}),
+               how='left', on='PlayerID')
+    secondaries.loc[:, 'PlayerID'] = players.playerlst_as_id(secondaries.Player, True, playerlst)
+    secondaries = secondaries[['Game', 'PlayerID', 'iA2']]
+
+    boxcars = ig.merge(primaries, how='outer', on=['Game', 'PlayerID']) \
+        .merge(secondaries, how='outer', on=['Game', 'PlayerID']) \
+        .merge(isog, how='outer', on=['Game', 'PlayerID']) \
+        .merge(iff, how='outer', on=['Game', 'PlayerID']) \
+        .merge(icf, how='outer', on=['Game', 'PlayerID'])
+
+    for col in boxcars.columns:
+        boxcars.loc[:, col] = boxcars[col].fillna(0)
+
+    return boxcars
 
 
 def get_5v5_player_game_toicomp(season, team):
@@ -561,7 +628,7 @@ def get_5v5_player_game_toicomp(season, team):
     :return: df with game, player,
     """
 
-    toidf = ss.get_team_toi(season, team).drop_duplicates()
+    toidf = teams.get_team_toi(season, team).drop_duplicates()
     toidf.loc[:, 'TeamStrength'] = toidf.TeamStrength.astype(str)
     toidf.loc[:, 'OppStrength'] = toidf.OppStrength.astype(str)
     # Filter to 5v5
@@ -652,15 +719,14 @@ def generate_5v5_player_log(season):
     :param season: int, the season
     :return: nothing
     """
-    spinner = halo.Halo()
-    spinner.start(text='Generating player log for {0:d}'.format(season))
+    print('Generating player log for {0:d}'.format(season))
 
     to_concat = []
 
     # Recreate TOI60 file.
     _ = get_player_toion_toioff_file(season, force_create=True)
 
-    for team in ss.get_teams_in_season(season):
+    for team in schedules.get_teams_in_season(season):
         try:
             goals = get_5v5_player_game_boxcars(season, team)  # G, A1, A2, SOG, iCF
             cfca = get_5v5_player_game_cfca(season, team)  # CFON, CAON, CFOFF, CAOFF, and same for goals
@@ -670,8 +736,8 @@ def generate_5v5_player_log(season):
 
             temp = toi \
                 .merge(cfca, how='left', on=['PlayerID', 'Game']) \
-                .merge(toicomp.drop('Team', axis=1), how='left', on=['PlayerID', 'Game'])
-            # .merge(goals, how='left', on=['PlayerID', 'Game']) \
+                .merge(toicomp.drop('Team', axis=1), how='left', on=['PlayerID', 'Game']) \
+                .merge(goals, how='left', on=['PlayerID', 'Game'])
             # .merge(shifts, how='left', on=['PlayerID', 'Game'])
 
             to_concat.append(temp)
@@ -688,7 +754,6 @@ def generate_5v5_player_log(season):
         if df[col].isnull().sum() > 0:
             print('In player log, {0:s} has null values; filling with zeroes'.format(col))
             df.loc[:, col] = df[col].fillna(0)
-    spinner.stop()
     return df
 
 
@@ -699,9 +764,9 @@ def get_5v5_player_game_cfca(season, team):
     :param team: int, team id
     :return: df with game, player, CFON, CAON, CFOFF, and CAOFF
     """
-    team = ss.team_as_id(team)
+    team = team_info.team_as_id(team)
     # TODO create generate methods. Get methods check if file exists and if not, create anew (or overwrite)
-    pbp = filter_for_corsi(ss.get_team_pbp(season, team))
+    pbp = filter_for_corsi(teams.get_team_pbp(season, team))
     pbp.loc[:, 'TeamEvent'] = pbp.Team.apply(lambda x: 'CF' if x == team else 'CA')
 
     teamtotals = pbp[['Game', 'TeamEvent']] \
@@ -710,7 +775,7 @@ def get_5v5_player_game_cfca(season, team):
         .pivot_table(index='Game', columns='TeamEvent', values='Count').reset_index() \
         .rename(columns={'CF': 'TeamCF', 'CA': 'TeamCA'})
 
-    toi = ss.get_team_toi(season, team)
+    toi = teams.get_team_toi(season, team)
     toi = toi[['Game', 'Time', 'Team1', 'Team2', 'Team3', 'Team4', 'Team5']].drop_duplicates()
     indivtotals = pbp.merge(toi, how='left', on=['Game', 'Time'])
     indivtotals = indivtotals[['Game', 'TeamEvent', 'Team1', 'Team2', 'Team3', 'Team4', 'Team5']] \
@@ -784,12 +849,12 @@ def get_player_toi(season, game, pos=None, homeroad='H'):
 
     # TODO this isn't working properly for in-progress games. Or maybe it's my scraping earlier.
 
-    toi = sg.get_parsed_toi(season, game)
+    toi = parse_toi.get_parsed_toi(season, game)
     posdf = get_player_positions()
 
     fives = toi[(toi.HomeStrength == "5") & (toi.RoadStrength == "5")]
     cols_to_keep = ['Time'] + ['{0:s}{1:d}'.format(homeroad, i + 1) for i in range(5)]
-    players = fives[cols_to_keep] \
+    playersonice = fives[cols_to_keep] \
         .melt(id_vars='Time', var_name='P', value_name='PlayerID') \
         .drop('P', axis=1) \
         .groupby('PlayerID').count().reset_index() \
@@ -799,9 +864,9 @@ def get_player_toi(season, game, pos=None, homeroad='H'):
         .sort_values('Secs', ascending=False)
     if pos is not None:
         if pos == 'F':
-            players = players.query('Pos != "D"')
+            playersonice = playersonice.query('Pos != "D"')
         else:
-            players = players.query('Pos == "{0:s}"'.format(pos))
+            playersonice = playersonice.query('Pos == "{0:s}"'.format(pos))
     return players
 
 
@@ -814,18 +879,18 @@ def get_line_combos(season, game, homeroad='H'):
     :return: pandas dataframe with columns P1, P2, P3, Secs. May contain duplicates
     """
 
-    toi = sg.get_parsed_toi(season, game)
+    toi = parse_toi.get_parsed_toi(season, game)
     pos = get_player_positions()
 
     fives = toi[(toi.HomeStrength == "5") & (toi.RoadStrength == "5")]
     cols_to_keep = ['Time'] + ['{0:s}{1:d}'.format(homeroad, i + 1) for i in range(5)]
-    players = fives[cols_to_keep] \
+    playersonice = fives[cols_to_keep] \
         .melt(id_vars='Time', var_name='P', value_name='PlayerID') \
         .drop('P', axis=1) \
         .merge(pos, how='left', left_on='PlayerID', right_on='ID') \
         .query('Pos != "D"') \
         .drop({'Pos', 'ID'}, axis=1)
-    wide = players.merge(players, how='inner', on='Time', suffixes=['1', '2']) \
+    wide = playersonice.merge(playersonice, how='inner', on='Time', suffixes=['1', '2']) \
         .merge(players, how='inner', on='Time') \
         .rename(columns={'PlayerID': 'PlayerID3'}) \
         .query('PlayerID1 != PlayerID2 & PlayerID1 != PlayerID3 & PlayerID2 != PlayerID3')
@@ -843,18 +908,18 @@ def get_pairings(season, game, homeroad='H'):
     :return: pandas dataframe with columns P1, P2, Secs. May contain duplicates
     """
 
-    toi = sg.get_parsed_toi(season, game)
+    toi = parse_toi.get_parsed_toi(season, game)
     pos = get_player_positions()
 
     fives = toi[(toi.HomeStrength == "5") & (toi.RoadStrength == "5")]
     cols_to_keep = ['Time'] + ['{0:s}{1:d}'.format(homeroad, i + 1) for i in range(5)]
-    players = fives[cols_to_keep] \
+    playersonice = fives[cols_to_keep] \
         .melt(id_vars='Time', var_name='P', value_name='PlayerID') \
         .drop('P', axis=1) \
         .merge(pos, how='left', left_on='PlayerID', right_on='ID') \
         .query('Pos == "D"') \
         .drop({'Pos', 'ID'}, axis=1)
-    wide = players.merge(players, how='inner', on='Time', suffixes=['1', '2']) \
+    wide = playersonice.merge(playersonice, how='inner', on='Time', suffixes=['1', '2']) \
         .query('PlayerID1 != PlayerID2')
     counts = wide.groupby(['PlayerID1', 'PlayerID2']).count().reset_index() \
         .rename(columns={'Time': 'Secs'})
@@ -869,7 +934,7 @@ def get_game_h2h_toi(season, game):
     :return: a df with [P1, P1Team, P2, P2Team, TOI]. Entries will be duplicated (one with given P as P1, another as P2)
     """
     # TODO add strength arg
-    toi = sg.get_parsed_toi(season, game)
+    toi = parse_toi.get_parsed_toi(season, game)
     fives = toi[(toi.HomeStrength == "5") & (toi.RoadStrength == "5")]
     home = fives[['Time', 'H1', 'H2', 'H3', 'H4', 'H5']] \
         .melt(id_vars='Time', var_name='P', value_name='PlayerID') \
@@ -898,23 +963,81 @@ def get_game_h2h_toi(season, game):
     return allpairs
 
 
+def filter_for_event_types(pbp, eventtype):
+    """
+    Filters given dataframe for event type(s) specified only.
+    :param pbp: dataframe
+        Need a column titled Event
+    :param eventtype: str or iterable of str
+        e.g. Goal, Shot, etc
+    :return: dataframe
+        Filtered
+    """
+    if isinstance(eventtype, str):
+        return pbp[pbp.Event == eventtype]
+    else:
+        joindf = pd.DataFrame({'Event': list(set(eventtype))})
+        return pbp.merge(joindf, how='inner', on='Event')
+
+
+def filter_for_goals(pbp):
+    """
+    Filters given dataframe for goals only.
+    :param pbp: dataframe
+        Need a column titled Event
+    :return: dataframe
+        Only rows where Event == 'Goal'
+    """
+    return filter_for_event_types(pbp, 'Goal')
+
+
+def filter_for_sog(pbp):
+    """
+    Filters given dataframe for SOG only.
+    :param pbp: dataframe
+        Need a column titled Event
+    :return: dataframe
+        Only rows where Event == 'Goal' or Event == 'Shot'
+    """
+    return filter_for_event_types(pbp, {'Goal', 'Shot'})
+
+
+def filter_for_fenwick(pbp):
+    """
+    Filters given dataframe for SOG only.
+    :param pbp: dataframe
+        Need a column titled Event
+    :return: dataframe
+        Only rows where Event == 'Goal' or Event == 'Shot'
+    """
+    return filter_for_event_types(pbp, {'Goal', 'Shot', 'Missed Shot'})
+
+
+def filter_for_five_on_five(df):
+    """
+    Filters given dataframe for 5v5 rows
+    :param df: dataframe
+        Columns HomeStrength + RoadStrength or TeamStrength + OppStrength
+    :return: dataframe
+    """
+    colnames = set(df.columns)
+    if 'HomeStrength' in colnames and 'RoadStrength' in colnames:
+        fives = df[(df.HomeStrength == "5") & (df.RoadStrength == "5")]
+    elif 'TeamStrength' in colnames and 'OppStrength' in colnames:
+        fives = df[(df.TeamStrength == "5") & (df.OppStrength == "5")]
+    else:
+        fives = df
+    return fives
+
+
 def filter_for_corsi(pbp):
     """
-    Filters given dataframe for 5v5 goal, shot, miss, and block events
-    :param pbp: a dataframe with columns Event + HomeStrength + RoadStrength (or TeamStrength + OppStrength)
-    :return: pbp, filtered for 5v5 corsi events
+    Filters given dataframe for goal, shot, miss, and block events
+    :param pbp: a dataframe with column Event
+    :return: pbp, filtered for corsi events
     """
-    colnames = set(pbp.columns)
-    if 'HomeStrength' in colnames and 'RoadStrength' in colnames:
-        fives = pbp[(pbp.HomeStrength == "5") & (pbp.RoadStrength == "5")]
-    elif 'TeamStrength' in colnames and 'OppStrength' in colnames:
-        fives = pbp[(pbp.TeamStrength == "5") & (pbp.OppStrength == "5")]
-    else:
-        fives = pbp
 
-    corsi = fives[fives.Event.apply(lambda x: x in {"Goal", "Shot", "Missed Shot", "Blocked Shot"})]
-
-    return corsi
+    return filter_for_event_types(pbp, {'Goal', 'Shot', 'Missed Shot', 'Blocked Shot'})
 
 
 def get_game_h2h_corsi(season, game):
@@ -925,17 +1048,17 @@ def get_game_h2h_corsi(season, game):
     :return: a df with [P1, P1Team, P2, P2Team, CF, CA, C+/-]. Entries will be duplicated, as with get_game_h2h_toi.
     """
     # TODO add strength arg
-    toi = sg.get_parsed_toi(season, game)
-    pbp = sg.get_parsed_pbp(season, game)
+    toi = parse_toi.get_parsed_toi(season, game)
+    pbp = parse_pbp.get_parsed_pbp(season, game)
     # toi.to_csv('/Users/muneebalam/Desktop/toi.csv')
     # pbp.to_csv('/Users/muneebalam/Desktop/pbp.csv')
     # pbp.loc[:, 'Event'] = pbp.Event.apply(lambda x: ss.convert_event(x))
     pbp = pbp[['Time', 'Event', 'Team']] \
         .merge(toi[['Time', 'R1', 'R2', 'R3', 'R4', 'R5', 'H1', 'H2', 'H3', 'H4', 'H5',
                     'HomeStrength', 'RoadStrength']], how='inner', on='Time')
-    corsi = filter_for_corsi(pbp).drop(['HomeStrength', 'RoadStrength'], axis=1)
+    corsi = filter_for_five_on_five(filter_for_corsi(pbp)).drop(['HomeStrength', 'RoadStrength'], axis=1)
 
-    hometeam = ss.get_home_team(season, game)
+    hometeam = schedules.get_home_team(season, game)
     # Add HomeCorsi which will be 1 or -1. Need to separate out blocks because they're credited to defending team
     # Never mind, switched block attribution at time of parsing, so we're good now
     corsi.loc[:, 'HomeCorsi'] = corsi.Team.apply(lambda x: 1 if x == hometeam else -1)
@@ -1049,14 +1172,14 @@ def add_on_ice_players_to_df(df, season_colname=None, game_colname='Game', perio
 
     df = period_time_to_elapsed(df, period_colname, time_colname, time_format)
     if season_colname is None or season_colname not in df.columns:
-        df.loc[:, 'Season'] = ss.get_current_season()
+        df.loc[:, 'Season'] = schedules.get_current_season()
         season_colname = 'Season'
 
     newdf = []
     seasons_and_games = df[[season_colname, game_colname]].drop_duplicates()
     for season, game in seasons_and_games.iterrows():
         tempdf = df[(df[season_colname] == season) & (df[game_colname] == game)]
-        toi = sg.get_parsed_toi(season, game)
+        toi = parse_toi.get_parsed_toi(season, game)
         if faceoff_indicator:
             toi.loc[:, 'Time'] = toi.Time - 1
         tempdf = tempdf.merge(toi.rename(columns={'Time': 'Elapsed'}), how='left', on='Elapsed')
@@ -1080,7 +1203,7 @@ def player_columns_to_name(df, columns=None):
     if columns is None:
         columns = set(['{0:s}{1:s}'.format(hr, i) for hr in ['H', 'R'] for i in ['1', '2', '3', '4', '5', '6', 'G']])
     colnames = set(df.columns)
-    players = ss.get_player_ids_file()[['ID', 'Name']]
+    playersonice = players.get_player_ids_file()[['ID', 'Name']]
 
     newdf = pd.DataFrame(index=df.index)
     for col in colnames:
@@ -1092,3 +1215,7 @@ def player_columns_to_name(df, columns=None):
             newdf.loc[:, col] = df[col]
 
     return newdf
+
+
+if __name__ == '__main__':
+    get_5v5_player_log(2017, True)

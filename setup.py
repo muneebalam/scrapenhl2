@@ -25,15 +25,15 @@ setuptools.setup(
                       'matplotlib',  # graphing
                       'seaborn',  # graphing; a little nicer than MPL
                       'pandas',  # for handling and manipulating data
-                      # 'pyarrow',  # used by feather
+                      'pyarrow',  # used by feather
                       'feather-format',  # fast read-write format that plays nicely with R
                       'halo',  # for spinners
                       'scikit-learn',  # not currently used, but will be for machine learning
                       'flask',  # for front end
                       'python-Levenshtein',  # for fast fuzzy matching
                       'fuzzywuzzy',  # for fuzzy string matching
+                      'beautifulsoup4==4.5.3',  # for html parsing
                       'html-table-extractor',  # for html parsing
-                      # 'beautifulsoup4',  # for html parsing
                       'plotly',  # for interactive charts
                       'dash',
                       'dash-renderer',

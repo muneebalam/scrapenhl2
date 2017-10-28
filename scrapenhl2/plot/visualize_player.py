@@ -3,7 +3,8 @@ import numpy as np  # standard scientific python stack
 import pandas as pd  # standard scientific python stack
 
 import scrapenhl2.manipulate.manipulate as manip
-import scrapenhl2.scrape.scrape_setup as ss  # lots of helpful methods in this module
+from scrapenhl2.scrape import players
+from scrapenhl2.scrape import schedules
 
 
 def rolling_player_cf(player, roll_len=25, startseason=None, endseason=None, save_file=None):
@@ -17,14 +18,14 @@ def rolling_player_cf(player, roll_len=25, startseason=None, endseason=None, sav
     """
     plt.clf()
     if startseason is None and endseason is None:
-        endseason = ss.get_current_season()
+        endseason = schedules.get_current_season()()
         startseason = endseason - 3
     elif startseason is None:
         startseason = endseason
     elif endseason is None:
         endseason = startseason
 
-    playerid = ss.player_as_id(player)
+    playerid = players.player_as_id()(player)
     df = []
     for season in range(startseason, endseason + 1):
         temp = manip.get_player_5v5_log(season)
@@ -96,7 +97,7 @@ def _get_rolling_cf_title(player, roll_len, startseason, endseason):
     :return:
     """
 
-    player = ss.player_as_str(ss.player_as_id(player))
+    player = players.player_as_str()(players.player_as_id()(player))
     return '{0:d}-game rolling CF% for {1:s}, {2:d}-{3:d}'.format(roll_len, player, startseason, endseason + 1)
 
 
