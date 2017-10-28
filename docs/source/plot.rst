@@ -12,7 +12,3 @@ Useful examples
 Methods
 --------
 
-.. automodule:: scrapenhl2.plot.visualize_game
-:members:
-.. automodule:: scrapenhl2.plot.visualize_player
-:members:
