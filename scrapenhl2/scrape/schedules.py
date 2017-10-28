@@ -9,6 +9,7 @@ import feather
 import pandas as pd
 
 import scrapenhl2.scrape.organization as organization
+import scrapenhl2.scrape.team_info as team_info
 
 
 def _get_current_season():
@@ -57,7 +58,7 @@ def _get_season_schedule(season):
     return feather.read_dataframe(get_season_schedule_filename(season))
 
 
-def _write_season_schedule(df, season, force_overwrite):
+def write_season_schedule(df, season, force_overwrite):
     """
     A helper method that writes the season schedule file to disk (in feather format for fast read/write)
     :param df: the season schedule datafraome
@@ -80,6 +81,102 @@ def _write_season_schedule(df, season, force_overwrite):
 
         feather.write_dataframe(newdf, get_season_schedule_filename(season))
     schedule_setup()
+
+
+@functools.lru_cache(maxsize=128, typed=False)
+def get_game_data_from_schedule(season, game):
+    """
+    This is a helper method that uses the schedule file to isolate information for current game
+    (e.g. teams involved, coaches, venue, score, etc.)
+    :param season: int, the season
+    :param game: int, the game
+    :return: dict of game data
+    """
+
+    schedule_item = get_season_schedule(season).query('Game == {0:d}'.format(game)).to_dict(orient='series')
+    # The output format of above was {colname: np.array[vals]}. Change to {colname: val}
+    schedule_item = {k: v.values[0] for k, v in schedule_item.items()}
+    return schedule_item
+
+
+def get_game_date(season, game):
+    """
+    Returns the date of this game
+    :param season: int, the game
+    :param game: int, the season
+    :return: str
+    """
+    return get_game_data_from_schedule(season, game)['Date']
+
+
+def get_home_team(season, game, returntype='id'):
+    """
+    Returns the home team from this game
+    :param season: int, the game
+    :param game: int, the season
+    :param returntype: str, 'id' or 'name'
+    :return: float or str, depending on returntype
+    """
+    home = get_game_data_from_schedule(season, game)['Home']
+    if returntype.lower() == 'id':
+        return team_info.team_as_id(home)
+    else:
+        return team_info.team_as_str(home)
+
+
+def get_road_team(season, game, returntype='id'):
+    """
+    Returns the road team from this game
+    :param season: int, the game
+    :param game: int, the season
+    :param returntype: str, 'id' or 'name'
+    :return: float or str, depending on returntype
+    """
+    road = get_game_data_from_schedule(season, game)['Road']
+    if returntype.lower() == 'id':
+        return team_info.team_as_id(road)
+    else:
+        return team_info.team_as_str(road)
+
+
+def get_home_score(season, game):
+    """
+    Returns the home score from this game
+    :param season: int, the season
+    :param game: int, the game
+    :return: int, the score
+    """
+    return int(get_game_data_from_schedule(season, game)['HomeScore'])
+
+
+def get_road_score(season, game):
+    """
+    Returns the road score from this game
+    :param season: int, the season
+    :param game: int, the game
+    :return: int, the score
+    """
+    return int(get_game_data_from_schedule(season, game)['RoadScore'])
+
+
+def get_game_status(season, game):
+    """
+    Returns the status of this game (e.g. Final, In Progress)
+    :param season: int, the season
+    :param game: int, the game
+    :return: int, the score
+    """
+    return get_game_data_from_schedule(season, game)['Status']
+
+
+def get_game_result(season, game):
+    """
+    Returns the result of this game for home team (e.g. W, SOL)
+    :param season: int, the season
+    :param game: int, the game
+    :return: int, the score
+    """
+    return get_game_data_from_schedule(season, game)['Result']
 
 
 def schedule_setup():

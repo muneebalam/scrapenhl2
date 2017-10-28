@@ -1,0 +1,221 @@
+"""
+This module contains general helper methods. None of these methods have dependencies on other scrapenhl2 modules.
+"""
+
+import functools
+import logging
+import os
+import os.path
+import pickle
+import re
+import time
+
+import numpy as np
+import pandas as pd
+from fuzzywuzzy import fuzz
+
+
+def print_and_log(message, level='info', print_and_log=True):
+    """
+    A helper method that prints message to console and also writes to log with specified level
+    :param message: str, the message
+    :param level: str, the level of log: info, warn, error, critical
+    :param print_and_log: bool. If False, logs only.
+    :return: nothing
+    """
+    if print_and_log:
+        print(message)
+    if level == 'warn':
+        logging.warning(message)
+    elif level == 'error':
+        logging.error(message)
+    elif level == 'critical':
+        logging.critical(message)
+    else:
+        logging.info(message)
+
+
+def once_per_second(function, calls_per_second=1):
+    """
+    A decorator that sleeps for one second after executing the function. Used when scraping NHL site.
+
+    This also means all functions that access the internet sleep for a second.
+    :param function: the function
+    :return: nothing
+    """
+
+    @functools.wraps(function)
+    def wrapper(*args, **kwargs):
+        time.sleep(1 / calls_per_second)
+        return function(*args, **kwargs)
+
+
+def log_exceptions(function):
+    """
+    A decorator that wraps the passed in function and logs
+    exceptions should one occur
+    :param function: the function
+    :return: nothing
+    """
+
+    @functools.wraps(function)
+    def wrapper(*args, **kwargs):
+        try:
+            return function(*args, **kwargs)
+        except:
+            # log the exception
+            err = "There was an exception in  "
+            err += function.__name__
+            logging.exception(err)
+
+            # and write their args to file, named after function.
+            index = 0  # used in case one function is called multiple times
+            fname = get_logging_folder() + "{0:s}{1:d}.pkl".format(function.__name__, index)
+            while os.path.exists(fname):
+                index += 1
+                fname = get_logging_folder() + "{0:s}{1:d}.pkl".format(function.__name__, index)
+
+            f = open(fname, "w")
+            pickle.dump(args, f)
+            pickle.dump(kwargs, f)
+            f.close()
+
+            # f = open("example", "r")
+            # value1 = pickle.load(f)
+            # value2 = pickle.load(f)
+            # f.close()
+
+            # re-raise the exception
+            raise
+
+    return wrapper
+
+
+def get_logging_folder():
+    return './.logs/'
+
+
+def start_logging():
+    """Clears out logging folder, and starts the log in this folder"""
+
+    if os.path.exists(get_logging_folder()):
+        for file in os.listdir(get_logging_folder()):
+            os.remove(get_logging_folder() + file)
+    else:
+        os.mkdir(get_logging_folder())
+
+    logging.basicConfig(level=logging.DEBUG, filemode="w",
+                        format="%(asctime)-15s %(levelname)-8s %(message)s",
+                        filename=get_logging_folder() + 'logfile.log')
+
+
+start_logging()
+
+
+def check_types(obj):
+    """
+    A helper method to check if obj is int, float, np.int64, or str. This is frequently needed, so is helpful.
+    :param obj: the object to check the type
+    :return: bool
+    """
+    return check_number(obj) or isinstance(obj, str)
+
+
+def check_number(obj):
+    """
+    A helper method to check if obj is int, float, np.int64, etc. This is frequently needed, so is helpful.
+    :param obj: the object to check the type
+    :return: bool
+    """
+    return isinstance(obj, int) or isinstance(obj, float) or isinstance(obj, np.number)
+
+
+def check_number_last_first_format(name):
+    """
+    Checks if specified name looks like "8 Ovechkin, Alex"
+    :param name: str
+    :return: bool
+    """
+    if re.match('^\d{1,2}\s*[A-Z]+\s*[A-Z]+', name) is None:
+        return False
+    return True
+
+
+@functools.lru_cache(maxsize=128, typed=False)
+def infer_season_from_date(date):
+    """
+    Looks at a date and infers the season based on that: Year-1 if month is Aug or before; returns year otherwise.
+    :param date: str, YYYY-MM-DD
+    :return: int, the season. 2007-08 would be 2007.
+    """
+    season, month, day = [int(x) for x in date.split('-')]
+    if month < 9:
+        season -= 1
+    return season
+
+
+def mmss_to_secs(strtime):
+    """
+    Converts time from mm:ss to seconds
+    :param strtime: str
+    :return: int
+    """
+    min, sec = strtime.split(':')
+    return 60 * int(min) + int(sec)
+
+
+def try_to_access_dict(base_dct, *keys, **kwargs):
+    """
+    A helper method that accesses base_dct using keys, one-by-one. Returns None if a key does not exist.
+    :param base_dct: dict, a dictionary
+    :param keys: str, int, or other valid dict keys
+    :param kwargs: can specify default using kwarg default_return=0, for example.
+    :return: base_dct[key1][key2][key3]... or None if a key is not in the dictionary
+    """
+    temp = base_dct
+    default_return = None
+    for k, v in kwargs.items():
+        default_return = v
+
+    try:
+        for key in keys:
+            temp = temp[key]
+        return temp
+    except KeyError:  # for string keys
+        return default_return
+    except IndexError:  # for array indices
+        return default_return
+    except TypeError:  # might not be a dictionary or list
+        return default_return
+
+
+def add_sim_scores(df, name):
+    """
+    Adds fuzzywuzzy's token set similarity scores to provded dataframe
+    :param df: pandas dataframe with column Name
+    :param name: str, name to compare to
+    :return: df with an additional column SimScore
+    """
+    df.loc[:, 'SimScore'] = df.Name.apply(lambda x: fuzz.token_set_ratio(name, x))
+    return df
+
+
+def fuzzy_match_player(name_provided, names, minimum_similarity=50):
+    """
+    This method checks similarity between each entry in names and the name_provided using token set matching and
+    returns the entry that matches best. Returns None if no similarity is greater than minimum_similarity.
+    (See e.g. http://chairnerd.seatgeek.com/fuzzywuzzy-fuzzy-string-matching-in-python/)
+    :param name_provided: str, name to look for
+    :param names: list (or ndarray, or similar) of
+    :param minimum_similarity: int from 0 to 100, minimum similarity. If all are below this, returns None.
+    :return: str, string in names that best matches name_provided
+    """
+    df = pd.DataFrame({'Name': names})
+    df = add_sim_scores(df, name_provided)
+    df = df.sort_values(by='SimScore', ascending=False).query('SimScore >= {0:f}'.format(minimum_similarity))
+    if len(df) == 0:
+        print('Could not find match for {0:s}'.format(name_provided))
+        return None
+    else:
+        # print(df.iloc[0])
+        return df.Name.iloc[0]

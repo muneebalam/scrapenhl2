@@ -11,9 +11,10 @@ import halo  # terminal spinners
 import numpy as np  # standard scientific python stack
 import pandas as pd  # standard scientific python stack
 import pyarrow  # related to feather; need to import to use an error
-
 import scrapenhl2.scrape.exception_decor as ed
 import scrapenhl2.scrape.get_files as get_files
+
+import scrapenhl2.scrape.get_filenames as get_filenames
 import scrapenhl2.scrape.scrape_setup as ss  # lots of helpful methods in this module
 
 
@@ -25,13 +26,13 @@ def scrape_game_pbp_from_html(season, game, force_overwrite=True):
     :param force_overwrite: bool. If file exists already, won't scrape again
     :return: bool, False if not scraped, else True
     """
-    filename = ss.get_game_pbplog_filename(season, game)
+    filename = get_filenames.get_game_pbplog_filename(season, game)
     if not force_overwrite and os.path.exists(filename):
         return False
 
     page = ss.get_game_from_url(season, game)
     save_raw_html_pbp(page, season, game)
-    ed.print_and_log('Scraped html pbp for {0:d} {1:d}'.format(season, game))
+    # ed.print_and_log('Scraped html pbp for {0:d} {1:d}'.format(season, game))
     sleep(1)  # Don't want to overload NHL servers
 
     # It's most efficient to parse with page in memory, but for sake of simplicity will do it later
@@ -53,7 +54,7 @@ def scrape_game_pbp(season, game, force_overwrite=False):
         return False
 
     # Use the season schedule file to get the home and road team names
-    # schedule_item = ss.get_season_schedule(season) \
+    # schedule_item = get_files.get_season_schedule(season) \
     #    .query('Game == {0:d}'.format(game)) \
     #    .to_dict(orient = 'series')
     # The output format of above was {colname: np.array[vals]}. Change to {colname: val}
@@ -61,7 +62,7 @@ def scrape_game_pbp(season, game, force_overwrite=False):
 
     page = ss.get_game_from_url(season, game)
     save_raw_pbp(page, season, game)
-    ed.print_and_log('Scraped pbp for {0:d} {1:d}'.format(season, game))
+    # ed.print_and_log('Scraped pbp for {0:d} {1:d}'.format(season, game))
     sleep(1)  # Don't want to overload NHL servers
 
     # It's most efficient to parse with page in memory, but for sake of simplicity will do it later
@@ -86,7 +87,7 @@ def scrape_game_toi(season, game, force_overwrite=False):
     with urllib.request.urlopen(url) as reader:
         page = reader.read()
     save_raw_toi(page, season, game)
-    ed.print_and_log('Scraped toi for {0:d} {1:d}'.format(season, game))
+    # ed.print_and_log('Scraped toi for {0:d} {1:d}'.format(season, game))
     sleep(1)  # Don't want to overload NHL servers
 
     # It's most efficient to parse with page in memory, but for sake of simplicity will do it later
@@ -116,7 +117,7 @@ def scrape_game_toi_from_html(season, game, force_overwrite=True):
         save_raw_toi_from_html(page, season, game, filetypes[i])
         sleep(1)  # Don't want to overload NHL servers
 
-    ed.print_and_log('Scraped html toi for {0:d} {1:d}'.format(season, game))
+        # ed.print_and_log('Scraped html toi for {0:d} {1:d}'.format(season, game))
 
 
 def save_raw_html_pbp(page, season, game):
@@ -127,7 +128,7 @@ def save_raw_html_pbp(page, season, game):
     :param game: int, the game
     :return: nothing
     """
-    filename = ss.get_game_pbplog_filename(season, game)
+    filename = get_filenames.get_game_pbplog_filename(season, game)
     w = open(filename, 'w')
     w.write(page.decode('latin-1'))
     w.close()
@@ -226,7 +227,7 @@ def get_raw_html_pbp(season, game):
     :param game: int, the game
     :return: str, the html pbp
     """
-    with open(ss.get_game_pbplog_filename(season, game), 'r') as reader:
+    with open(get_filenames.get_game_pbplog_filename(season, game), 'r') as reader:
         page = reader.read()
     return page
 
@@ -292,7 +293,7 @@ def update_team_logs(season, force_overwrite=False):
 
     spinner = halo.Halo()
 
-    new_games_to_do = ss.get_season_schedule(season).query('Status == "Final"')
+    new_games_to_do = get_files.get_season_schedule(season).query('Status == "Final"')
     new_games_to_do = new_games_to_do[(new_games_to_do.Game >= 20001) & (new_games_to_do.Game <= 30417)]
     allteams = sorted(list(new_games_to_do.Home.append(new_games_to_do.Road).unique()))
 
@@ -393,10 +394,10 @@ def update_team_logs(season, force_overwrite=False):
 
         ss.write_team_pbp(pbpdf, season, team)
         ss.write_team_toi(toidf, season, team)
-        ed.print_and_log('Done with team logs for {0:d} {1:s} ({2:d}/{3:d})'.format(
-            season, ss.team_as_str(team), teami + 1, len(allteams)), print_and_log=False)
+        # ed.print_and_log('Done with team logs for {0:d} {1:s} ({2:d}/{3:d})'.format(
+        #    season, ss.team_as_str(team), teami + 1, len(allteams)), print_and_log=False)
         spinner.stop()
-    ed.print_and_log('Updated team logs for {0:d}'.format(season))
+        # ed.print_and_log('Updated team logs for {0:d}'.format(season))
 
 
 def update_player_logs_from_page(pbp, season, game):
@@ -598,10 +599,10 @@ def _finish_toidf_manipulations(df, season, game):
     # Sometimes you see goalies with a shift starting in one period and ending in another
     # This is to help in those cases.
     if sum(df.End < df.Start) > 0:
-        ed.print_and_log('Have to adjust a shift time', 'warn')
+        # ed.print_and_log('Have to adjust a shift time', 'warn')
         # TODO I think I'm making a mistake with overtime shifts--end at 3900!
         # TODO also, maybe only go to the end of the period, not to 1200
-        ed.print_and_log(df[df.End < df.Start])
+        # ed.print_and_log(df[df.End < df.Start])
         df.loc[df.End < df.Start, 'End'] = df.loc[df.End < df.Start, 'End'] + 1200
     # One issue coming up is when the above line comes into play--missing times are filled in as 0:00
     tempdf = df[['PlayerID', 'Start', 'End', 'Team', 'Duration']].query("Duration > 0")
@@ -681,8 +682,8 @@ def _finish_toidf_manipulations(df, season, game):
             .reset_index()
     except ValueError:
         # Duplicate entries in index error.
-        ed.print_and_log('Multiple goalies for a team in {0:d} {1:d}, picking one with the most TOI'.format(
-            season, game), 'warn')
+        # ed.print_and_log('Multiple goalies for a team in {0:d} {1:d}, picking one with the most TOI'.format(
+        #    season, game), 'warn')
 
         # Find times with multiple goalies
         too_many_goalies_h = goalies[goalies.GTeam == 'HG'][['Time']] \
@@ -753,15 +754,17 @@ def _finish_toidf_manipulations(df, season, game):
     # But in those cases take shifts with longest durations
     # That's why we create hdf and rdf by also sorting by Time and Duration above, and select duration for rank()
     if len(hdf[hdf['rank'] == "H7"]) > 0:
-        ed.print_and_log('Some times from {0:d} {1:d} have too many home players; cutting off at 6'.format(
-            season, game), 'warn')
-        ed.print_and_log('Longest shift being lost was {0:d} seconds'.format(
-            hdf[hdf['rank'] == "H7"].Duration.max()), 'warn')
+        # ed.print_and_log('Some times from {0:d} {1:d} have too many home players; cutting off at 6'.format(
+        #    season, game), 'warn')
+        # ed.print_and_log('Longest shift being lost was {0:d} seconds'.format(
+        #    hdf[hdf['rank'] == "H7"].Duration.max()), 'warn')
+        pass
     if len(rdf[rdf['rank'] == "R7"]) > 0:
-        ed.print_and_log('Some times from {0:d} {1:d} have too many road players; cutting off at 6'.format(
-            season, game), 'warn')
-        ed.print_and_log('Longest shift being lost was {0:d} seconds'.format(
-            rdf[rdf['rank'] == "H7"].Duration.max()), 'warn')
+        # ed.print_and_log('Some times from {0:d} {1:d} have too many road players; cutting off at 6'.format(
+        #    season, game), 'warn')
+        # ed.print_and_log('Longest shift being lost was {0:d} seconds'.format(
+        #    rdf[rdf['rank'] == "H7"].Duration.max()), 'warn')
+        pass
 
     hdf = hdf.pivot(index='Time', columns='rank', values='PlayerID').iloc[:, 0:6]
     hdf.reset_index(inplace=True)  # get time back as a column
@@ -806,8 +809,9 @@ def _finish_toidf_manipulations(df, season, game):
     # Need at least 3 skaters apiece, 1 goalie apiece, time, and strengths to be non-NA = 11 non NA values
     toi2 = toi.dropna(axis=0, thresh=11)  # drop rows without at least 11 non-NA values
     if len(toi2) < len(toi):
-        ed.print_and_log('Dropped {0:d}/{1:d} times in {2:d} {3:d} because of invalid strengths'.format(
-            len(toi) - len(toi2), len(toi), season, game), 'warn')
+        # ed.print_and_log('Dropped {0:d}/{1:d} times in {2:d} {3:d} because of invalid strengths'.format(
+        #    len(toi) - len(toi2), len(toi), season, game), 'warn')
+        pass
 
     # TODO data quality check that I don't miss times in the middle of the game
 
@@ -971,7 +975,7 @@ def parse_game_pbp(season, game, force_overwrite=False):
 
     parsedpbp = read_events_from_page(rawpbp, season, game)
     save_parsed_pbp(parsedpbp, season, game)
-    ed.print_and_log('Parsed events for {0:d} {1:d}'.format(season, game), print_and_log=False)
+    # ed.print_and_log('Parsed events for {0:d} {1:d}'.format(season, game), print_and_log=False)
     return True
 
 
@@ -985,7 +989,7 @@ def parse_game_pbp_from_html(season, game, force_overwrite=False):
     :return: True if parsed, False if not
     """
 
-    filename = ss.get_game_pbplog_filename(season, game)
+    filename = get_filenames.get_game_pbplog_filename(season, game)
     if not force_overwrite and os.path.exists(filename):
         return False
 
@@ -997,7 +1001,7 @@ def parse_game_pbp_from_html(season, game, force_overwrite=False):
 
     parsedpbp = read_events_from_page(rawpbp, season, game)
     save_parsed_pbp(parsedpbp, season, game)
-    ed.print_and_log('Parsed events for {0:d} {1:d}'.format(season, game), print_and_log=False)
+    # ed.print_and_log('Parsed events for {0:d} {1:d}'.format(season, game), print_and_log=False)
     return True
 
 
@@ -1080,8 +1084,8 @@ def parse_game_toi(season, game, force_overwrite=False):
     try:
         parsedtoi = read_shifts_from_page(rawtoi, season, game)
     except ValueError as ve:
-        ed.print_and_log('Error with {0:d} {1:d}'.format(season, game), 'warning')
-        ed.print_and_log(str(ve), 'warning')  # TODO look through 2016, getting some errors
+        # ed.print_and_log('Error with {0:d} {1:d}'.format(season, game), 'warning')
+        # ed.print_and_log(str(ve), 'warning')  # TODO look through 2016, getting some errors
         parsedtoi = None
 
     if parsedtoi is None:
@@ -1116,8 +1120,8 @@ def parse_game_toi_from_html(season, game, force_overwrite=False):
                                                 gameinfo['Home'], gameinfo['Road'],
                                                 season, game)
     except ValueError as ve:
-        ed.print_and_log('Error with {0:d} {1:d}'.format(season, game), 'warning')
-        ed.print_and_log(str(ve), 'warning')
+        # ed.print_and_log('Error with {0:d} {1:d}'.format(season, game), 'warning')
+        # ed.print_and_log(str(ve), 'warning')
         parsedtoi = None
 
     save_parsed_toi(parsedtoi, season, game)
@@ -1160,7 +1164,7 @@ def parse_season_pbp(season, force_overwrite=False):
     if season is None:
         season = get_files.get_current_season()
 
-    sch = ss.get_season_schedule(season)
+    sch = get_files.get_season_schedule(season)
     games = sch[sch.Status == "Final"].Game.values
     games.sort()
     intervals = _intervals(games)
@@ -1169,7 +1173,7 @@ def parse_season_pbp(season, force_overwrite=False):
         try:
             parse_game_pbp(season, game, force_overwrite)
         except Exception as e:
-            ed.print_and_log('{0:d} {1:d} {2:s}'.format(season, game, str(e)), 'warn')
+            pass  # ed.print_and_log('{0:d} {1:d} {2:s}'.format(season, game, str(e)), 'warn')
         if interval_j < len(intervals):
             if i == intervals[interval_j][0]:
                 spinner.start(text='Done parsing through {0:d} {1:d} ({2:d}%)'.format(
@@ -1190,7 +1194,7 @@ def parse_season_toi(season, force_overwrite=False):
     if season is None:
         season = get_files.get_current_season()
 
-    sch = ss.get_season_schedule(season)
+    sch = get_files.get_season_schedule(season)
     games = sch[sch.Status == "Final"].Game.values
     games.sort()
     for game in games:
@@ -1282,7 +1286,7 @@ def autoupdate_new(season):
     try:
         update_team_logs(season, force_overwrite=False)
     except Exception as e:
-        ed.print_and_log("Error with team logs in {0:d}: {1:s}".format(season, str(e)), 'warn')
+        pass  # ed.print_and_log("Error with team logs in {0:d}: {1:s}".format(season, str(e)), 'warn')
 
 
 def read_final_games(games, season):

@@ -108,3 +108,4 @@ def get_season_team_toi_folder(season):
     :return: /scrape/data/teams/toi/[season]/
     """
     return os.path.join(get_team_data_folder(), 'toi', str(season))
+

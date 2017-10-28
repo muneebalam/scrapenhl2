@@ -91,12 +91,3 @@ def get_player_url(playerid):
     return 'https://statsapi.web.nhl.com/api/v1/people/{0:s}'.format(str(playerid))
 
 
-def get_team_info_url(teamid):
-    """
-    Gets the team url from the NHL API.
-    :param teamid: int
-        the team ID
-    :return: str
-        http://statsapi.web.nhl.com/api/v1/teams/[teamid]
-    """
-    return 'http://statsapi.web.nhl.com/api/v1/teams/{0:d}'.format(teamid)
