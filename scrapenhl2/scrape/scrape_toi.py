@@ -9,6 +9,7 @@ import zlib
 from time import sleep
 
 import scrapenhl2.scrape.organization as organization
+import scrapenhl2.scrape.schedules as schedules
 
 
 def scrape_game_toi(season, game, force_overwrite=False):
@@ -209,3 +210,15 @@ def get_game_raw_toi_filename(season, game):
     :return:  /scrape/data/raw/toi/[season]/[game].zlib
     """
     return os.path.join(organization.get_season_raw_toi_folder(season), str(game) + '.zlib')
+
+
+def scrape_toi_setup():
+    """
+    Creates raw toi folders if need be
+    :return:
+    """
+    for season in range(2005, schedules.get_current_season() + 1):
+        organization.check_create_folder(organization.get_season_raw_pbp_folder(season))
+
+
+scrape_toi_setup()

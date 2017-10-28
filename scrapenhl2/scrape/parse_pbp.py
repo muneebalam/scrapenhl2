@@ -4,11 +4,13 @@ This module contains methods for parsing PBP.
 
 import os.path
 
+import numpy as np
 import pandas as pd
 
 import scrapenhl2.scrape.general_helpers as helpers
 import scrapenhl2.scrape.manipulate_schedules as manipulate_schedules
 import scrapenhl2.scrape.organization as organization
+import scrapenhl2.scrape.players as players
 import scrapenhl2.scrape.schedules as schedules
 import scrapenhl2.scrape.scrape_pbp as scrape_pbp
 
@@ -58,37 +60,20 @@ def save_parsed_pbp(pbp, season, game):
     :param game: int, the game
     :return: nothing
     """
-    pbp.to_hdf(ss.get_game_parsed_pbp_filename(season, game),
+    pbp.to_hdf(get_game_parsed_pbp_filename(season, game),
                key='P{0:d}0{1:d}'.format(season, game),
                mode='w', complib='zlib')
 
 
-def read_events_from_page(rawpbp, season, game):
+def _create_pbp_df_json(pbp, gameinfo):
     """
-    This method takes the json pbp and returns a pandas dataframe with the following columns:
-
-    - Index: int, index of event
-    - Period: str, period of event. In regular season, could be 1, 2, 3, OT, or SO. In playoffs, 1, 2, 3, 4, 5...
-    - MinSec: str, m:ss, time elapsed in period
-    - Time: int, time elapsed in game
-    - Event: str, the event name
-    - Team: int, the team id. Note that this is switched to blocked team for blocked shots to ease Corsi calculations.
-    - Actor: int, the acting player id. Switched with recipient for blocks (see above)
-    - ActorRole: str, e.g. for faceoffs there is a "Winner" and "Loser". Switched with recipient for blocks (see above)
-    - Recipient: int, the receiving player id. Switched with actor for blocks (see above)
-    - RecipientRole: str, e.g. for faceoffs there is a "Winner" and "Loser". Switched with actor for blocks (see above)
-    - X: int, the x coordinate of event (or NaN)
-    - Y: int, the y coordinate of event (or NaN)
-    - Note: str, additional notes, which may include penalty duration, assists on a goal, etc.
-
-    :param rawpbp: json, the raw json pbp
-    :param season: int, the season
-    :param game: int, the game
-    :return: pandas dataframe, the pbp in a nicer format
+    Creates a pandas dataframe from the pbp, making use of gameinfo (from schedule file) as well
+    :param pbp: dict
+        dict from pbp json
+    :param gameinfo: dict
+        single row from schedule file
+    :return: dataframe
     """
-    pbp = ss.try_to_access_dict(rawpbp, 'liveData', 'plays', 'allPlays')
-    if pbp is None:
-        return
 
     index = [i for i in range(len(pbp))]
     period = ['' for _ in range(len(pbp))]
@@ -105,25 +90,24 @@ def read_events_from_page(rawpbp, season, game):
     note = ['' for _ in range(len(pbp))]
 
     for i in range(len(pbp)):
-        period[i] = ss.try_to_access_dict(pbp, i, 'about', 'period', default_return='')
-        times[i] = ss.try_to_access_dict(pbp, i, 'about', 'periodTime', default_return='0:00')
-        event[i] = ss.try_to_access_dict(pbp, i, 'result', 'event', default_return='NA')
+        period[i] = helpers.try_to_access_dict(pbp, i, 'about', 'period', default_return='')
+        times[i] = helpers.try_to_access_dict(pbp, i, 'about', 'periodTime', default_return='0:00')
+        event[i] = helpers.try_to_access_dict(pbp, i, 'result', 'event', default_return='NA')
 
-        xs[i] = float(ss.try_to_access_dict(pbp, i, 'coordinates', 'x', default_return=np.NaN))
-        ys[i] = float(ss.try_to_access_dict(pbp, i, 'coordinates', 'y', default_return=np.NaN))
-        team[i] = ss.try_to_access_dict(pbp, i, 'team', 'id', default_return=-1)
+        xs[i] = float(helpers.try_to_access_dict(pbp, i, 'coordinates', 'x', default_return=np.NaN))
+        ys[i] = float(helpers.try_to_access_dict(pbp, i, 'coordinates', 'y', default_return=np.NaN))
+        team[i] = helpers.try_to_access_dict(pbp, i, 'team', 'id', default_return=-1)
 
-        p1[i] = ss.try_to_access_dict(pbp, i, 'players', 0, 'player', 'id', default_return=-1)
-        p1role[i] = ss.try_to_access_dict(pbp, i, 'players', 0, 'playerType', default_return='')
-        p2[i] = ss.try_to_access_dict(pbp, i, 'players', 1, 'player', 'id', default_return=-1)
-        p2role[i] = ss.try_to_access_dict(pbp, i, 'players', 1, 'playerType', default_return='')
+        p1[i] = helpers.try_to_access_dict(pbp, i, 'players', 0, 'player', 'id', default_return=-1)
+        p1role[i] = helpers.try_to_access_dict(pbp, i, 'players', 0, 'playerType', default_return='')
+        p2[i] = helpers.try_to_access_dict(pbp, i, 'players', 1, 'player', 'id', default_return=-1)
+        p2role[i] = helpers.try_to_access_dict(pbp, i, 'players', 1, 'playerType', default_return='')
 
-        note[i] = ss.try_to_access_dict(pbp, i, 'result', 'description', default_return='')
+        note[i] = helpers.try_to_access_dict(pbp, i, 'result', 'description', default_return='')
 
     # Switch blocked shots from being an event for player who blocked, to player who took shot that was blocked
     # That means switching team attribution and actor/recipient.
     # TODO: why does schedule have str, not int, home and road here?
-    gameinfo = ss.get_game_data_from_schedule(season, game)
     switch_teams = {gameinfo['Home']: gameinfo['Road'], gameinfo['Road']: gameinfo['Home']}
     team_sw = [team[i] if event[i] != "Blocked Shot" else switch_teams[team[i]] for i in range(len(team))]
     p1_sw = [p1[i] if event[i] != "Blocked Shot" else p2[i] for i in range(len(p1))]
@@ -134,9 +118,16 @@ def read_events_from_page(rawpbp, season, game):
     pbpdf = pd.DataFrame({'Index': index, 'Period': period, 'MinSec': times, 'Event': event,
                           'Team': team_sw, 'Actor': p1_sw, 'ActorRole': p1role_sw, 'Recipient': p2_sw,
                           'RecipientRole': p2role_sw, 'X': xs, 'Y': ys, 'Note': note})
-    if len(pbpdf) == 0:
-        return pbpdf
+    return pbpdf
 
+
+def _add_scores_to_pbp(pbpdf, gameinfo):
+    """
+
+    :param pbp:
+    :param gameinfo:
+    :return:
+    """
     # Add score
     homegoals = pbpdf[['Event', 'Period', 'MinSec', 'Team']] \
         .query('Team == {0:d} & Event == "Goal"'.format(gameinfo['Home']))
@@ -164,6 +155,16 @@ def read_events_from_page(rawpbp, season, game):
     # And now forward fill
     pbpdf.loc[:, "HomeScore"] = pbpdf.HomeScore.fillna(method='ffill')
     pbpdf.loc[:, "RoadScore"] = pbpdf.RoadScore.fillna(method='ffill')
+    return pbpdf
+
+
+def _add_times_to_pbp(pbpdf):
+    """
+    Uses period and time columns to add a column with time in seconds elapsed in game
+    :param pbp: df
+        pandas dataframe
+    :return: pandas dataframe
+    """
 
     # Convert MM:SS and period to time in game
     minsec = pbpdf.MinSec.str.split(':', expand=True)
@@ -173,15 +174,46 @@ def read_events_from_page(rawpbp, season, game):
     minsec.loc[:, 'Sec'] = pd.to_numeric(minsec.loc[:, 'Sec'])
     minsec.loc[:, 'TimeInPeriod'] = 60 * minsec.Min + minsec.Sec
 
-    def period_contribution(x):
-        try:
-            return 1200 * (x - 1)
-        except ValueError:
-            return 3600 if x == 'OT' else 3900  # OT or SO
-
-    minsec.loc[:, 'PeriodContribution'] = minsec.Period.apply(period_contribution)
+    minsec.loc[:, 'PeriodContribution'] = minsec.Period.apply(helpers.period_contribution)
     minsec.loc[:, 'Time'] = minsec.PeriodContribution + minsec.TimeInPeriod
     pbpdf.loc[:, 'Time'] = minsec.Time
+    return pbpdf
+
+
+def read_events_from_page(rawpbp, season, game):
+    """
+    This method takes the json pbp and returns a pandas dataframe with the following columns:
+
+    - Index: int, index of event
+    - Period: str, period of event. In regular season, could be 1, 2, 3, OT, or SO. In playoffs, 1, 2, 3, 4, 5...
+    - MinSec: str, m:ss, time elapsed in period
+    - Time: int, time elapsed in game
+    - Event: str, the event name
+    - Team: int, the team id. Note that this is switched to blocked team for blocked shots to ease Corsi calculations.
+    - Actor: int, the acting player id. Switched with recipient for blocks (see above)
+    - ActorRole: str, e.g. for faceoffs there is a "Winner" and "Loser". Switched with recipient for blocks (see above)
+    - Recipient: int, the receiving player id. Switched with actor for blocks (see above)
+    - RecipientRole: str, e.g. for faceoffs there is a "Winner" and "Loser". Switched with actor for blocks (see above)
+    - X: int, the x coordinate of event (or NaN)
+    - Y: int, the y coordinate of event (or NaN)
+    - Note: str, additional notes, which may include penalty duration, assists on a goal, etc.
+
+    :param rawpbp: json, the raw json pbp
+    :param season: int, the season
+    :param game: int, the game
+    :return: pandas dataframe, the pbp in a nicer format
+    """
+    pbp = helpers.try_to_access_dict(rawpbp, 'liveData', 'plays', 'allPlays')
+    if pbp is None:
+        return
+
+    gameinfo = schedules.get_game_data_from_schedule(season, game)
+    pbpdf = _create_pbp_df_json(pbp, gameinfo)
+    if len(pbpdf) == 0:
+        return pbpdf
+
+    pbpdf = _add_scores_to_pbp(pbpdf, gameinfo)
+    pbpdf = _add_times_to_pbp(pbpdf)
 
     return pbpdf
 
@@ -204,7 +236,7 @@ def update_player_ids_from_page(pbp):
     """
     players = pbp['gameData']['players']  # yields the subdictionary with players
     ids = [key[2:] for key in players]  # keys are format "ID[PlayerID]"; pull that PlayerID part
-    ss.update_player_ids_file(ids)
+    players.update_player_ids_file(ids)
 
 
 def parse_game_pbp(season, game, force_overwrite=False):
@@ -217,14 +249,14 @@ def parse_game_pbp(season, game, force_overwrite=False):
     :return: True if parsed, False if not
     """
 
-    filename = scrape_pbp.get_game_parsed_pbp_filename(season, game)
+    filename = get_game_parsed_pbp_filename(season, game)
     if not force_overwrite and os.path.exists(filename):
         return False
 
     # Looks like 2010-11 is the first year where this feed supplies more than just boxscore data
     rawpbp = scrape_pbp.get_raw_pbp(season, game)
     update_player_ids_from_page(rawpbp)
-    manipulate_schedules.update_player_logs_from_page(rawpbp, season, game)
+    players.update_player_logs_from_page(rawpbp, season, game)
     manipulate_schedules.update_schedule_with_coaches(rawpbp, season, game)
     manipulate_schedules.update_schedule_with_result_using_pbp(rawpbp, season, game)
 
@@ -258,3 +290,15 @@ def parse_game_pbp_from_html(season, game, force_overwrite=False):
     save_parsed_pbp(parsedpbp, season, game)
     # ed.print_and_log('Parsed events for {0:d} {1:d}'.format(season, game), print_and_log=False)
     return True
+
+
+def parse_pbp_setup():
+    """
+    Creates parsed pbp folders if need be
+    :return:
+    """
+    for season in range(2005, schedules.get_current_season() + 1):
+        organization.check_create_folder(organization.get_season_parsed_pbp_folder(season))
+
+
+parse_pbp_setup()

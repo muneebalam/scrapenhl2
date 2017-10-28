@@ -2,6 +2,17 @@
 This module contains methods for parsing TOI.
 """
 
+import os.path
+import re
+
+import pandas as pd
+
+import scrapenhl2.scrape.general_helpers as helpers
+import scrapenhl2.scrape.organization as organization
+import scrapenhl2.scrape.players as players
+import scrapenhl2.scrape.schedules as schedules
+import scrapenhl2.scrape.scrape_toi as scrape_toi
+
 
 def parse_season_toi(season, force_overwrite=False):
     """
@@ -11,16 +22,14 @@ def parse_season_toi(season, force_overwrite=False):
     :return:
     """
 
-    spinner = halo.Halo(text='Parsing toi from {0:d}'.format(season))
     if season is None:
-        season = get_files.get_current_season()
+        season = schedules.get_current_season()
 
-    sch = get_files.get_season_schedule(season)
+    sch = schedules.get_season_schedule(season)
     games = sch[sch.Status == "Final"].Game.values
     games.sort()
     for game in games:
         parse_game_toi(season, game, force_overwrite)
-    spinner.stop()
 
 
 def parse_game_toi(season, game, force_overwrite=False):
@@ -31,13 +40,13 @@ def parse_game_toi(season, game, force_overwrite=False):
     :param force_overwrite: bool. If True, will execute. If False, executes only if file does not exist yet.
     :return: nothing
     """
-    filename = ss.get_game_parsed_toi_filename(season, game)
+    filename = get_game_parsed_toi_filename(season, game)
     if not force_overwrite and os.path.exists(filename):
         return False
 
     # TODO for some earlier seasons I need to read HTML instead. Also for live games
     # Looks like 2010-11 is the first year where this feed supplies more than just boxscore data
-    rawtoi = get_raw_toi(season, game)
+    rawtoi = scrape_toi.get_raw_toi(season, game)
     try:
         parsedtoi = read_shifts_from_page(rawtoi, season, game)
     except ValueError as ve:
@@ -65,15 +74,16 @@ def parse_game_toi_from_html(season, game, force_overwrite=False):
     :return: nothing
     """
     # TODO force_overwrite support
-    filenames = (ss.get_home_shiftlog_filename(season, game), ss.get_road_shiftlog_filename(season, game))
-    if force_overwrite is False and os.path.exists(ss.get_home_shiftlog_filename(season, game)) and \
-            os.path.exists(ss.get_home_shiftlog_filename(season, game)):
+    filenames = (scrape_toi.get_home_shiftlog_filename(season, game),
+                 scrape_toi.get_road_shiftlog_filename(season, game))
+    if force_overwrite is False and os.path.exists(scrape_toi.get_home_shiftlog_filename(season, game)) and \
+            os.path.exists(scrape_toi.get_home_shiftlog_filename(season, game)):
         return False
 
-    gameinfo = ss.get_game_data_from_schedule(season, game)
+    gameinfo = schedules.get_game_data_from_schedule(season, game)
     try:
-        parsedtoi = read_shifts_from_html_pages(get_raw_html_toi(season, game, 'H'),
-                                                get_raw_html_toi(season, game, 'R'),
+        parsedtoi = read_shifts_from_html_pages(scrape_toi.get_raw_html_toi(season, game, 'H'),
+                                                scrape_toi.get_raw_html_toi(season, game, 'R'),
                                                 gameinfo['Home'], gameinfo['Road'],
                                                 season, game)
     except ValueError as ve:
@@ -93,7 +103,7 @@ def get_parsed_toi(season, game):
     :param game: int, the game
     :return: json, the json shifts
     """
-    return pd.read_hdf(ss.get_game_parsed_toi_filename(season, game))
+    return pd.read_hdf(get_game_parsed_toi_filename(season, game))
 
 
 def save_parsed_toi(toi, season, game):
@@ -104,7 +114,7 @@ def save_parsed_toi(toi, season, game):
     :param game: int, the game
     :return: nothing
     """
-    toi.to_hdf(ss.get_game_parsed_toi_filename(season, game),
+    toi.to_hdf(get_game_parsed_toi_filename(season, game),
                key='T{0:d}0{1:d}'.format(season, game),
                mode='w', complib='zlib')
 
@@ -112,10 +122,18 @@ def save_parsed_toi(toi, season, game):
 def read_shifts_from_html_pages(rawtoi1, rawtoi2, teamid1, teamid2, season, game):
     """
 
-    :param rawtoi:
-    :param season:
-    :param game:
-    :param teamid
+    :param rawtoi1: str
+        html page of shift log for team id1
+    :param rawtoi2: str
+        html page of shift log for teamid2
+    :param teamid1: int
+        team id corresponding to rawtoi1
+    :param teamid2: int
+        team id corresponding to rawtoi1
+    :param season: int
+        the season
+    :param game: int
+        the game
     :return:
     """
 
@@ -136,10 +154,10 @@ def read_shifts_from_html_pages(rawtoi1, rawtoi2, teamid1, teamid2, season, game
         i = 0
         while i < len(tables):
             # A convenient artefact of this package: search for [p, p, p, p, p, p, p, p]
-            if len(tables[i]) == 8 and ss.check_number_last_first_format(tables[i][0]):
-                pname = remove_leading_number(tables[i][0])
-                pname = flip_first_last(pname)
-                pid = ss.player_as_id(pname)
+            if len(tables[i]) == 8 and helpers.check_number_last_first_format(tables[i][0]):
+                pname = helpers.remove_leading_number(tables[i][0])
+                pname = helpers.flip_first_last(pname)
+                pid = players.player_as_id(pname)
                 i += 2  # skip the header row
                 while re.match('\d{1,2}', tables[i][0]):  # First entry is shift number
                     # print(tables[i])
@@ -149,7 +167,7 @@ def read_shifts_from_html_pages(rawtoi1, rawtoi2, teamid1, teamid2, season, game
                     periods.append(int(per))
                     starts.append(start[:start.index('/')].strip())
                     ends.append(end[:end.index('/')].strip())
-                    durationtime.append(ss.mmss_to_secs(dur))
+                    durationtime.append(helpers.mmss_to_secs(dur))
                     teams.append(teamid)
                     i += 1
                 i += 1
@@ -194,14 +212,14 @@ def read_shifts_from_page(rawtoi, season, game):
 
     # The shifts are ordered shortest duration to longest.
     for i, dct in enumerate(toi):
-        ids[i] = ss.try_to_access_dict(dct, 'playerId', default_return='')
-        periods[i] = ss.try_to_access_dict(dct, 'period', default_return=0)
-        starts[i] = ss.try_to_access_dict(dct, 'startTime', default_return='0:00')
-        ends[i] = ss.try_to_access_dict(dct, 'endTime', default_return='0:00')
-        durations[i] = ss.try_to_access_dict(dct, 'duration', default_return=0)
-        teams[i] = ss.try_to_access_dict(dct, 'teamId', default_return='')
+        ids[i] = helpers.try_to_access_dict(dct, 'playerId', default_return='')
+        periods[i] = helpers.try_to_access_dict(dct, 'period', default_return=0)
+        starts[i] = helpers.try_to_access_dict(dct, 'startTime', default_return='0:00')
+        ends[i] = helpers.try_to_access_dict(dct, 'endTime', default_return='0:00')
+        durations[i] = helpers.try_to_access_dict(dct, 'duration', default_return=0)
+        teams[i] = helpers.try_to_access_dict(dct, 'teamId', default_return='')
 
-    gameinfo = ss.get_game_data_from_schedule(season, game)
+    gameinfo = schedules.get_game_data_from_schedule(season, game)
 
     # I originally took start times at face value and subtract 1 from end times
     # This caused problems with joining events--when there's a shot and the goalie freezes immediately
@@ -235,7 +253,7 @@ def _finish_toidf_manipulations(df, season, game):
     :param game: int, the game
     :return:
     """
-    gameinfo = ss.get_game_data_from_schedule(season, game)
+    gameinfo = schedules.get_game_data_from_schedule(season, game)
 
     # TODO don't read end times. Use duration, which has good coverage, to infer end. Then end + 1200 not needed below.
     # Sometimes shifts have the same start and time.
@@ -258,7 +276,7 @@ def _finish_toidf_manipulations(df, season, game):
 
     # Let's filter out goalies for now. We can add them back in later.
     # This will make it easier to get the strength later
-    pids = ss.get_player_ids_file()
+    pids = players.get_player_ids_file()
     tempdf = tempdf.merge(pids[['ID', 'Pos']], how='left', left_on='PlayerID', right_on='ID')
 
     # toi = pd.DataFrame({'Time': [i for i in range(0, max(df.End) + 1)]})
@@ -473,3 +491,15 @@ def get_game_parsed_toi_filename(season, game):
     :return: /scrape/data/parsed/toi/[season]/[game].zlib
     """
     return os.path.join(organization.get_season_parsed_toi_folder(season), str(game) + '.h5')
+
+
+def parse_toi_setup():
+    """
+    Creates parsed toi folders if need be
+    :return:
+    """
+    for season in range(2005, schedules.get_current_season() + 1):
+        organization.check_create_folder(organization.get_season_parsed_toi_folder(season))
+
+
+parse_toi_setup()

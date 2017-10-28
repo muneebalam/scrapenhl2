@@ -256,7 +256,7 @@ def update_schedule_with_result_using_pbp(pbp, season, game):
             elif gameinfo['RoadScore'] > gameinfo['HomeScore']:
                 result = 'L'
 
-    ss.update_schedule_with_result(season, game, result)
+    update_schedule_with_result(season, game, result)
 
 
 def update_schedule_with_coaches(pbp, season, game):
@@ -268,6 +268,8 @@ def update_schedule_with_coaches(pbp, season, game):
     :return: nothing
     """
 
-    homecoach = ss.try_to_access_dict(pbp, 'liveData', 'boxscore', 'teams', 'home', 'coaches', 0, 'person', 'fullName')
-    roadcoach = ss.try_to_access_dict(pbp, 'liveData', 'boxscore', 'teams', 'away', 'coaches', 0, 'person', 'fullName')
-    ss.update_schedule_with_coaches(season, game, homecoach, roadcoach)
+    homecoach = helpers.try_to_access_dict(pbp, 'liveData', 'boxscore', 'teams', 'home', 'coaches', 0, 'person',
+                                           'fullName')
+    roadcoach = helpers.try_to_access_dict(pbp, 'liveData', 'boxscore', 'teams', 'away', 'coaches', 0, 'person',
+                                           'fullName')
+    update_schedule_with_coaches(season, game, homecoach, roadcoach)

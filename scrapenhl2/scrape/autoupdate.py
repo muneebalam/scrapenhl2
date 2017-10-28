@@ -2,124 +2,33 @@
 This module contains methods for automatically scraping and parsing games.
 """
 
+import urllib.error
+import urllib.request
 
-def update_team_logs(season, force_overwrite=False):
+import scrapenhl2.scrape.manipulate_schedules as manipulate_schedules
+import scrapenhl2.scrape.parse_pbp as parse_pbp
+import scrapenhl2.scrape.parse_toi as parse_toi
+import scrapenhl2.scrape.schedules as schedules
+import scrapenhl2.scrape.scrape_pbp as scrape_pbp
+import scrapenhl2.scrape.scrape_toi as scrape_toi
+
+
+def delete_game_html(season, game):
     """
-    This method looks at the schedule for the given season and writes pbp for scraped games to file.
-    It also adds the strength at each pbp event to the log.
+    Deletes html files. HTML files are used for live game charts, but deleted in favor of JSONs when games go final.
     :param season: int, the season
-    :param force_overwrite: bool, whether to generate from scratch
-    :return:
+    :param game: int, the game
+    :return: nothing
     """
 
-    # For each team
+    for fun in (get_game_pbplog_filename,
+                get_home_shiftlog_filename,
+                get_road_shiftlog_filename):
+        filename = fun(season, game)
+        if os.path.exists(filename):
+            os.remove(filename)
 
 
-    new_games_to_do = get_files.get_season_schedule(season).query('Status == "Final"')
-    new_games_to_do = new_games_to_do[(new_games_to_do.Game >= 20001) & (new_games_to_do.Game <= 30417)]
-    allteams = sorted(list(new_games_to_do.Home.append(new_games_to_do.Road).unique()))
-
-    for teami, team in enumerate(allteams):
-        spinner.start(text='Updating team log for {0:d} {1:s}\n'.format(season, ss.team_as_str(team)))
-
-        # Compare existing log to schedule to find missing games
-        newgames = new_games_to_do[(new_games_to_do.Home == team) | (new_games_to_do.Road == team)]
-        if force_overwrite:
-            pbpdf = None
-            toidf = None
-        else:
-            # Read currently existing ones for each team and anti join to schedule to find missing games
-            try:
-                pbpdf = ss.get_team_pbp(season, team)
-                newgames = newgames.merge(pbpdf[['Game']].drop_duplicates(), how='outer', on='Game', indicator=True)
-                newgames = newgames[newgames._merge == "left_only"].drop('_merge', axis=1)
-            except FileNotFoundError:
-                pbpdf = None
-            except pyarrow.lib.ArrowIOError:  # pyarrow (feather) FileNotFoundError equivalent
-                pbpdf = None
-
-            try:
-                toidf = ss.get_team_toi(season, team)
-            except FileNotFoundError:
-                toidf = None
-            except pyarrow.lib.ArrowIOError:  # pyarrow (feather) FileNotFoundError equivalent
-                toidf = None
-
-        for i, gamerow in newgames.iterrows():
-            game = gamerow[1]
-            home = gamerow[2]
-            road = gamerow[4]
-
-            # load parsed pbp and toi
-            try:
-                gamepbp = get_parsed_pbp(season, game)
-                gametoi = get_parsed_toi(season, game)
-                # TODO 2016 20779 why does pbp have 0 rows?
-                # Also check for other errors in parsing etc
-
-                if len(gamepbp) > 0 and len(gametoi) > 0:
-                    # Rename score and strength columns from home/road to team/opp
-                    if team == home:
-                        gametoi = gametoi.assign(TeamStrength=gametoi.HomeStrength, OppStrength=gametoi.RoadStrength) \
-                            .drop({'HomeStrength', 'RoadStrength'}, axis=1)
-                        gamepbp = gamepbp.assign(TeamScore=gamepbp.HomeScore, OppScore=gamepbp.RoadScore) \
-                            .drop({'HomeScore', 'RoadScore'}, axis=1)
-                    else:
-                        gametoi = gametoi.assign(TeamStrength=gametoi.RoadStrength, OppStrength=gametoi.HomeStrength) \
-                            .drop({'HomeStrength', 'RoadStrength'}, axis=1)
-                        gamepbp = gamepbp.assign(TeamScore=gamepbp.RoadScore, OppScore=gamepbp.HomeScore) \
-                            .drop({'HomeScore', 'RoadScore'}, axis=1)
-
-                    # add scores to toi and strengths to pbp
-                    gamepbp = gamepbp.merge(gametoi[['Time', 'TeamStrength', 'OppStrength']], how='left', on='Time')
-                    gametoi = gametoi.merge(gamepbp[['Time', 'TeamScore', 'OppScore']], how='left', on='Time')
-                    gametoi.loc[:, 'TeamScore'] = gametoi.TeamScore.fillna(method='ffill')
-                    gametoi.loc[:, 'OppScore'] = gametoi.OppScore.fillna(method='ffill')
-
-                    # Switch TOI column labeling from H1/R1 to Team1/Opp1 as appropriate
-                    cols_to_change = list(gametoi.columns)
-                    cols_to_change = [x for x in cols_to_change if len(x) == 2]  # e.g. H1
-                    if team == home:
-                        swapping_dict = {'H': 'Team', 'R': 'Opp'}
-                        colchanges = {c: swapping_dict[c[0]] + c[1] for c in cols_to_change}
-                    else:
-                        swapping_dict = {'H': 'Opp', 'R': 'Team'}
-                        colchanges = {c: swapping_dict[c[0]] + c[1] for c in cols_to_change}
-                    gametoi = gametoi.rename(columns=colchanges)
-
-                    # finally, add game, home, and road to both dfs
-                    gamepbp.loc[:, 'Game'] = game
-                    gamepbp.loc[:, 'Home'] = home
-                    gamepbp.loc[:, 'Road'] = road
-                    gametoi.loc[:, 'Game'] = game
-                    gametoi.loc[:, 'Home'] = home
-                    gametoi.loc[:, 'Road'] = road
-
-                    # concat toi and pbp
-                    if pbpdf is None:
-                        pbpdf = gamepbp
-                    else:
-                        pbpdf = pd.concat([pbpdf, gamepbp])
-                    if toidf is None:
-                        toidf = gametoi
-                    else:
-                        toidf = pd.concat([toidf, gametoi])
-
-            except FileNotFoundError:
-                pass
-
-        # write to file
-        if pbpdf is not None:
-            pbpdf.loc[:, 'FocusTeam'] = team
-        if toidf is not None:
-            toidf.loc[:, 'FocusTeam'] = team
-
-        ss.write_team_pbp(pbpdf, season, team)
-        ss.write_team_toi(toidf, season, team)
-        # ed.print_and_log('Done with team logs for {0:d} {1:s} ({2:d}/{3:d})'.format(
-        #    season, ss.team_as_str(team), teami + 1, len(allteams)), print_and_log=False)
-        spinner.stop()
-        # ed.print_and_log('Updated team logs for {0:d}'.format(season))
 
 
 def update_player_logs_from_page(pbp, season, game):
@@ -206,50 +115,45 @@ def autoupdate_new(season):
     """
     # TODO: why does sometimes the schedule have the wrong game-team pairs, but when I regenerate, it's all ok?
 
-    sch = get_files.get_season_schedule(season)
+    sch = schedules.get_season_schedule(season)
 
-    spinner = halo.Halo()
 
     # First, for all games that were in progress during last scrape, delete html charts
-    spinner.start(text="Deleting data from previously in-progress games")
+    print('Scraping previously in-progress games')
     inprogress = sch.query('Status == "In Progress"')
     inprogressgames = inprogress.Game.values
     inprogressgames.sort()
     for game in inprogressgames:
-        ss.delete_game_html(season, game)
+        games.delete_game_html(season, game)
 
     # Now keep tabs on old final games
     old_final_games = set(sch.query('Status == "Final"').Game.values)
 
     # Update schedule to get current status
-    ss.generate_season_schedule_file(season)
-    ss.refresh_schedules()
-    sch = get_files.get_season_schedule(season)
+    manipulate_schedules.schedules.generate_season_schedule_file(season)
+    sch = schedules.get_season_schedule(season)
 
     # For games done previously, set pbp and toi status to scraped
-    _ = ss.update_schedule_with_pbp_scrape(season, old_final_games)
-    sch = ss.update_schedule_with_toi_scrape(season, old_final_games)
+    manipulate_schedules.update_schedule_with_pbp_scrape(season, old_final_games)
+    manipulate_schedules.update_schedule_with_toi_scrape(season, old_final_games)
+    sch = schedules.get_season_schedule(season)
 
     # Now, for games currently in progress, scrape.
     # But no need to force-overwrite. We handled games previously in progress above.
     # Games newly in progress will be written to file here.
-    spinner.stop()
 
     inprogressgames = sch.query('Status == "In Progress"')
     inprogressgames = inprogressgames.Game.values
     inprogressgames.sort()
-    spinner.start(text="Updating in-progress games")
+    print("Updating in-progress games")
     read_inprogress_games(inprogressgames, season)
-    spinner.stop()
 
     # Now, for any games that are final, scrape and parse if not previously done
     games = sch.query('Status == "Final" & PBPStatus == "N/A"')
     games = games.Game.values
     games.sort()
-    spinner.start(text='Updating final games')
+    print('Updating final games')
     read_final_games(games, season)
-    spinner.stop()
-    ss.refresh_schedules()
 
     try:
         update_team_logs(season, force_overwrite=False)
@@ -266,31 +170,31 @@ def read_final_games(games, season):
     """
     for game in games:
         try:
-            scrape_game_pbp(season, game, True)
-            _ = ss.update_schedule_with_pbp_scrape(season, game)
-            parse_game_pbp(season, game, True)
+            scrape_pbp.scrape_game_pbp(season, game, True)
+            manipulate_schedules.update_schedule_with_pbp_scrape(season, game)
+            parse_pbp.parse_game_pbp(season, game, True)
         except urllib.error.HTTPError as he:
-            ed.print_and_log('Could not access pbp url for {0:d} {1:d}'.format(season, game), 'warn')
-            ed.print_and_log(str(he), 'warn')
+            print('Could not access pbp url for {0:d} {1:d}'.format(season, game))
+            print(str(he))
         except urllib.error.URLError as ue:
-            ed.print_and_log('Could not access pbp url for {0:d} {1:d}'.format(season, game), 'warn')
-            ed.print_and_log(str(ue), 'warn')
+            print('Could not access pbp url for {0:d} {1:d}'.format(season, game))
+            print(str(ue))
         except Exception as e:
-            ed.print_and_log(str(e), 'warn')
+            print(str(e))
         try:
-            scrape_game_toi(season, game, True)
-            _ = ss.update_schedule_with_toi_scrape(season, game)
-            parse_game_toi(season, game, True)
+            scrape_toi.scrape_game_toi(season, game, True)
+            manipulate_schedules.update_schedule_with_toi_scrape(season, game)
+            parse_toi.parse_game_toi(season, game, True)
         except urllib.error.HTTPError as he:
-            ed.print_and_log('Could not access toi url for {0:d} {1:d}'.format(season, game), 'warn')
-            ed.print_and_log(str(he), 'warn')
+            print('Could not access toi url for {0:d} {1:d}'.format(season, game))
+            print(str(he))
         except urllib.error.URLError as ue:
-            ed.print_and_log('Could not access toi url for {0:d} {1:d}'.format(season, game), 'warn')
-            ed.print_and_log(str(ue), 'warn')
+            print('Could not access toi url for {0:d} {1:d}'.format(season, game))
+            print(str(ue))
         except Exception as e:
-            ed.print_and_log(str(e), 'warn')
+            print(str(e))
 
-        ed.print_and_log('Done with {0:d} {1:d} (final)'.format(season, game), print_and_log=False)
+        print('Done with {0:d} {1:d} (final)'.format(season, game))
 
 
 def read_inprogress_games(inprogressgames, season):
@@ -304,11 +208,11 @@ def read_inprogress_games(inprogressgames, season):
         # scrape_game_pbp_from_html(season, game, False)
         # parse_game_pbp_from_html(season, game, False)
         # PBP JSON updates live, so I can just use that, as before
-        scrape_game_pbp(season, game, True)
-        scrape_game_toi_from_html(season, game, True)
-        parse_game_pbp(season, game, True)
-        parse_game_toi_from_html(season, game, True)
-        ed.print_and_log('Done with {0:d} {1:d} (in progress)'.format(season, game))
+        scrape_pbp.scrape_game_pbp(season, game, True)
+        scrape_toi.scrape_game_toi_from_html(season, game, True)
+        parse_pbp.parse_game_pbp(season, game, True)
+        parse_toi.parse_game_toi_from_html(season, game, True)
+        print('Done with {0:d} {1:d} (in progress)'.format(season, game))
 
 
 if __name__ == '__main__':

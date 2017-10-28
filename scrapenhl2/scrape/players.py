@@ -338,6 +338,49 @@ def get_player_info_from_url(playerid):
     return info
 
 
+def generate_player_ids_file():
+    """
+    Creates a dataframe with these columns:
+
+    - ID: int, player ID
+    - Name: str, player name
+    - DOB: str, date of birth
+    - Hand: char, R or L
+    - Pos: char, one of C/R/L/D/G
+
+    It will be populated with Alex Ovechkin to start.
+    :return: nothing
+    """
+    df = pd.DataFrame({'ID': [8471214],
+                       'Name': ['Alex Ovechkin'],
+                       'DOB': ['1985-09-17'],
+                       'Hand': ['R'],
+                       'Pos': ['L'],
+                       'Height': ["6'3\""],
+                       'Weight': [235],
+                       'Nationality': ['RUS']})
+    write_player_ids_file(df)
+    player_setup()
+
+
+def generate_player_log_file():
+    """
+    Run this when no player log file exists already. This is for getting the datatypes right. Adds Alex Ovechkin
+    in Game 1 vs Pittsburgh in 2016-2017.
+    :return: nothing
+    """
+    df = pd.DataFrame({'ID': [8471214],  # Player ID (Ovi)
+                       'Team': [15],  # Team (WSH)
+                       'Status': ['P'],  # P for played, S for scratch.  # TODO can I do healthy vs injured?
+                       'Season': [2016],  # Season (2016-17)
+                       'Game': [30221]})  # Game (G1 vs PIT)
+    if os.path.exists(get_player_log_filename()):
+        pass  # ed.print_and_log('Warning: overwriting existing player log with default, one-line df!', 'warn')
+    write_player_log_file(df)
+
+
+
+
 _PLAYERS = None
 _PLAYER_LOG = None
 player_setup()

@@ -268,3 +268,18 @@ def flip_first_last(name):
     # What about case of , Jr or , IV? Ignore for now
     newname = ' '.join([x.strip() for x in name.split(',')[::-1]])
     return newname.title()
+
+
+def period_contribution(x):
+    """
+    Turns period--1, 2, 3, OT, etc--into # of seconds elapsed in game until start.
+    :param x: str or int
+        1, 2, 3, etc
+    :return: int
+        Number of seconds elapsed until start of specified period
+    """
+    try:
+        x = int(x)
+        return 1200 * (x - 1)
+    except ValueError:
+        return 3600 if x == 'OT' else 3900  # OT or SO

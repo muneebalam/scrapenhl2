@@ -88,3 +88,122 @@ def get_team_toi_filename(season, team):
     """
     return os.path.join(organization.get_season_team_toi_folder(season),
                         "{0:s}.feather".format(team_info.team_as_str(team, abbreviation=True)))
+
+
+def update_team_logs(season, force_overwrite=False):
+    """
+    This method looks at the schedule for the given season and writes pbp for scraped games to file.
+    It also adds the strength at each pbp event to the log.
+    :param season: int, the season
+    :param force_overwrite: bool, whether to generate from scratch
+    :return:
+    """
+
+    # For each team
+
+
+    new_games_to_do = get_files.get_season_schedule(season).query('Status == "Final"')
+    new_games_to_do = new_games_to_do[(new_games_to_do.Game >= 20001) & (new_games_to_do.Game <= 30417)]
+    allteams = sorted(list(new_games_to_do.Home.append(new_games_to_do.Road).unique()))
+
+    for teami, team in enumerate(allteams):
+        spinner.start(text='Updating team log for {0:d} {1:s}\n'.format(season, ss.team_as_str(team)))
+
+        # Compare existing log to schedule to find missing games
+        newgames = new_games_to_do[(new_games_to_do.Home == team) | (new_games_to_do.Road == team)]
+        if force_overwrite:
+            pbpdf = None
+            toidf = None
+        else:
+            # Read currently existing ones for each team and anti join to schedule to find missing games
+            try:
+                pbpdf = ss.get_team_pbp(season, team)
+                newgames = newgames.merge(pbpdf[['Game']].drop_duplicates(), how='outer', on='Game', indicator=True)
+                newgames = newgames[newgames._merge == "left_only"].drop('_merge', axis=1)
+            except FileNotFoundError:
+                pbpdf = None
+            except pyarrow.lib.ArrowIOError:  # pyarrow (feather) FileNotFoundError equivalent
+                pbpdf = None
+
+            try:
+                toidf = ss.get_team_toi(season, team)
+            except FileNotFoundError:
+                toidf = None
+            except pyarrow.lib.ArrowIOError:  # pyarrow (feather) FileNotFoundError equivalent
+                toidf = None
+
+        for i, gamerow in newgames.iterrows():
+            game = gamerow[1]
+            home = gamerow[2]
+            road = gamerow[4]
+
+            # load parsed pbp and toi
+            try:
+                gamepbp = get_parsed_pbp(season, game)
+                gametoi = get_parsed_toi(season, game)
+                # TODO 2016 20779 why does pbp have 0 rows?
+                # Also check for other errors in parsing etc
+
+                if len(gamepbp) > 0 and len(gametoi) > 0:
+                    # Rename score and strength columns from home/road to team/opp
+                    if team == home:
+                        gametoi = gametoi.assign(TeamStrength=gametoi.HomeStrength, OppStrength=gametoi.RoadStrength) \
+                            .drop({'HomeStrength', 'RoadStrength'}, axis=1)
+                        gamepbp = gamepbp.assign(TeamScore=gamepbp.HomeScore, OppScore=gamepbp.RoadScore) \
+                            .drop({'HomeScore', 'RoadScore'}, axis=1)
+                    else:
+                        gametoi = gametoi.assign(TeamStrength=gametoi.RoadStrength, OppStrength=gametoi.HomeStrength) \
+                            .drop({'HomeStrength', 'RoadStrength'}, axis=1)
+                        gamepbp = gamepbp.assign(TeamScore=gamepbp.RoadScore, OppScore=gamepbp.HomeScore) \
+                            .drop({'HomeScore', 'RoadScore'}, axis=1)
+
+                    # add scores to toi and strengths to pbp
+                    gamepbp = gamepbp.merge(gametoi[['Time', 'TeamStrength', 'OppStrength']], how='left', on='Time')
+                    gametoi = gametoi.merge(gamepbp[['Time', 'TeamScore', 'OppScore']], how='left', on='Time')
+                    gametoi.loc[:, 'TeamScore'] = gametoi.TeamScore.fillna(method='ffill')
+                    gametoi.loc[:, 'OppScore'] = gametoi.OppScore.fillna(method='ffill')
+
+                    # Switch TOI column labeling from H1/R1 to Team1/Opp1 as appropriate
+                    cols_to_change = list(gametoi.columns)
+                    cols_to_change = [x for x in cols_to_change if len(x) == 2]  # e.g. H1
+                    if team == home:
+                        swapping_dict = {'H': 'Team', 'R': 'Opp'}
+                        colchanges = {c: swapping_dict[c[0]] + c[1] for c in cols_to_change}
+                    else:
+                        swapping_dict = {'H': 'Opp', 'R': 'Team'}
+                        colchanges = {c: swapping_dict[c[0]] + c[1] for c in cols_to_change}
+                    gametoi = gametoi.rename(columns=colchanges)
+
+                    # finally, add game, home, and road to both dfs
+                    gamepbp.loc[:, 'Game'] = game
+                    gamepbp.loc[:, 'Home'] = home
+                    gamepbp.loc[:, 'Road'] = road
+                    gametoi.loc[:, 'Game'] = game
+                    gametoi.loc[:, 'Home'] = home
+                    gametoi.loc[:, 'Road'] = road
+
+                    # concat toi and pbp
+                    if pbpdf is None:
+                        pbpdf = gamepbp
+                    else:
+                        pbpdf = pd.concat([pbpdf, gamepbp])
+                    if toidf is None:
+                        toidf = gametoi
+                    else:
+                        toidf = pd.concat([toidf, gametoi])
+
+            except FileNotFoundError:
+                pass
+
+        # write to file
+        if pbpdf is not None:
+            pbpdf.loc[:, 'FocusTeam'] = team
+        if toidf is not None:
+            toidf.loc[:, 'FocusTeam'] = team
+
+        ss.write_team_pbp(pbpdf, season, team)
+        ss.write_team_toi(toidf, season, team)
+        # ed.print_and_log('Done with team logs for {0:d} {1:s} ({2:d}/{3:d})'.format(
+        #    season, ss.team_as_str(team), teami + 1, len(allteams)), print_and_log=False)
+        spinner.stop()
+        # ed.print_and_log('Updated team logs for {0:d}'.format(season))

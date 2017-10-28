@@ -46,18 +46,3 @@ def get_player_5v5_log_filename(season):
     """
     return os.path.join(organization.get_other_data_folder(), '{0:d}_player_5v5_log.feather'.format(season))
 
-
-def delete_game_html(season, game):
-    """
-    Deletes html files. HTML files are used for live game charts, but deleted in favor of JSONs when games go final.
-    :param season: int, the season
-    :param game: int, the game
-    :return: nothing
-    """
-
-    for fun in (get_game_pbplog_filename,
-                get_home_shiftlog_filename,
-                get_road_shiftlog_filename):
-        filename = fun(season, game)
-        if os.path.exists(filename):
-            os.remove(filename)

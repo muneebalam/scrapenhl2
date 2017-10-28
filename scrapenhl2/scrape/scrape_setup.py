@@ -9,8 +9,6 @@ import os
 import os.path
 import os.path
 
-import pandas as pd
-
 
 def _create_folders_and_files():
     """
@@ -27,17 +25,6 @@ def _create_folders_and_files():
     Also creates team IDs file and season schedule files if they don't exist already.
     :return: nothing
     """
-    # ------- Raw -------
-    for season in range(2005, get_files.get_current_season() + 1):
-        get_filenames.check_create_folder(get_filenames.get_season_raw_pbp_folder(season))
-    for season in range(2005, get_files.get_current_season() + 1):
-        get_filenames.check_create_folder(get_filenames.get_season_raw_toi_folder(season))
-
-    # ------- Parsed -------
-    for season in range(2005, get_files.get_current_season() + 1):
-        get_filenames.check_create_folder(get_filenames.get_season_parsed_pbp_folder(season))
-    for season in range(2005, get_files.get_current_season() + 1):
-        get_filenames.check_create_folder(get_filenames.get_season_parsed_toi_folder(season))
 
     # ------- Team logs -------
     for season in range(2005, get_files.get_current_season() + 1):
@@ -46,7 +33,7 @@ def _create_folders_and_files():
         get_filenames.check_create_folder(get_filenames.get_season_team_toi_folder(season))
 
     # ------- Other stuff -------
-    get_filenames.check_create_folder(get_filenames.get_other_data_folder())
+
 
     if not os.path.exists(get_filenames.get_team_info_filename()):
         generate_team_ids_file()  # team IDs file
@@ -64,46 +51,6 @@ def _create_folders_and_files():
 
     if not os.path.exists(get_filenames.get_player_log_filename()):
         generate_player_log_file()
-
-
-def generate_player_ids_file():
-    """
-    Creates a dataframe with these columns:
-
-    - ID: int, player ID
-    - Name: str, player name
-    - DOB: str, date of birth
-    - Hand: char, R or L
-    - Pos: char, one of C/R/L/D/G
-
-    It will be populated with Alex Ovechkin to start.
-    :return: nothing
-    """
-    df = pd.DataFrame({'ID': [8471214],
-                       'Name': ['Alex Ovechkin'],
-                       'DOB': ['1985-09-17'],
-                       'Hand': ['R'],
-                       'Pos': ['L'],
-                       'Height': ["6'3\""],
-                       'Weight': [235],
-                       'Nationality': ['RUS']})
-    write_player_ids_file(df)
-
-
-def generate_player_log_file():
-    """
-    Run this when no player log file exists already. This is for getting the datatypes right. Adds Alex Ovechkin
-    in Game 1 vs Pittsburgh in 2016-2017.
-    :return: nothing
-    """
-    df = pd.DataFrame({'ID': [8471214],  # Player ID (Ovi)
-                       'Team': [15],  # Team (WSH)
-                       'Status': ['P'],  # P for played, S for scratch.  # TODO can I do healthy vs injured?
-                       'Season': [2016],  # Season (2016-17)
-                       'Game': [30221]})  # Game (G1 vs PIT)
-    if os.path.exists(get_filenames.get_player_log_filename()):
-        pass  # ed.print_and_log('Warning: overwriting existing player log with default, one-line df!', 'warn')
-    get_files.write_player_log_file(df)
 
 
 

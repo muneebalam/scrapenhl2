@@ -2,10 +2,14 @@
 This module contains methods for scraping pbp.
 """
 
+import json
 import os.path
 import urllib.request
 import zlib
 from time import sleep
+
+import scrapenhl2.scrape.organization as organization
+import scrapenhl2.scrape.schedules as schedules
 
 
 def scrape_game_pbp_from_html(season, game, force_overwrite=True):
@@ -84,7 +88,7 @@ def save_raw_pbp(page, season, game):
     :return: nothing
     """
     page2 = zlib.compress(page, level=9)
-    filename = ss.get_game_raw_pbp_filename(season, game)
+    filename = get_game_raw_pbp_filename(season, game)
     w = open(filename, 'wb')
     w.write(page2)
     w.close()
@@ -97,7 +101,7 @@ def get_raw_pbp(season, game):
     :param game: int, the game
     :return: json, the json pbp
     """
-    with open(ss.get_game_raw_pbp_filename(season, game), 'rb') as reader:
+    with open(get_game_raw_pbp_filename(season, game), 'rb') as reader:
         page = reader.read()
     return json.loads(str(zlib.decompress(page).decode('latin-1')))
 
@@ -171,3 +175,15 @@ def get_game_pbplog_filename(season, game):
     :return: /scrape/data/raw/pbp/[season]/[game].html
     """
     return os.path.join(organization.get_season_raw_pbp_folder(season), str(game) + '.html')
+
+
+def scrape_pbp_setup():
+    """
+    Creates raw pbp folders if need be
+    :return:
+    """
+    for season in range(2005, schedules.get_current_season() + 1):
+        organization.check_create_folder(organization.get_season_raw_pbp_folder(season))
+
+
+scrape_pbp_setup()

@@ -109,3 +109,13 @@ def get_season_team_toi_folder(season):
     """
     return os.path.join(get_team_data_folder(), 'toi', str(season))
 
+
+def organization_setup():
+    """
+    Creates other folder if need be
+    :return: nothing
+    """
+    check_create_folder(get_other_data_folder())
+
+
+organization_setup()
