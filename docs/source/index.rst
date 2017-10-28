@@ -12,11 +12,11 @@ Table of Contents
 .. toctree::
 :maxdepth: 1
 
-       Home <index>
-       Scraping <scrape>
-       Manipulating <manipulate>
-       Plotting <plot>
-       Support <support>
+        Home <index>
+        Scraping <scrape>
+        Manipulating <manipulate>
+        Plotting <plot>
+        Support <support>
 
 .. include:: ../../README.rst
     :start-after: inclusion-marker-for-sphinx
