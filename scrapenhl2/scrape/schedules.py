@@ -3,6 +3,7 @@ This module contains methods related to season schedules.
 """
 
 import datetime
+import functools
 import os.path
 
 import feather
@@ -177,6 +178,18 @@ def get_game_result(season, game):
     :return: int, the score
     """
     return get_game_data_from_schedule(season, game)['Result']
+
+
+def get_season_schedule_url(season):
+    """
+    Gets the url for a page containing all of this season's games (Sep 1 to Jun 26) from NHL API.
+    :param season: int
+        the season
+    :return: str
+        https://statsapi.web.nhl.com/api/v1/schedule?startDate=[season]-09-01&endDate=[season+1]-06-25
+    """
+    return 'https://statsapi.web.nhl.com/api/v1/schedule?startDate=' \
+           '{0:d}-09-01&endDate={1:d}-06-25'.format(season, season + 1)
 
 
 def schedule_setup():
