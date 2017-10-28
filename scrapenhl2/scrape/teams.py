@@ -6,8 +6,12 @@ import os.path
 
 import feather
 import pandas as pd
+import pyarrow
 
 import scrapenhl2.scrape.organization as organization
+import scrapenhl2.scrape.parse_pbp as parse_pbp
+import scrapenhl2.scrape.parse_toi as parse_toi
+import scrapenhl2.scrape.schedules as schedules
 import scrapenhl2.scrape.team_info as team_info
 
 
@@ -101,13 +105,12 @@ def update_team_logs(season, force_overwrite=False):
 
     # For each team
 
-
-    new_games_to_do = get_files.get_season_schedule(season).query('Status == "Final"')
+    new_games_to_do = schedules.get_season_schedule(season).query('Status == "Final"')
     new_games_to_do = new_games_to_do[(new_games_to_do.Game >= 20001) & (new_games_to_do.Game <= 30417)]
     allteams = sorted(list(new_games_to_do.Home.append(new_games_to_do.Road).unique()))
 
     for teami, team in enumerate(allteams):
-        spinner.start(text='Updating team log for {0:d} {1:s}\n'.format(season, ss.team_as_str(team)))
+        print('Updating team log for {0:d} {1:s}'.format(season, team_info.team_as_str(team)))
 
         # Compare existing log to schedule to find missing games
         newgames = new_games_to_do[(new_games_to_do.Home == team) | (new_games_to_do.Road == team)]
@@ -117,7 +120,7 @@ def update_team_logs(season, force_overwrite=False):
         else:
             # Read currently existing ones for each team and anti join to schedule to find missing games
             try:
-                pbpdf = ss.get_team_pbp(season, team)
+                pbpdf = get_team_pbp(season, team)
                 newgames = newgames.merge(pbpdf[['Game']].drop_duplicates(), how='outer', on='Game', indicator=True)
                 newgames = newgames[newgames._merge == "left_only"].drop('_merge', axis=1)
             except FileNotFoundError:
@@ -126,7 +129,7 @@ def update_team_logs(season, force_overwrite=False):
                 pbpdf = None
 
             try:
-                toidf = ss.get_team_toi(season, team)
+                toidf = get_team_toi(season, team)
             except FileNotFoundError:
                 toidf = None
             except pyarrow.lib.ArrowIOError:  # pyarrow (feather) FileNotFoundError equivalent
@@ -139,8 +142,8 @@ def update_team_logs(season, force_overwrite=False):
 
             # load parsed pbp and toi
             try:
-                gamepbp = get_parsed_pbp(season, game)
-                gametoi = get_parsed_toi(season, game)
+                gamepbp = parse_pbp.get_parsed_pbp(season, game)
+                gametoi = parse_toi.get_parsed_toi(season, game)
                 # TODO 2016 20779 why does pbp have 0 rows?
                 # Also check for other errors in parsing etc
 
@@ -201,9 +204,21 @@ def update_team_logs(season, force_overwrite=False):
         if toidf is not None:
             toidf.loc[:, 'FocusTeam'] = team
 
-        ss.write_team_pbp(pbpdf, season, team)
-        ss.write_team_toi(toidf, season, team)
-        # ed.print_and_log('Done with team logs for {0:d} {1:s} ({2:d}/{3:d})'.format(
-        #    season, ss.team_as_str(team), teami + 1, len(allteams)), print_and_log=False)
-        spinner.stop()
-        # ed.print_and_log('Updated team logs for {0:d}'.format(season))
+        write_team_pbp(pbpdf, season, team)
+        write_team_toi(toidf, season, team)
+        print('Done with team logs for {0:d} {1:s} ({2:d}/{3:d})'.format(
+            season, team_info.team_as_str(team), teami + 1, len(allteams)))
+
+
+def team_setup():
+    """
+    Creates team log-related folders.
+    :return: nothing
+    """
+    for season in range(2005, schedules.get_current_season() + 1):
+        organization.check_create_folder(organization.get_season_team_pbp_folder(season))
+    for season in range(2005, schedules.get_current_season() + 1):
+        organization.check_create_folder(organization.get_season_team_toi_folder(season))
+
+
+team_setup()

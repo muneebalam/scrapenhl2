@@ -252,6 +252,8 @@ def team_setup():
     :return: nothing
     """
     global _TEAMS, _TEAM_COLORS
+    if not os.path.exists(get_team_info_filename()):
+        generate_team_ids_file()  # team IDs file
     _TEAMS = _get_team_info_file()
     _TEAM_COLORS = _get_team_colordict()
 
