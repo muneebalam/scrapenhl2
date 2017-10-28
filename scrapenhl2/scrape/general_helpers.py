@@ -219,3 +219,52 @@ def fuzzy_match_player(name_provided, names, minimum_similarity=50):
     else:
         # print(df.iloc[0])
         return df.Name.iloc[0]
+
+
+def intervals(lst, interval_pct=10):
+    """
+    A method that divides list into intervals and returns tuples indicating each interval mark.
+    Useful for giving updates when cycling through games.
+    :param lst: lst to divide
+    :param interval_pct: int, pct for each interval to represent. e.g. 10 means it will mark every 10%.
+    :return: a list of tuples of (index, value)
+    """
+
+    lst = sorted(lst)
+    intervals = []
+    i = 0
+    while True:
+        frac = interval_pct / 100 * i
+        index = round(len(lst) * frac)
+        if index >= len(lst):
+            break
+        val = lst[index]
+        intervals.append((index, val))
+        i += 1
+    return intervals
+
+
+def remove_leading_number(string):
+    """
+    Will convert 8 Alex Ovechkin to Alex Ovechkin, or Alex Ovechkin to Alex Ovechkin
+    :param string: a string
+    :return: string without leading numbers
+    """
+    newstring = string
+    while newstring[0] in {'1', '2', '3', '4', '5', '6', '7', '8', '9', '0'}:
+        newstring = newstring[1:]
+    return newstring.strip()
+
+
+def flip_first_last(name):
+    """
+    Changes Ovechkin, Alex to Alex Ovechkin. Also changes to title case.
+    :param name: str
+    :return: str, flipped if applicable
+    """
+    if ',' not in name:
+        return name
+
+    # What about case of , Jr or , IV? Ignore for now
+    newname = ' '.join([x.strip() for x in name.split(',')[::-1]])
+    return newname.title()

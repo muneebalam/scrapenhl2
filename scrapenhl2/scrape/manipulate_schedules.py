@@ -210,3 +210,64 @@ def update_schedule_with_toi_scrape(season, game):
         df.loc[df.Game.isin(game), "TOIStatus"] = "Scraped"
     schedules.write_season_schedule(df, season, True)
     return schedules.get_season_schedule(season)
+
+
+def update_schedule_with_result_using_pbp(pbp, season, game):
+    """
+    Uses the PbP to update results for this game.
+    :param pbp: json, the pbp for this game
+    :param season: int, the season
+    :param game: int, the game
+    :return: nothing
+    """
+
+    gameinfo = ss.get_game_data_from_schedule(season, game)
+    result = None  # In case they have the same score. Like 2006 10009 has incomplete data, shows 0-0
+
+    # If game is not final yet, don't do anything
+    if gameinfo['Status'] != 'Final':
+        return False
+
+    # If one team one by at least two, we know it was a regulation win
+    if gameinfo['HomeScore'] >= gameinfo['RoadScore'] + 2:
+        result = 'W'
+    elif gameinfo['RoadScore'] >= gameinfo['HomeScore'] + 2:
+        result = 'L'
+    else:
+        # Check for the final period
+        finalplayperiod = ss.try_to_access_dict(pbp, 'liveData', 'linescore', 'currentPeriodOrdinal')
+
+        # Identify SO vs OT vs regulation
+        if finalplayperiod is None:
+            pass
+        elif finalplayperiod == 'SO':
+            if gameinfo['HomeScore'] > gameinfo['RoadScore']:
+                result = 'SOW'
+            elif gameinfo['RoadScore'] > gameinfo['HomeScore']:
+                result = 'SOL'
+        elif finalplayperiod[-2:] == 'OT':
+            if gameinfo['HomeScore'] > gameinfo['RoadScore']:
+                result = 'OTW'
+            elif gameinfo['RoadScore'] > gameinfo['HomeScore']:
+                result = 'OTL'
+        else:
+            if gameinfo['HomeScore'] > gameinfo['RoadScore']:
+                result = 'W'
+            elif gameinfo['RoadScore'] > gameinfo['HomeScore']:
+                result = 'L'
+
+    ss.update_schedule_with_result(season, game, result)
+
+
+def update_schedule_with_coaches(pbp, season, game):
+    """
+    Uses the PbP to update coach info for this game.
+    :param pbp: json, the pbp for this game
+    :param season: int, the season
+    :param game: int, the game
+    :return: nothing
+    """
+
+    homecoach = ss.try_to_access_dict(pbp, 'liveData', 'boxscore', 'teams', 'home', 'coaches', 0, 'person', 'fullName')
+    roadcoach = ss.try_to_access_dict(pbp, 'liveData', 'boxscore', 'teams', 'away', 'coaches', 0, 'person', 'fullName')
+    ss.update_schedule_with_coaches(season, game, homecoach, roadcoach)

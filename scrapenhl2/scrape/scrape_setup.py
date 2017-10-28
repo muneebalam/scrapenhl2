@@ -8,8 +8,6 @@ It also creates a team ID mapping and schedule files from 2005 through the curre
 import os
 import os.path
 import os.path
-import urllib.error
-import urllib.request
 
 import pandas as pd
 
@@ -68,29 +66,6 @@ def _create_folders_and_files():
         generate_player_log_file()
 
 
-
-
-
-
-# @ed.once_per_second
-def get_game_from_url(season, game):
-    """
-    Gets the page containing information for specified game from NHL API.
-    :param season: int, the season
-    :param game: int, the game
-    :return: str, the page at the url
-    """
-    url = get_urls.get_game_url(season, game)
-    with urllib.request.urlopen(url) as reader:
-        page = reader.read()
-    return page
-
-
-
-
-
-
-
 def generate_player_ids_file():
     """
     Creates a dataframe with these columns:
@@ -135,38 +110,3 @@ def generate_player_log_file():
 
 
 
-
-
-def delete_game_html(season, game):
-    """
-    Deletes html files. HTML files are used for live game charts, but deleted in favor of JSONs when games go final.
-    :param season: int, the season
-    :param game: int, the game
-    :return: nothing
-    """
-
-    for fun in (get_filenames.get_game_pbplog_filename,
-                get_filenames.get_home_shiftlog_filename,
-                get_filenames.get_road_shiftlog_filename):
-        filename = fun(season, game)
-        if os.path.exists(filename):
-            os.remove(filename)
-
-
-
-
-
-def setup():
-    """
-    Loads current season, base directory, etc. Always run this method first!
-    :return: nothing
-    """
-    get_files.setup()
-    global _EVENT_DICT, _TEAM_COLORS
-
-
-    _create_folders_and_files()
-    _EVENT_DICT = _get_event_dictionary()
-
-
-setup()
