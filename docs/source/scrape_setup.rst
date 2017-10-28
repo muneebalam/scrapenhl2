@@ -1,7 +1,0 @@
-scrape\_setup module
-====================
-
-.. automodule:: scrape_setup
-:members:
-        :undoc-members:
-        :show-inheritance:

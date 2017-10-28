@@ -6,60 +6,251 @@
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
 
-    <title>Welcome to scrapenhl2’s documentation! &#8212; scrapenhl2 0.0.11 documentation</title>
+    <title>Welcome to scrapenhl2’s documentation! &#8212; scrapenhl2 0.4.0 documentation</title>
 
-    <link rel="stylesheet" href="_static/alabaster.css" type="text/css"/>
+    <link rel="stylesheet" href="_static/nature.css" type="text/css"/>
     <link rel="stylesheet" href="_static/pygments.css" type="text/css"/>
 
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    './',
-        VERSION:     '0.0.11',
+        VERSION:     '0.4.0',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true,
         SOURCELINK_SUFFIX: '.txt'
       };
-
     </script>
     <script type="text/javascript" src="_static/jquery.js"></script>
     <script type="text/javascript" src="_static/underscore.js"></script>
     <script type="text/javascript" src="_static/doctools.js"></script>
     <link rel="index" title="Index" href="genindex.html"/>
     <link rel="search" title="Search" href="search.html"/>
-
-    <link rel="stylesheet" href="_static/custom.css" type="text/css"/>
-
-
-    <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9"/>
-
 </head>
 <body role="document">
-
+<div class="related" role="navigation" aria-label="related navigation">
+    <h3>Navigation</h3>
+    <ul>
+        <li class="right" style="margin-right: 10px">
+            <a href="genindex.html" title="General Index"
+               accesskey="I">index</a></li>
+        <li class="right">
+            <a href="py-modindex.html" title="Python Module Index"
+            >modules</a> |
+        </li>
+        <li class="nav-item nav-item-0"><a href="#">scrapenhl2 0.4.0 documentation</a> &#187;</li>
+    </ul>
+</div>
 
 <div class="document">
     <div class="documentwrapper">
         <div class="bodywrapper">
             <div class="body" role="main">
 
+                <p>sphinx-quickstart on Sun Oct 1 17:47:07 2017.
+                    You can adapt this file completely to your liking, but it should at least
+                    contain the root <cite>toctree</cite> directive.</p>
                 <div class="section" id="welcome-to-scrapenhl2-s-documentation">
                     <h1>Welcome to scrapenhl2&#8217;s documentation!<a class="headerlink"
                                                                        href="#welcome-to-scrapenhl2-s-documentation"
                                                                        title="Permalink to this headline">¶</a></h1>
-                    <div class="toctree-wrapper compound">
+                    <p>scrapenhl2 is a python package for scraping and manipulating NHL data pulled from the NHL
+                        website.</p>
+                    <div class="section" id="installation">
+                        <h2>Installation<a class="headerlink" href="#installation"
+                                           title="Permalink to this headline">¶</a></h2>
+                        <p>You need python3 and the python scientific stack (e.g. numpy, matplotlib, pandas, etc).
+                            Easiest way is to simply use <a class="reference external"
+                                                            href="https://conda.io/docs/user-guide/install/index.html">Anaconda</a>.
+                            To be safe, make sure you have python 3.5+, matplotlib 2.0+, and pandas 0.20+.</p>
+                        <p>Next, if you are on Windows, you need to get python-Levenshtein.
+                            <a class="reference external"
+                               href="http://www.lfd.uci.edu/~gohlke/pythonlibs/#python-levenshtein">You can find it
+                                here</a>. Download the appropriate .whl
+                            file&#8211;connect your version of python with the &#8220;cp&#8221; you see and use the one
+                            with &#8220;amd64&#8221; if you have an AMD
+                            64-bit processor&#8211;and navigate to your downloads folder in command line. For example:
+                        </p>
+                        <div class="highlight-default">
+                            <div class="highlight"><pre><span></span><span class="n">cd</span>
+<span class="n">cd</span> <span class="n">muneebalam</span>
+<span class="n">cd</span> <span class="n">Downloads</span>
+</pre>
+                            </div>
+                        </div>
+                        <p>Next, install the whl file using pip:</p>
+                        <div class="highlight-default">
+                            <div class="highlight"><pre><span></span><span class="n">pip</span> <span
+                                    class="n">install</span> <span class="p">[</span><span class="n">insert</span> <span
+                                    class="n">filename</span> <span class="n">here</span><span class="p">]</span><span
+                                    class="o">.</span><span class="n">whl</span>
+</pre>
+                            </div>
+                        </div>
+                        <p>Now, all users can open up terminal or command line and enter:</p>
+                        <div class="highlight-default">
+                            <div class="highlight"><pre><span></span><span class="n">pip</span> <span
+                                    class="n">install</span> <span class="n">scrapenhl2</span>
+</pre>
+                            </div>
+                        </div>
+                        <p>(If you have multiple versions of python installed, you may need to alter that command
+                            slightly.)</p>
+                        <p>For now, installation should be pretty quick, but in the future it may take awhile
+                            (depending on how many past years&#8217; files I make part of the package).</p>
+                        <p>As far as coding environments go, I recommend jupyter notebook or
+                            <a class="reference external"
+                               href="https://www.jetbrains.com/pycharm/download/#section=mac">Pycharm Community</a>.
+                            Some folks also like the PyDev plugin in Eclipse. The latter two are full-scale
+                            applications, while the former
+                            launches in your browser. Open up terminal or command line and run:</p>
+                        <div class="highlight-default">
+                            <div class="highlight"><pre><span></span><span class="n">jupyter</span> <span class="n">notebook</span>
+</pre>
+                            </div>
+                        </div>
+                        <p>Then navigate to your coding folder, start a new Python file, and you&#8217;re good to
+                            go.</p>
                     </div>
-                </div>
-                <div class="section" id="indices-and-tables">
-                    <h1>Indices and tables<a class="headerlink" href="#indices-and-tables"
-                                             title="Permalink to this headline">¶</a></h1>
-                    <ul class="simple">
-                        <li><a class="reference internal" href="genindex.html"><span
-                                class="std std-ref">Index</span></a></li>
-                        <li><a class="reference internal" href="py-modindex.html"><span
-                                class="std std-ref">Module Index</span></a></li>
-                        <li><a class="reference internal" href="search.html"><span
-                                class="std std-ref">Search Page</span></a></li>
-                    </ul>
+                    <div class="section" id="use">
+                        <h2>Use<a class="headerlink" href="#use" title="Permalink to this headline">¶</a></h2>
+                        <p><em>Note that because this is in pre-alpha/alpha, syntax and use may be buggy and subject to
+                            change.</em></p>
+                        <p>On startup, when you have an internet connection and some games have gone final since you
+                            last used the package,
+                            open up your python environment and update:</p>
+                        <div class="highlight-default">
+                            <div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">scrapenhl2</span> <span
+                                    class="k">import</span> <span class="o">*</span>
+<span class="n">autoupdate</span><span class="p">()</span>
+</pre>
+                            </div>
+                        </div>
+                        <p>Autoupdate should update you regularly on its progress; be patient.</p>
+                        <p>To get a game H2H, use:</p>
+                        <div class="highlight-default">
+                            <div class="highlight"><pre><span></span><span class="n">season</span> <span
+                                    class="o">=</span> <span class="mi">2016</span>
+<span class="n">game</span> <span class="o">=</span> <span class="mi">30136</span>
+<span class="n">game_h2h</span><span class="p">(</span><span class="n">season</span><span class="p">,</span> <span
+                                        class="n">game</span><span class="p">)</span>
+</pre>
+                            </div>
+                        </div>
+                        <img alt="_images/WSH-TOR_G6.png" src="_images/WSH-TOR_G6.png"/>
+                        <p>To get a game timeline, use:</p>
+                        <div class="highlight-default">
+                            <div class="highlight"><pre><span></span><span class="n">game_h2h</span><span
+                                    class="p">(</span><span class="n">season</span><span class="p">,</span> <span
+                                    class="n">game</span><span class="p">)</span>
+</pre>
+                            </div>
+                        </div>
+                        <img alt="_images/WSH-TOR_G6_timeline.png" src="_images/WSH-TOR_G6_timeline.png"/>
+                        <p>To get a player rolling CF% graph, use:</p>
+                        <div class="highlight-default">
+                            <div class="highlight"><pre><span></span><span class="n">player</span> <span
+                                    class="o">=</span> <span class="s1">&#39;Ovechkin&#39;</span>
+<span class="n">rolling_games</span> <span class="o">=</span> <span class="mi">25</span>
+<span class="n">start_year</span> <span class="o">=</span> <span class="mi">2015</span>
+<span class="n">end_year</span> <span class="o">=</span> <span class="mi">2017</span>
+<span class="n">rolling_player_cf</span><span class="p">(</span><span class="n">player</span><span
+                                        class="p">,</span> <span class="n">rolling_games</span><span class="p">,</span> <span
+                                        class="n">start_year</span><span class="p">,</span> <span
+                                        class="n">end_year</span><span class="p">)</span>
+</pre>
+                            </div>
+                        </div>
+                        <img alt="_images/Ovechkin_rolling_cf.png" src="_images/Ovechkin_rolling_cf.png"/>
+                        <p>There is also a very bare-bones app that appears in your browser. To launch the app to help
+                            you navigate use:</p>
+                        <div class="highlight-default">
+                            <div class="highlight"><pre><span></span><span class="n">run_app</span><span
+                                    class="p">()</span>
+</pre>
+                            </div>
+                        </div>
+                        <p>But this package is targeted for script use, so I recommend familiarizing yourself with
+                            python.
+                            (This is not intended to be a replacement for a site like Corsica.)</p>
+                        <p>When the docs are up, you should look through them. Also always feel free to contact me with
+                            questions or suggestions.</p>
+                    </div>
+                    <div class="section" id="contact">
+                        <h2>Contact<a class="headerlink" href="#contact" title="Permalink to this headline">¶</a></h2>
+                        <p><a class="reference external" href="http://www.twitter.com/muneebalamcu">Twitter</a>.</p>
+                    </div>
+                    <div class="section" id="collaboration">
+                        <h2>Collaboration<a class="headerlink" href="#collaboration" title="Permalink to this headline">¶</a>
+                        </h2>
+                        <p>I&#8217;m happy to partner with you in development efforts&#8211;just shoot me a message.
+                            Please also let me know if you&#8217;d like to alpha- or beta-test my code.</p>
+                    </div>
+                    <div class="section" id="donations">
+                        <h2>Donations<a class="headerlink" href="#donations" title="Permalink to this headline">¶</a>
+                        </h2>
+                        <p>If you would like to support my work, please donate money to a charity of your choice. Many
+                            large charities do
+                            great work all around the world (e.g. Médecins Sans Frontières),
+                            but don&#8217;t forget that your support is often more critical for local/small charities.
+                            Also consider that small regular donations are sometimes better than one large donation.</p>
+                        <p>You can vet a charity you&#8217;re targeting using a <a class="reference external"
+                                                                                   href="https://www.charitynavigator.org/">charity
+                            rating website</a>.</p>
+                        <p>If you do make a donation, make me happy <a class="reference external"
+                                                                       href="https://goo.gl/forms/tl1jVm0D7esLLbfm1">and
+                            leave a record here</a>..
+                            (It&#8217;s anonymous.)</p>
+                    </div>
+                    <div class="section" id="change-log">
+                        <h2>Change log<a class="headerlink" href="#change-log" title="Permalink to this headline">¶</a>
+                        </h2>
+                        <p>10/21/17: Added basic front end. Committed early versions of 2017 logs.</p>
+                        <p>10/16/17: Added initial versions of game timelines, player rolling corsi, and game H2H
+                            graphs.</p>
+                        <p>10/10/17: Bug fixes on scraping and team logs. Started methods to aggregate 5v5 game-by-game
+                            data for players.</p>
+                        <p>10/7/17: Committed code to scrape 2010 onward and create team logs; still bugs to fix.</p>
+                        <p>9/24/17: Committed minimal structure.</p>
+                    </div>
+                    <div class="section" id="major-outstanding-to-dos">
+                        <h2>Major outstanding to-dos<a class="headerlink" href="#major-outstanding-to-dos"
+                                                       title="Permalink to this headline">¶</a></h2>
+                        <ul class="simple">
+                            <li>Front end with Flask</li>
+                            <li>Add more graph methods</li>
+                            <li>Add more data search methods</li>
+                            <li>Bring in old play by play and shifts from HTML</li>
+                        </ul>
+                        <div class="toctree-wrapper compound">
+                        </div>
+                        <table class="docutils field-list" frame="void" rules="none">
+                            <col class="field-name"/>
+                            <col class="field-body"/>
+                            <tbody valign="top">
+                            <tr class="field-odd field">
+                                <th class="field-name">maxdepth:</th>
+                                <td class="field-body"><p class="first">2</p>
+                                    <p class="last">scrape
+                                        manipulate
+                                        plot</p>
+                                </td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="section" id="indices-and-tables">
+                        <h2>Indices and tables<a class="headerlink" href="#indices-and-tables"
+                                                 title="Permalink to this headline">¶</a></h2>
+                        <ul class="simple">
+                            <li><a class="reference internal" href="genindex.html"><span
+                                    class="std std-ref">Index</span></a></li>
+                            <li><a class="reference internal" href="py-modindex.html"><span class="std std-ref">Module Index</span></a>
+                            </li>
+                            <li><a class="reference internal" href="search.html"><span
+                                    class="std std-ref">Search Page</span></a></li>
+                        </ul>
+                    </div>
                 </div>
 
 
@@ -70,18 +261,21 @@
         <div class="sphinxsidebarwrapper">
             <h3><a href="#">Table Of Contents</a></h3>
             <ul>
-                <li><a class="reference internal" href="#">Welcome to scrapenhl2&#8217;s documentation!</a></li>
-                <li><a class="reference internal" href="#indices-and-tables">Indices and tables</a></li>
+                <li><a class="reference internal" href="#">Welcome to scrapenhl2&#8217;s documentation!</a>
+                    <ul>
+                        <li><a class="reference internal" href="#installation">Installation</a></li>
+                        <li><a class="reference internal" href="#use">Use</a></li>
+                        <li><a class="reference internal" href="#contact">Contact</a></li>
+                        <li><a class="reference internal" href="#collaboration">Collaboration</a></li>
+                        <li><a class="reference internal" href="#donations">Donations</a></li>
+                        <li><a class="reference internal" href="#change-log">Change log</a></li>
+                        <li><a class="reference internal" href="#major-outstanding-to-dos">Major outstanding to-dos</a>
+                        </li>
+                        <li><a class="reference internal" href="#indices-and-tables">Indices and tables</a></li>
+                    </ul>
+                </li>
             </ul>
-            <div class="relations">
-                <h3>Related Topics</h3>
-                <ul>
-                    <li><a href="#">Documentation overview</a>
-                        <ul>
-                        </ul>
-                    </li>
-                </ul>
-            </div>
+
             <div role="note" aria-label="source link">
                 <h3>This Page</h3>
                 <ul class="this-page-menu">
@@ -103,18 +297,22 @@
     </div>
     <div class="clearer"></div>
 </div>
-<div class="footer">
-    &copy;2017, Muneeb Alam.
-
-    |
-    Powered by <a href="http://sphinx-doc.org/">Sphinx 1.5.6</a>
-    &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
-
-    |
-    <a href="_sources/index.rst.txt"
-       rel="nofollow">Page source</a>
+<div class="related" role="navigation" aria-label="related navigation">
+    <h3>Navigation</h3>
+    <ul>
+        <li class="right" style="margin-right: 10px">
+            <a href="genindex.html" title="General Index"
+            >index</a></li>
+        <li class="right">
+            <a href="py-modindex.html" title="Python Module Index"
+            >modules</a> |
+        </li>
+        <li class="nav-item nav-item-0"><a href="#">scrapenhl2 0.4.0 documentation</a> &#187;</li>
+    </ul>
 </div>
-
-
+<div class="footer" role="contentinfo">
+    &#169; Copyright 2017, Muneeb Alam.
+    Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.6.
+</div>
 </body>
 </html>

@@ -13,12 +13,8 @@ Welcome to scrapenhl2's documentation!
 :maxdepth: 2
 
        scrape
-       scrape_setup
-       scrape_game
        manipulate
        plot
-       visualize_game
-       visualize_player
 
 Indices and tables
 ------------------
