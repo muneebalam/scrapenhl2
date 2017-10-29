@@ -19,13 +19,13 @@
 #
 import sys
 
-sys.path.insert(0, '/Users/muneebalam/PycharmProjects/scrapenhl2/')
-sys.path.insert(0, '/Users/muneebalam/PycharmProjects/scrapenhl2/docs/')
-sys.path.insert(0, '/Users/muneebalam/PycharmProjects/scrapenhl2/docs/source/')
-sys.path.insert(0, '/Users/muneebalam/PycharmProjects/scrapenhl2/scrapenhl2/')
-sys.path.insert(0, '/Users/muneebalam/PycharmProjects/scrapenhl2/scrapenhl2/scrape/')
-sys.path.insert(0, '/Users/muneebalam/PycharmProjects/scrapenhl2/scrapenhl2/manipulate/')
-sys.path.insert(0, '/Users/muneebalam/PycharmProjects/scrapenhl2/scrapenhl2/plot/')
+sys.path.insert(0, '../../')
+sys.path.insert(0, '../')
+sys.path.insert(0, './')
+sys.path.insert(0, '../../scrapenhl2/')
+sys.path.insert(0, '../../scrapenhl2/scrape/')
+sys.path.insert(0, '../../scrapenhl2/manipulate/')
+sys.path.insert(0, '../../scrapenhl2/plot/')
 
 
 # -- General configuration ------------------------------------------------
