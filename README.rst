@@ -131,7 +131,7 @@ If you do make a donation, make me happy `and leave a record here <https://goo.g
 Change log
 ----------
 
-10/28/17: Major refactoring in scrapenhl2/scrape/
+10/28/17: Major refactoring. Docs up and running.
 
 10/21/17: Added basic front end. Committed early versions of 2017 logs.
 
