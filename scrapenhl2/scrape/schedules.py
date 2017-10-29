@@ -285,7 +285,7 @@ def generate_season_schedule_file(season, force_overwrite=True):
     with urllib.request.urlopen(url) as reader:
         page = reader.read()
 
-    page2 = json.loads(page)
+    page2 = json.loads(page.decode('latin-1'))
     df = _create_schedule_dataframe_from_json(page2)
     df.loc[:, 'Season'] = season
 
