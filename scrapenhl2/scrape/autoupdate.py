@@ -88,7 +88,7 @@ def autoupdate_new(season):
         delete_game_html(season, game)
 
     # Now keep tabs on old final games
-    old_final_games = set(sch.query('Status == "Final"').Game.values)
+    old_final_games = set(sch.query('Status == "Final" & Result != "N/A"').Game.values)
 
     # Update schedule to get current status
     manipulate_schedules.schedules.generate_season_schedule_file(season)
@@ -110,7 +110,7 @@ def autoupdate_new(season):
     read_inprogress_games(inprogressgames, season)
 
     # Now, for any games that are final, scrape and parse if not previously done
-    games = sch.query('Status == "Final" & PBPStatus == "N/A"')
+    games = sch.query('Status == "Final" & Result == "N/A"')
     games = games.Game.values
     games.sort()
     print('Updating final games')

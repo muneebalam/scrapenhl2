@@ -10,14 +10,34 @@ from scrapenhl2.plot import visualization_helper
 from scrapenhl2.scrape import parse_pbp, parse_toi, schedules, team_info
 
 
+def live_timeline(team1, team2, update=True):
+    """
+    A convenience method that updates data then displays timeline for most recent game between specified tams.
+
+    :param team1: str or int, team
+    :param team2: str or int, other team
+    :param update: bool, should data be updated first?
+
+    :return: nothing
+    """
+    if update:
+        from scrapenhl2.scrape import autoupdate
+        autoupdate.autoupdate()
+    from scrapenhl2.scrape import games
+    game = games.most_recent_game_id(team1, team2)
+    game_timeline(2017, game)
+
+
 def game_timeline(season, game, save_file=None):
     """
     Creates a shot attempt timeline as seen on @muneebalamcu
+
     :param season: int, the season
     :param game: int, the game
     :param save_file: str, specify a valid filepath to save to file. If None, merely shows on screen. Specify 'fig'
     to return the figure
-    :return: nothing
+
+    :return: nothing, or the figure
     """
     plt.clf()
 
@@ -81,6 +101,8 @@ def game_timeline(season, game, save_file=None):
     # Set title
     plt.title(_get_corsi_timeline_title(season, game))
 
+    plt.gcf().canvas.set_window_title('{0:d} {1:d} TL.png'.format(season, game))
+
     if save_file is None:
         plt.show()
     elif save_file == 'fig':
@@ -92,8 +114,10 @@ def game_timeline(season, game, save_file=None):
 def _get_home_adv_for_timeline(season, game):
     """
     Identifies times where home team had a PP or extra attacker, for highlighting on timeline
+
     :param season: int, the game
     :param game: int, the season
+
     :return: a dictionary: {'PP+1': ((start, end), (start, end), ...), 'PP+2': ((start, end), (start, end), ...)...}
     """
     # TODO add functionality for extra attacker
@@ -112,9 +136,11 @@ def _get_home_adv_for_timeline(season, game):
 def _get_road_adv_for_timeline(season, game):
     """
     Identifies times where home team had a PP or extra attacker, for highlighting on timeline
+
     :param season: int, the game
     :param game: int, the season
-    :return: a dictionary: {'PP+1': ((start, end), (start, end), ...), 'PP+2': ((start, end), (start, end), ...)...}
+
+    :return: a dictionary, {'PP+1': ((start, end), (start, end), ...), 'PP+2': ((start, end), (start, end), ...)...}
     """
     # TODO add functionality for extra attacker
 
@@ -136,6 +162,7 @@ def _get_contiguous_times(times, tolerance=2):
     For example, [1, 2, 3, 5, 6, 7, 10] would yield ((1, 3), (5, 7), (10, 10))
     :param times: a list or series of ints. Must be sorted ascending.
     :param tolerance: gaps must be at least this long to be registered. E.g. 2 skips 1-sec shift anomalies
+
     :return: tuple of tuple-2s of ints
     """
     cont_times = []
@@ -154,8 +181,10 @@ def _get_contiguous_times(times, tolerance=2):
 def _get_corsi_timeline_title(season, game):
     """
     Returns the default chart title for corsi timelines.
+
     :param season: int, the season
     :param game: int, the game
+
     :return: str, the title
     """
     otso_str = schedules.get_game_result(season, game)
@@ -180,8 +209,10 @@ def _goal_times_to_scatter_for_timeline(goal_times, cfdf):
     """
     A helper methods that translates a list of goal times to coordinates for goal markers.
     Goal markers are placed on the cumulative CF line, with more 2 stacked markers if it's the 2nd goal, 3 if 3rd, etc
+
     :param goal_times: list of int or float
     :param cfdf: dataframe with Time and CumCF columns
+
     :return: (x_coords, y_coords)
     """
     goal_xs = []
@@ -201,9 +232,11 @@ def _goal_times_to_scatter_for_timeline(goal_times, cfdf):
 def _get_home_goals_for_timeline(season, game, granularity='min'):
     """
     Returns a list of goal times for home team
+
     :param season: int, the season
     :param game: int, the game
     :param granularity: can respond in minutes, or seconds, elapsed in game
+
     :return: a list of int, seconds elapsed
     """
     return get_goals_for_timeline(season, game, 'H', granularity)
@@ -212,9 +245,11 @@ def _get_home_goals_for_timeline(season, game, granularity='min'):
 def _get_road_goals_for_timeline(season, game, granularity='min'):
     """
     Returns a list of goal times for road team
+
     :param season: int, the season
     :param game: int, the game
     :param granularity: can respond in minutes, or seconds, elapsed in game
+
     :return: a list of int, seconds elapsed
     """
     return get_goals_for_timeline(season, game, 'R', granularity)
@@ -223,10 +258,12 @@ def _get_road_goals_for_timeline(season, game, granularity='min'):
 def get_goals_for_timeline(season, game, homeroad, granularity='min'):
     """
     Returns a list of goal times
+
     :param season: int, the season
     :param game: int, the game
     :param homeroad: str, 'H' for home and 'R' for road
     :param granularity: can respond in minutes, or seconds, elapsed in game
+
     :return: a list of int, seconds elapsed
     """
 
@@ -247,10 +284,12 @@ def get_goals_for_timeline(season, game, homeroad, granularity='min'):
 def _get_cf_for_timeline(season, game, homeroad, granularity='min'):
     """
     Returns a dataframe with columns for time and cumulative CF
+
     :param season: int, the season
     :param game: int, the game
     :param homeroad: str, 'H' for home and 'R' for road
     :param granularity: can respond in minutes, or seconds, elapsed in game
+
     :return: a dataframe with two columns
     """
 
@@ -288,9 +327,11 @@ def _get_cf_for_timeline(season, game, homeroad, granularity='min'):
 def _get_home_cf_for_timeline(season, game, granularity='min'):
     """
     Returns a dataframe with columns Time and cumulative CF
+
     :param season: int, the season
     :param game: int, the game
     :param granularity: can respond in minutes, or seconds, elapsed in game
+
     :return: a two-column dataframe
     """
     return _get_cf_for_timeline(season, game, 'H', granularity)
@@ -299,9 +340,11 @@ def _get_home_cf_for_timeline(season, game, granularity='min'):
 def _get_road_cf_for_timeline(season, game, granularity='min'):
     """
     Returns a dataframe with columns Time and cumulative CF
+
     :param season: int, the season
     :param game: int, the game
     :param granularity: can respond in minutes, or seconds, elapsed in game
+
     :return: a two-column dataframe
     """
     return _get_cf_for_timeline(season, game, 'R', granularity)

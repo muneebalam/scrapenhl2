@@ -10,10 +10,12 @@ from scrapenhl2.scrape import schedules
 def rolling_player_cf(player, roll_len=25, startseason=None, endseason=None, save_file=None):
     """
     Creates a graph with CF% and CF% off.
+
     :param players: int or str
     :param startseason: int, the season to start (inclusive). Defaults to 3 years ago.
     :param endseason: int, the season to finish (inclusive). If not specified, startseason. Else, current.
     :param save_file: str to save, or None to show. Or 'fig' to return figure
+
     :return: nothing, or figure
     """
     plt.clf()
@@ -90,11 +92,13 @@ def rolling_player_cf(player, roll_len=25, startseason=None, endseason=None, sav
 def _get_rolling_cf_title(player, roll_len, startseason, endseason):
     """
     Returns default title for this type of graph
+
     :param player: int or str, the player
     :param roll_len: int, number of games in rolling window
     :param startseason: int, starting season
     :param endseason: int, ending season
-    :return:
+
+    :return: str, the title
     """
 
     player = players.player_as_str()(players.player_as_id()(player))

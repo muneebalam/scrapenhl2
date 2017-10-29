@@ -12,18 +12,23 @@ from scrapenhl2.scrape import organization, schedules, teams, parse_pbp, parse_t
 
 def get_player_toion_toioff_filename(season):
     """
+    Returns the filename for the TOI60 file
 
     :param season: int, the season
-    :return:
+
+    :return: str
     """
     return os.path.join(organization.get_other_data_folder(), '{0:d}_season_toi60.csv'.format(season))
 
 
 def save_player_toion_toioff_file(df, season):
     """
+    Saves the provided dataframe to file
 
-    :param df:
+    :param df: dataframe of TOI60 data
+
     :param season: int, the season
+
     :return:
     """
     df.to_csv(get_player_toion_toioff_filename(season), index=False)
@@ -31,10 +36,12 @@ def save_player_toion_toioff_file(df, season):
 
 def get_player_toion_toioff_file(season, force_create=False):
     """
+    Returns the TOI60 file, and it doesn't already exist, creates it
 
     :param season: int, the season
     :param force_create: bool, should this be read from file if possible, or created from scratch
-    :return:
+
+    :return: dataframe
     """
     fname = get_player_toion_toioff_filename(season)
     if os.path.exists(fname) and not force_create:
@@ -110,6 +117,7 @@ def get_pbp_events(*args, **kwargs):
 
     :param args: str, event types to search for (applied "OR", not "AND")
     :param kwargs: keyword arguments specifying filters (applied "AND", not "OR")
+
     :return: df, a pandas dataframe
     """
     # TODO finish
@@ -136,9 +144,13 @@ def get_pbp_events(*args, **kwargs):
 
 def _filter_for_event_types(data, *args):
     """
-    Uses
+    Filters data for event types provided. For example, if you provide 'Goal' and 'Shot', returns rows from data
+    that are SOG.
+
     :param data: a dataframe with pbp data
+
     :param args: args as given to get_pbp_events, for example
+
     :return: a dataframe filtered to fit event-related args
     """
 
@@ -154,8 +166,10 @@ def _filter_for_event_types(data, *args):
 def _filter_for_scores(data, **kwargs):
     """
     Uses the score_diff keyword argument to filter the data.
+
     :param data: a dataframe with pbp data
     :param kwargs: kwargs as given to get_pbp_events, for example
+
     :return: a dataframe filtered to fit score-related kwargs
     """
 
@@ -171,8 +185,10 @@ def _filter_for_scores(data, **kwargs):
 def _filter_for_strengths(data, **kwargs):
     """
     Uses the strength_hr and strength_to keyword arguments to filter the data.
+
     :param data: a dataframe with pbp data
     :param kwargs: kwargs as given to get_pbp_events, for example
+
     :return: a dataframe filtered to fit strength-related kwargs
     """
 
@@ -192,8 +208,10 @@ def _filter_for_strengths(data, **kwargs):
 def _filter_for_times(data, **kwargs):
     """
     Uses the start_time and end_time keyword arguments to filter the data.
+
     :param data: a dataframe with pbp data
     :param kwargs: kwargs as given to get_pbp_events, for example
+
     :return: a dataframe filtered to fit time-related kwargs
     """
 
@@ -207,8 +225,10 @@ def _filter_for_times(data, **kwargs):
 def _filter_for_games(data, **kwargs):
     """
     Uses the start_game, end_game, and season_types keyword arguments to filter the data.
+
     :param data: a dataframe with pbp data
     :param kwargs: kwargs as given to get_pbp_events, for example
+
     :return: a dataframe filtered to fit game number-related kwargs
     """
 
@@ -233,8 +253,10 @@ def _filter_for_players(data, **kwargs):
     """
     Uses the players_on_ice, players_on_ice_for, players_on_ice_ag, acting_player, and receiving_player keyword
     arguments to filter the data.
+
     :param data: a dataframe with pbp data
     :param kwargs: kwargs as given to get_pbp_events, for example
+
     :return: a dataframe filtered to fit player-related kwargs
     """
 
@@ -269,7 +291,7 @@ def _filter_for_players(data, **kwargs):
             querystrings = []
             for hr in ('H', 'R'):
                 for suf in ('1', '2', '3', '4', '5', '6', 'G'):
-                    for p in players:
+                    for p in playersonice:
                         querystrings.append('{0:s}{1:s} == {2:d}'.format(hr, suf, p))
             querystring = ' | '.join(querystrings)
             data2 = data2.query(querystring)
@@ -287,10 +309,12 @@ def _filter_for_players(data, **kwargs):
 def _join_on_ice_players_to_pbp(season, game, pbp=None, toi=None):
     """
     For the given season and game, returns pbp with on-ice players attached.
+
     :param season: int, the season
     :param game: int, the game
     :param pbp: df, the plays. If None, will read from file.
     :param toi: df, the shifts to join to plays. If None, will read from file.
+
     :return: df, pbp but augmented with on-ice players
     """
 
@@ -306,8 +330,10 @@ def _join_on_ice_players_to_pbp(season, game, pbp=None, toi=None):
 def _filter_for_team(data, **kwargs):
     """
     Uses the team, team_for, team_ag, home_team, and road_team keyword arguments to filter the data.
+
     :param data: a dataframe with pbp data
     :param kwargs: kwargs as given to get_pbp_events, for example
+
     :return: a dataframe filtered to fit team-related kwargs
     """
 
@@ -334,7 +360,9 @@ def _filter_for_team(data, **kwargs):
 def _seasons_to_read(**kwargs):
     """
     Method uses start_date, end_date, start_season, and end_season to infer seasons to read
+
     :param kwargs: kwargs as given to get_pbp_events, for example
+
     :return: set of int (seasons)
     """
 
@@ -357,7 +385,9 @@ def _seasons_to_read(**kwargs):
 def _teams_to_read(**kwargs):
     """
     Method concatenates unique values from keyword arguments named team, team_for, and team_ag
+
     :param kwargs: kwargs as given to get_pbp_events, for example
+
     :return: a set of int (team IDs)
     """
 
@@ -375,8 +405,10 @@ def _teams_to_read(**kwargs):
 def get_5v5_player_game_toi(season, team):
     """
     Gets TOION and TOIOFF by game and player for given team in given season.
+
     :param season: int, the season
     :param team: int, team id
+
     :return: df with game, player, TOION, and TOIOFF
     """
     fives = teams.get_team_toi(season, team) \
@@ -406,8 +438,10 @@ def get_5v5_player_game_toi(season, team):
 def get_5v5_player_season_toi(season, team):
     """
     Gets TOION and TOIOFF by player for given team in given season.
+
     :param season: int, the season
     :param team: int, team id
+
     :return: df with game, player, TOION, and TOIOFF
     """
     toi_by_player = get_5v5_player_game_toi(season, team)
@@ -418,7 +452,9 @@ def get_5v5_player_season_toi(season, team):
 def generate_player_toion_toioff(season):
     """
     Generates TOION and TOIOFF at 5v5 for each player in this season.
+
     :param season: int, the season
+
     :return: df with columns Player, TOION, TOIOFF, and TOI60.
     """
 
@@ -442,6 +478,7 @@ def generate_player_toion_toioff(season):
 def get_player_positions():
     """
     Use to get player positions
+
     :return: df with colnames ID and position
     """
 
@@ -452,8 +489,10 @@ def get_toicomp_file(season, force_create=False):
     """
     If you want to rewrite the TOI60 file, too, then run get_player_toion_toioff_file with force_create=True before
     running this method.
+
     :param season: int, the season
     :param force_create: bool, should this be read from file if possible, or created from scratch
+
     :return:
     """
 
@@ -470,6 +509,7 @@ def get_toicomp_filename(season):
     """
 
     :param season: int, the season
+
     :return:
     """
     return os.path.join(organization.get_other_data_folder(), '{0:d}_toicomp.csv'.format(season))
@@ -480,6 +520,7 @@ def save_toicomp_file(df, season):
 
     :param df:
     :param season: int, the season
+
     :return:
     """
     df.to_csv(get_toicomp_filename(season), index=False)
@@ -488,7 +529,9 @@ def save_toicomp_file(df, season):
 def generate_toicomp(season):
     """
     Generates toicomp at a player-game level
+
     :param season: int, the season
+
     :return: df,
     """
 
@@ -512,6 +555,7 @@ def get_5v5_player_log(season, force_create=False):
 
     :param season: int, the season
     :param force_create: bool, create from scratch even if it exists?
+
     :return:
     """
     fname = get_5v5_player_log_filename(season)
@@ -527,6 +571,7 @@ def get_5v5_player_log_filename(season):
     """
 
     :param season: int, the season
+
     :return:
     """
     return os.path.join(organization.get_other_data_folder(), '{0:d}_player_5v5_log.feather'.format(season))
@@ -536,6 +581,7 @@ def save_5v5_player_log(df, season):
     """
 
     :param season: int, the season
+
     :return: nothing
     """
     return feather.write_dataframe(df, get_5v5_player_log_filename(season))
@@ -544,12 +590,11 @@ def save_5v5_player_log(df, season):
 def filter_for_team(pbp, team):
     """
     Filters dataframe for rows where Team == team
-    :param pbp: dataframe
-        Needs to have column Team
-    :param team: int or str
-        Team ID or name
-    :return: dataframe
-        Rows filtered
+
+    :param pbp: dataframe, needs to have column Team
+    :param team: int or str, team ID or name
+
+    :return: dataframe with rows filtered
     """
     return pbp[pbp.Team == team_info.team_as_id(team)]
 
@@ -557,11 +602,11 @@ def filter_for_team(pbp, team):
 def count_by_keys(df, *args):
     """
     A convenience method that isolates specified columns in the dataframe and gets counts. Drops when keys have NAs.
+
     :param df: dataframe
-    :param args: str
-        column names in dataframe
-    :return: df
-        dataframe with each of *args and an additional column, Count
+    :param args: str, column names in dataframe
+
+    :return: dataframe with each of *args and an additional column, Count
     """
     args = list(args)
     return df[args].dropna().assign(Count=1).groupby(args).count().reset_index()
@@ -867,7 +912,7 @@ def get_player_toi(season, game, pos=None, homeroad='H'):
             playersonice = playersonice.query('Pos != "D"')
         else:
             playersonice = playersonice.query('Pos == "{0:s}"'.format(pos))
-    return players
+    return playersonice
 
 
 def get_line_combos(season, game, homeroad='H'):
@@ -891,7 +936,7 @@ def get_line_combos(season, game, homeroad='H'):
         .query('Pos != "D"') \
         .drop({'Pos', 'ID'}, axis=1)
     wide = playersonice.merge(playersonice, how='inner', on='Time', suffixes=['1', '2']) \
-        .merge(players, how='inner', on='Time') \
+        .merge(playersonice, how='inner', on='Time') \
         .rename(columns={'PlayerID': 'PlayerID3'}) \
         .query('PlayerID1 != PlayerID2 & PlayerID1 != PlayerID3 & PlayerID2 != PlayerID3')
     counts = wide.groupby(['PlayerID1', 'PlayerID2', 'PlayerID3']).count().reset_index() \
@@ -1067,10 +1112,12 @@ def get_game_h2h_corsi(season, game):
 
     home = corsi[['Time', 'H1', 'H2', 'H3', 'H4', 'H5']] \
         .melt(id_vars='Time', var_name='P', value_name='PlayerID') \
-        .drop('P', axis=1)
+        .drop('P', axis=1) \
+        .drop_duplicates()  # Need to do this b/c sometimes multiple shots in the same second
     road = corsi[['Time', 'R1', 'R2', 'R3', 'R4', 'R5']] \
         .melt(id_vars='Time', var_name='P', value_name='PlayerID') \
-        .drop('P', axis=1)
+        .drop('P', axis=1) \
+        .drop_duplicates()
 
     hh = home.merge(home, how='inner', on='Time', suffixes=['1', '2']).assign(Team1='H', Team2='H')
     hr = home.merge(road, how='inner', on='Time', suffixes=['1', '2']).assign(Team1='H', Team2='R')

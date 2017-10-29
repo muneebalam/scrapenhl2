@@ -240,51 +240,55 @@ def update_player_log_file(playerids, seasons, games, teams, statuses):
 
 
 @functools.lru_cache(maxsize=128, typed=False)
-def player_as_id(player, filterdf=get_player_ids_file()):
+def player_as_id(playername, filterdf=None):
     """
     A helper method. If player entered is int, returns that. If player is str, returns integer id of that player.
 
-    :param player: int, or str, the player whose names you want to retrieve
+    :param playername: int, or str, the player whose names you want to retrieve
     :param filterdf: a dataframe of players to choose from. Defaults to all.
 
     :return: int, the player ID
     """
+    if filterdf is None:
+        filterdf = get_player_ids_file()
     pids = filterdf
-    if helpers.check_number(player):
-        return int(player)
-    elif isinstance(player, str):
-        df = pids.query('Name == "{0:s}"'.format(player))
+    if helpers.check_number(playername):
+        return int(playername)
+    elif isinstance(playername, str):
+        df = pids.query('Name == "{0:s}"'.format(playername))
         if len(df) == 0:
             # ed.print_and_log('Could not find exact match for for {0:s}; trying exact substring match'.format(player))
             df = pids
-            df = df[df.Name.str.contains(player)]
+            df = df[df.Name.str.contains(playername)]
             if len(df) == 0:
                 # ed.print_and_log('Could not find exact substring match; trying fuzzy matching')
-                return player_as_id(helpers.fuzzy_match_player(player, pids.Name), filterdf)
+                name = helpers.fuzzy_match_player(playername, pids.Name)
+                # return player_as_id(name, filterdf)  # gives error that dataframe is not mutable, can't be hashed...
+                return player_as_id(name)
             elif len(df) == 1:
                 return df.ID.iloc[0]
             else:
-                print('Multiple results when searching for {0:s}; returning first result'.format(player))
+                print('Multiple results when searching for {0:s}; returning first result'.format(playername))
                 print(df.to_string())
                 return df.ID.iloc[0]
         elif len(df) == 1:
             return df.ID.iloc[0]
         else:
-            default = check_default_player_id(player)
+            default = check_default_player_id(playername)
             if default is None:
-                print('Multiple results when searching for {0:s}; returning first result'.format(player))
+                print('Multiple results when searching for {0:s}; returning first result'.format(playername))
                 print(df.to_string())
                 return df.ID.iloc[0]
             else:
-                print('Multiple results when searching for {0:s}; returning default'.format(player))
+                print('Multiple results when searching for {0:s}; returning default'.format(playername))
                 print(df.to_string())
                 return default
     else:
-        print('Specified wrong type for player: {0:s}'.format(type(player)))
+        print('Specified wrong type for player: {0:s}'.format(type(playername)))
         return None
 
 
-def playerlst_as_str(players, filterdf=get_player_ids_file()):
+def playerlst_as_str(players, filterdf=None):
     """
     Similar to player_as_str, but less robust against errors, and works on a list of players
 
@@ -293,6 +297,8 @@ def playerlst_as_str(players, filterdf=get_player_ids_file()):
 
     :return: a list of str
     """
+    if filterdf is None:
+        filterdf = get_player_ids_file()
     df = pd.DataFrame({'ID': players})
     if df.ID.dtype == 'str' or df.ID.dtype == 'O':
         return df.ID
@@ -301,7 +307,7 @@ def playerlst_as_str(players, filterdf=get_player_ids_file()):
         return df.Name
 
 
-def playerlst_as_id(playerlst, exact=False, filterdf=get_player_ids_file()):
+def playerlst_as_id(playerlst, exact=False, filterdf=None):
     """
     Similar to player_as_id, but less robust against errors, and works on a list of players.
 
@@ -311,6 +317,8 @@ def playerlst_as_id(playerlst, exact=False, filterdf=get_player_ids_file()):
 
     :return: a list of int/float
     """
+    if filterdf is None:
+        filterdf = get_player_ids_file()
     df = pd.DataFrame({'Name': playerlst})
     if not (df.Name.dtype == 'str' or df.Name.dtype == 'O'):
         return df.Name
@@ -322,31 +330,31 @@ def playerlst_as_id(playerlst, exact=False, filterdf=get_player_ids_file()):
 
 
 @functools.lru_cache(maxsize=128, typed=False)
-def player_as_str(player, filterdf):
+def player_as_str(playerid, filterdf):
     """
     A helper method. If player is int, returns string name of that player. Else returns standardized name.
 
-    :param player: int, or str, player whose name you want to retrieve
+    :param playerid: int, or str, player whose name you want to retrieve
     :param filterdf: df, a dataframe of players to choose from. Defaults to all.
 
     :return: str, the player name
     """
-    if isinstance(player, str):
-        return player_as_str(player_as_id(player, filterdf))
-    elif helpers.check_number(player):
-        player = int(player)
-        df = filterdf.query('ID == {0:d}'.format(player))
+    if isinstance(playerid, str):
+        return player_as_str(player_as_id(playerid, filterdf))
+    elif helpers.check_number(playerid):
+        player = int(playerid)
+        df = filterdf.query('ID == {0:d}'.format(playerid))
         if len(df) == 0:
-            print('Could not find name for {0:d}'.format(player))
+            print('Could not find name for {0:d}'.format(playerid))
             return None
         elif len(df) == 1:
             return df.Name.iloc[0]
         else:
-            print('Multiple results when searching for {0:d}; returning first result'.format(player))
+            print('Multiple results when searching for {0:d}; returning first result'.format(playerid))
             print(df.to_string())
             return df.Name.iloc[0]
     else:
-        print('Specified wrong type for player: {0:d}'.format(type(player)))
+        print('Specified wrong type for player: {0:d}'.format(type(playerid)))
         return None
 
 

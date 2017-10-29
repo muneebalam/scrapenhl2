@@ -8,14 +8,35 @@ import pandas as pd  # standard scientific python stack
 
 from scrapenhl2.manipulate import manipulate as manip
 from scrapenhl2.scrape import schedules, team_info, players
+from scrapenhl2.plot import visualization_helper
+
+
+def live_h2h(team1, team2, update=True):
+    """
+    A convenience method that updates data then displays h2h for most recent game between specified tams.
+
+    :param team1: str or int, team
+    :param team2: str or int, other team
+    :param update: bool, should data be updated first?
+
+    :return: nothing
+    """
+    if update:
+        from scrapenhl2.scrape import autoupdate
+        autoupdate.autoupdate()
+    from scrapenhl2.scrape import games
+    game = games.most_recent_game_id(team1, team2)
+    game_h2h(2017, game)
 
 
 def game_h2h(season, game, save_file=None):
     """
     Creates the grid H2H charts seen on @muneebalamcu
+
     :param season: int, the season
     :param game: int, the game
     :param save_file: str, specify a valid filepath to save to file. If None, merely shows on screen.
+
     :return: nothing
     """
     plt.clf()
@@ -31,6 +52,7 @@ def game_h2h(season, game, save_file=None):
 
 def _game_h2h_chart(season, game, corsi, toi, orderh, orderr, numf_h=None, numf_r=None, save_file=None):
     """
+    This method actually does the plotting for game_h2h
 
     :param season: int, the season
     :param game: int, the game
@@ -42,6 +64,7 @@ def _game_h2h_chart(season, game, corsi, toi, orderh, orderr, numf_h=None, numf_
     :param numf_h: int. Number of forwards for home team. Used to add horizontal bold line between F and D
     :param numf_r: int. Number of forwards for road team. Used to add vertical bold line between F and D.
     :param save_file: str of file to save the figure to, or None to simply display
+
     :return: nothing
     """
 
@@ -136,7 +159,9 @@ def _game_h2h_chart(season, game, corsi, toi, orderh, orderr, numf_h=None, numf_
         .merge(corsi[['PlayerID2', 'HomeCorsi']].groupby('PlayerID2').sum().reset_index(),
                how='left', on='PlayerID2')
     rtotals.loc[:, 'HomeCorsi'] = rtotals.HomeCorsi.fillna(0)
-    rtotals.loc[:, 'CorsiLabel'] = rtotals.HomeCorsi.apply(lambda x: _format_number_with_plus(-1 * int(x / 5)))
+    rtotals.loc[:, 'CorsiLabel'] = rtotals.HomeCorsi.apply(lambda x:
+                                                           visualization_helper.format_number_with_plus(-1 *
+                                                                                                        int(x / 5)))
     rtotals.loc[:, 'TOILabel'] = rtotals.Secs.apply(lambda x: manip.time_to_mss(x / 5))
     toplabels = ['{0:s} in {1:s}'.format(x, y) for x, y, in zip(list(rtotals.CorsiLabel), list(rtotals.TOILabel))]
 
@@ -153,7 +178,8 @@ def _game_h2h_chart(season, game, corsi, toi, orderh, orderr, numf_h=None, numf_
         .merge(corsi[['PlayerID1', 'HomeCorsi']].groupby('PlayerID1').sum().reset_index(),
                how='left', on='PlayerID1')
     htotals.loc[:, 'HomeCorsi'] = htotals.HomeCorsi.fillna(0)
-    htotals.loc[:, 'CorsiLabel'] = htotals.HomeCorsi.apply(lambda x: _format_number_with_plus(int(x / 5)))
+    htotals.loc[:, 'CorsiLabel'] = htotals.HomeCorsi.apply(lambda x:
+                                                           visualization_helper.format_number_with_plus(int(x / 5)))
     htotals.loc[:, 'TOILabel'] = htotals.Secs.apply(lambda x: manip.time_to_mss(x / 5))
     rightlabels = ['{0:s} in {1:s}'.format(x, y) for x, y, in zip(list(htotals.CorsiLabel), list(htotals.TOILabel))]
 
@@ -194,6 +220,8 @@ def _game_h2h_chart(season, game, corsi, toi, orderh, orderr, numf_h=None, numf_
     plt.title(_get_game_h2h_chart_title(season, game, corsi.HomeCorsi.sum() / 25, toi.Secs.sum() / 25),
               y=1.1, va='bottom')
 
+    plt.gcf().canvas.set_window_title('{0:d} {1:d} H2H.png'.format(season, game))
+
     # fig.tight_layout()
     if save_file is None:
         plt.show()
@@ -206,10 +234,12 @@ def _game_h2h_chart(season, game, corsi, toi, orderh, orderr, numf_h=None, numf_
 def _get_game_h2h_chart_title(season, game, homecf_diff=None, totaltoi=None):
     """
     Returns the title for the H2H chart
+
     :param season: int, the season
     :param game: int, the game
     :param homecf_diff: int. The home team corsi advantage
     :param totaltoi: int. The TOI played so far.
+
     :return:
     """
     titletext = []
@@ -230,7 +260,7 @@ def _get_game_h2h_chart_title(season, game, homecf_diff=None, totaltoi=None):
     if homecf_diff is not None and totaltoi is not None:
         titletext.append('{0:s} {1:s} in 5v5 attempts in {2:s}'.format(
             team_info.team_as_str(schedules.get_home_team(season, game)),
-            _format_number_with_plus(int(homecf_diff)), manip.time_to_mss(int(totaltoi))))
+            visualization_helper.format_number_with_plus(int(homecf_diff)), manip.time_to_mss(int(totaltoi))))
     return '\n'.join(titletext)
 
 
@@ -243,9 +273,11 @@ def _get_h2h_chart_player_order(season, game, homeroad='H'):
     - First player's top line combination, player with less total TOI
     - Top player in TOI not already listed
     - (etc)
+
     :param season: int, the game
     :param game: int, the season
     :param homeroad: str, 'H' for home or 'R' for road
+
     :return: [list of IDs], NumFs
     """
     combos = manip.get_line_combos(season, game, homeroad)

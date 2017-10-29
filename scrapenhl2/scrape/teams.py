@@ -18,7 +18,7 @@ import scrapenhl2.scrape.team_info as team_info
 def get_team_pbp(season, team):
     """
     Returns the pbp of given team in given season across all games.
-    
+
     :param season: int, the season
     :param team: int or str, the team abbreviation.
 
