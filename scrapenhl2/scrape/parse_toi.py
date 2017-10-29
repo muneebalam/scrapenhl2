@@ -182,7 +182,7 @@ def read_shifts_from_html_pages(rawtoi1, rawtoi2, teamid1, teamid2, season, game
         startmin = [x[:x.index(':')] for x in starts]
         startsec = [x[x.index(':') + 1:] for x in starts]
         starttimes = [1200 * (p - 1) + 60 * int(m) + int(s) + 1 for p, m, s in zip(periods, startmin, startsec)]
-        starttimes = [0 if x == 1 else x for x in starttimes]
+        # starttimes = [0 if x == 1 else x for x in starttimes]
         endmin = [x[:x.index(':')] for x in ends]
         endsec = [x[x.index(':') + 1:] for x in ends]
         # There is an extra -1 in endtimes to avoid overlapping start/end
@@ -238,7 +238,7 @@ def read_shifts_from_page(rawtoi, season, game):
     startmin = [x[:x.index(':')] for x in starts]
     startsec = [x[x.index(':') + 1:] for x in starts]
     starttimes = [1200 * (p - 1) + 60 * int(m) + int(s) + 1 for p, m, s in zip(periods, startmin, startsec)]
-    starttimes = [0 if x == 1 else x for x in starttimes]
+    # starttimes = [0 if x == 1 else x for x in starttimes]
     endmin = [x[:x.index(':')] for x in ends]
     endsec = [x[x.index(':') + 1:] for x in ends]
     # There is an extra -1 in endtimes to avoid overlapping start/end

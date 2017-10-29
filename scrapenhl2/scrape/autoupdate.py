@@ -38,37 +38,6 @@ def delete_game_html(season, game):
 def autoupdate(season=None):
     """
     Run this method to update local data. It reads the schedule file for given season and scrapes and parses
-    previously unscraped games that have gone final or are in progress.
-
-    :param season: int, the season. If None (default), will do current season
-
-    :return: nothing
-    """
-
-    if season is None:
-        season = schedules.get_current_season()
-
-    if season < 2010:
-        autoupdate_old(season)
-    else:
-        autoupdate_new(season)
-
-
-def autoupdate_old(season):
-    """
-    Run this method to update local data. It reads the schedule file for given season and scrapes and parses
-    previously unscraped games that have gone final or are in progress. Use this for 2007, 2008, or 2009.
-
-    :param season: int, the season. If None (default), will do current season
-
-    :return: nothing
-    """
-    # TODO
-
-
-def autoupdate_new(season):
-    """
-    Run this method to update local data. It reads the schedule file for given season and scrapes and parses
     previously unscraped games that have gone final or are in progress. Use this for 2010 or later.
 
     :param season: int, the season. If None (default), will do current season
@@ -76,6 +45,11 @@ def autoupdate_new(season):
     :return: nothing
     """
     # TODO: why does sometimes the schedule have the wrong game-team pairs, but when I regenerate, it's all ok?
+    # TODO: this does not work quite right. Doesn't seem to know it needs to re-scrape TOI for previously scraped
+    # TODO: in-progress games after they go final
+
+    if season is None:
+        season = schedules.get_current_season()
 
     sch = schedules.get_season_schedule(season)
 
@@ -91,8 +65,7 @@ def autoupdate_new(season):
     old_final_games = set(sch.query('Status == "Final" & Result != "N/A"').Game.values)
 
     # Update schedule to get current status
-    manipulate_schedules.schedules.generate_season_schedule_file(season)
-    sch = schedules.get_season_schedule(season)
+    schedules.generate_season_schedule_file(season)
 
     # For games done previously, set pbp and toi status to scraped
     manipulate_schedules.update_schedule_with_pbp_scrape(season, old_final_games)
@@ -144,9 +117,14 @@ def read_final_games(games, season):
         except Exception as e:
             print(str(e))
         try:
-            scrape_toi.scrape_game_toi(season, game, True)
-            manipulate_schedules.update_schedule_with_toi_scrape(season, game)
-            parse_toi.parse_game_toi(season, game, True)
+            if season < 2010:
+                scrape_toi.scrape_game_toi_from_html(season, game, True)
+                manipulate_schedules.update_schedule_with_toi_scrape(season, game)
+                parse_toi.parse_game_toi_from_html(season, game, True)
+            else:
+                scrape_toi.scrape_game_toi(season, game, True)
+                manipulate_schedules.update_schedule_with_toi_scrape(season, game)
+                parse_toi.parse_game_toi(season, game, True)
         except urllib.error.HTTPError as he:
             print('Could not access toi url for {0:d} {1:d}'.format(season, game))
             print(str(he))
@@ -180,4 +158,5 @@ def read_inprogress_games(inprogressgames, season):
 
 
 if __name__ == '__main__':
-    autoupdate()
+    for season in range(2007, 2010):
+        autoupdate(season)

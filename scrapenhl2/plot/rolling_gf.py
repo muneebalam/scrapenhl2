@@ -7,9 +7,9 @@ from scrapenhl2.scrape import players
 from scrapenhl2.scrape import schedules
 
 
-def rolling_player_cf(player, roll_len=25, startseason=None, endseason=None, save_file=None):
+def rolling_player_gf(player, roll_len=25, startseason=None, endseason=None, save_file=None):
     """
-    Creates a graph with CF% and CF% off.
+    Creates a graph with GF% and GF% off.
 
     :param players: int or str
     :param startseason: int, the season to start (inclusive). Defaults to 3 years ago.
@@ -37,10 +37,10 @@ def rolling_player_cf(player, roll_len=25, startseason=None, endseason=None, sav
     df = pd.concat(df).sort_values(['Season', 'Game'])
 
     columnnames = {col: '{0:d}-game {1:s}'.format(roll_len, col) for col in \
-                   ['CFON', 'CAON', 'CFOFF', 'CAOFF']}
-    columnnames2 = {col: '{0:d}-game {1:s}'.format(roll_len, col) for col in ['CF%', 'CF Off%']}
-    df.loc[:, 'CFOFF'] = df.TeamCF - df.CFON
-    df.loc[:, 'CAOFF'] = df.TeamCA - df.CAON
+                   ['GFON', 'GAON', 'GFOFF', 'GAOFF']}
+    columnnames2 = {col: '{0:d}-game {1:s}'.format(roll_len, col) for col in ['GF%', 'GF Off%']}
+    df.loc[:, 'GFOFF'] = df.TeamGF - df.GFON
+    df.loc[:, 'GAOFF'] = df.TeamGA - df.GAON
 
     # Calculate rolling numbers
     rollingdf = df[list(columnnames.keys())].rolling(roll_len).sum()
@@ -55,27 +55,27 @@ def rolling_player_cf(player, roll_len=25, startseason=None, endseason=None, sav
     # Add to old df
     df = pd.concat([df, rollingdf], axis=1)
 
-    df.loc[:, '{0:d}-game CF%'.format(roll_len)] = \
-        df['{0:d}-game CFON'.format(roll_len)] / (df['{0:d}-game CFON'.format(roll_len)] + \
-                                                  df['{0:d}-game CAON'.format(roll_len)])
-    df.loc[:, '{0:d}-game CF Off%'.format(roll_len)] = \
-        df['{0:d}-game CFOFF'.format(roll_len)] / (df['{0:d}-game CFOFF'.format(roll_len)] + \
-                                                  df['{0:d}-game CAOFF'.format(roll_len)])
+    df.loc[:, '{0:d}-game GF%'.format(roll_len)] = \
+        df['{0:d}-game GFON'.format(roll_len)] / (df['{0:d}-game GFON'.format(roll_len)] +
+                                                  df['{0:d}-game GAON'.format(roll_len)])
+    df.loc[:, '{0:d}-game GF Off%'.format(roll_len)] = \
+        df['{0:d}-game GFOFF'.format(roll_len)] / (df['{0:d}-game GFOFF'.format(roll_len)] +
+                                                  df['{0:d}-game GAOFF'.format(roll_len)])
 
     df.loc[:, 'Game Number'] = 1
     df.loc[:, 'Game Number'] = df['Game Number'].cumsum()
 
-    label = 'CF%'
+    label = 'GF%'
     plt.plot(df['Game Number'], df[columnnames2[label]], label=label)
-    label = 'CF Off%'
+    label = 'GF Off%'
     plt.plot(df['Game Number'], df[columnnames2[label]], label=label, ls='--')
     plt.legend(loc=1, fontsize=10)
 
-    plt.title(_get_rolling_cf_title(player, roll_len, startseason, endseason))
+    plt.title(_get_rolling_gf_title(player, roll_len, startseason, endseason))
 
     # axes
     plt.xlabel('Game')
-    plt.ylabel('CF%')
+    plt.ylabel('GF%')
     plt.ylim(0.3, 0.7)
     plt.xlim(0, len(df))
     ticks = list(np.arange(0.3, 0.71, 0.05))
@@ -89,7 +89,7 @@ def rolling_player_cf(player, roll_len=25, startseason=None, endseason=None, sav
         plt.savefig(save_file)
 
 
-def _get_rolling_cf_title(player, roll_len, startseason, endseason):
+def _get_rolling_gf_title(player, roll_len, startseason, endseason):
     """
     Returns default title for this type of graph
 
@@ -102,6 +102,6 @@ def _get_rolling_cf_title(player, roll_len, startseason, endseason):
     """
 
     player = players.player_as_str()(players.player_as_id()(player))
-    return '{0:d}-game rolling CF% for {1:s}, {2:d}-{3:d}'.format(roll_len, player, startseason, endseason + 1)
+    return '{0:d}-game rolling GF% for {1:s}, {2:d}-{3:d}'.format(roll_len, player, startseason, endseason + 1)
 
 

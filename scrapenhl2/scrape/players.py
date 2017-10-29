@@ -330,7 +330,7 @@ def playerlst_as_id(playerlst, exact=False, filterdf=None):
 
 
 @functools.lru_cache(maxsize=128, typed=False)
-def player_as_str(playerid, filterdf):
+def player_as_str(playerid, filterdf=None):
     """
     A helper method. If player is int, returns string name of that player. Else returns standardized name.
 
@@ -339,6 +339,8 @@ def player_as_str(playerid, filterdf):
 
     :return: str, the player name
     """
+    if filterdf is None:
+        filterdf = get_player_ids_file()
     if isinstance(playerid, str):
         return player_as_str(player_as_id(playerid, filterdf))
     elif helpers.check_number(playerid):

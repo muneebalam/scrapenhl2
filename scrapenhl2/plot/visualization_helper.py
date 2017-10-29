@@ -77,7 +77,10 @@ def make_color_lighter(hex=None, rgb=None, returntype='hex'):
     return rgb_to_hex(*color)
 
 if __name__ == '__main__':
+
     from scrapenhl2.plot import game_timeline as gt
     from scrapenhl2.plot import game_h2h as gh
-    gh.live_h2h('WSH', 'EDM')
-    gt.live_timeline('WSH', 'EDM', True)
+    gt.live_timeline('WSH', 'EDM', False)
+    # gh.live_h2h('WSH', 'EDM', False)
+
+    # TODO: Why is my chart only 40 min?
