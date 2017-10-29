@@ -6,12 +6,12 @@
    :target: https://landscape.io/github/muneebalam/scrapenhl2/master
    :alt: Code Health
 .. image:: https://badge.fury.io/py/scrapenhl2.svg
-    :target: https://badge.fury.io/py/scrapenhl2
+   :target: https://badge.fury.io/py/scrapenhl2
 .. image:: https://api.codeclimate.com/v1/badges/63e04a03b3aab131e262/maintainability
-    :target: https://codeclimate.com/github/muneebalam/scrapenhl2/maintainability
+   :target: https://codeclimate.com/github/muneebalam/scrapenhl2/maintainability
    :alt: Maintainability
 .. image:: https://readthedocs.org/projects/scrapenhl2/badge/?version=latest
-    :target: https://readthedocs.org/projects/scrapenhl2/?badge=latest
+   :target: https://readthedocs.org/projects/scrapenhl2/?badge=latest
    :alt: Documentation Status
 
 .. inclusion-marker-for-sphinx
@@ -102,7 +102,7 @@ There is also a very bare-bones app that appears in your browser. To launch the 
 But this package is targeted for script use, so I recommend familiarizing yourself with python.
 (This is not intended to be a replacement for a site like Corsica.)
 
-Look through the documentation at `Read the Docs<http://scrapenhl2.readthedocs.io/en/latest/>`_.
+Look through the documentation at `Read the Docs <http://scrapenhl2.readthedocs.io/en/latest/>`_.
 Also always feel free to contact me with questions or suggestions.
 
 Contact
