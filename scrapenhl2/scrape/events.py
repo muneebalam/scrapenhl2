@@ -8,7 +8,9 @@ import functools
 def convert_event(event):
     """
     Converts to a more convenient, standardized name (see get_event_dictionary)
+
     :param event: str, the event name
+
     :return: str, shortened event name
     """
     return get_event_dictionary()[event]  # TODO the event dictionary is missing some
@@ -17,6 +19,7 @@ def convert_event(event):
 def _get_event_dictionary():
     """
     Runs at startup to get a mapping of event name abbreviations to long versions.
+
     :return: a dictionary mapping, e.g., 'fo' to 'faceoff'. All lowercase.
     """
     return {'fac': 'faceoff', 'faceoff': 'faceoff',
@@ -43,6 +46,7 @@ def _get_event_dictionary():
 def get_event_dictionary():
     """
     Returns the abbreviation: long name event mapping (in lowercase)
+
     :return: dict of str:str
     """
     return _EVENT_DICT
@@ -52,7 +56,9 @@ def get_event_dictionary():
 def get_event_longname(eventname):
     """
     A method for translating event abbreviations to full names (for pbp matching)
+
     :param eventname: str, the event name
+
     :return: the non-abbreviated event name
     """
     return get_event_dictionary()[eventname]
@@ -61,6 +67,7 @@ def get_event_longname(eventname):
 def event_setup():
     """
     Loads event dictionary into memory
+
     :return: nothing
     """
     global _EVENT_DICT

@@ -13,4 +13,4 @@ Methods
 --------
 
 .. automodule:: scrapenhl2.manipulate.manipulate
-:members:
+   :members:

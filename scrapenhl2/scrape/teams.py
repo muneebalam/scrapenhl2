@@ -18,8 +18,10 @@ import scrapenhl2.scrape.team_info as team_info
 def get_team_pbp(season, team):
     """
     Returns the pbp of given team in given season across all games.
+    
     :param season: int, the season
     :param team: int or str, the team abbreviation.
+
     :return: df, the pbp of given team in given season
     """
     return feather.read_dataframe(get_team_pbp_filename(season, team_info.team_as_str(team, True)))
@@ -28,8 +30,10 @@ def get_team_pbp(season, team):
 def get_team_toi(season, team):
     """
     Returns the toi of given team in given season across all games.
+
     :param season: int, the season
     :param team: int or str, the team abbreviation.
+
     :return: df, the toi of given team in given season
     """
     return feather.read_dataframe(get_team_toi_filename(season, team_info.team_as_str(team, True)))
@@ -38,9 +42,11 @@ def get_team_toi(season, team):
 def write_team_pbp(pbp, season, team):
     """
     Writes the given pbp dataframe to file.
+
     :param pbp: df, the pbp of given team in given season
     :param season: int, the season
     :param team: int or str, the team abbreviation.
+
     :return: nothing
     """
     if pbp is None:
@@ -51,10 +57,12 @@ def write_team_pbp(pbp, season, team):
 
 def write_team_toi(toi, season, team):
     """
+    Writes team TOI log to file
 
     :param toi: df, team toi for this season
     :param season: int, the season
     :param team: int or str, the team abbreviation.
+
     :return:
     """
     if toi is None:
@@ -74,9 +82,11 @@ def write_team_toi(toi, season, team):
 
 def get_team_pbp_filename(season, team):
     """
+    Returns filename of the PBP log for this team and season
 
     :param season: int, the season
     :param team: int or str, the team abbreviation.
+
     :return:
     """
     return os.path.join(organization.get_season_team_pbp_folder(season),
@@ -85,9 +95,11 @@ def get_team_pbp_filename(season, team):
 
 def get_team_toi_filename(season, team):
     """
+    Returns filename of the TOI log for this team and season
 
     :param season: int, the season
     :param team: int or str, the team abbreviation.
+
     :return:
     """
     return os.path.join(organization.get_season_team_toi_folder(season),
@@ -98,9 +110,11 @@ def update_team_logs(season, force_overwrite=False):
     """
     This method looks at the schedule for the given season and writes pbp for scraped games to file.
     It also adds the strength at each pbp event to the log.
+
     :param season: int, the season
     :param force_overwrite: bool, whether to generate from scratch
-    :return:
+
+    :return: nothing
     """
 
     # For each team
@@ -213,6 +227,7 @@ def update_team_logs(season, force_overwrite=False):
 def team_setup():
     """
     Creates team log-related folders.
+
     :return: nothing
     """
     for season in range(2005, schedules.get_current_season() + 1):

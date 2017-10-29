@@ -17,8 +17,10 @@ import scrapenhl2.scrape.scrape_toi as scrape_toi
 def parse_season_toi(season, force_overwrite=False):
     """
     Parses toi from the given season. Final games covered only.
+
     :param season: int, the season
     :param force_overwrite: bool. If true, parses all games. If false, only previously unparsed ones
+
     :return:
     """
 
@@ -34,10 +36,12 @@ def parse_season_toi(season, force_overwrite=False):
 
 def parse_game_toi(season, game, force_overwrite=False):
     """
+    Parses TOI from json for this game
 
     :param season: int, the season
     :param game: int, the game
     :param force_overwrite: bool. If True, will execute. If False, executes only if file does not exist yet.
+
     :return: nothing
     """
     filename = get_game_parsed_toi_filename(season, game)
@@ -67,10 +71,12 @@ def parse_game_toi(season, game, force_overwrite=False):
 
 def parse_game_toi_from_html(season, game, force_overwrite=False):
     """
+    Parses TOI from the html shift log from this game.
 
     :param season: int, the season
     :param game: int, the game
     :param force_overwrite: bool. If True, will execute. If False, executes only if file does not exist yet.
+
     :return: nothing
     """
     # TODO force_overwrite support
@@ -99,8 +105,10 @@ def parse_game_toi_from_html(season, game, force_overwrite=False):
 def get_parsed_toi(season, game):
     """
     Loads the compressed json file containing this game's shifts from disk.
+
     :param season: int, the season
     :param game: int, the game
+
     :return: json, the json shifts
     """
     return pd.read_hdf(get_game_parsed_toi_filename(season, game))
@@ -109,9 +117,11 @@ def get_parsed_toi(season, game):
 def save_parsed_toi(toi, season, game):
     """
     Saves the pandas dataframe containing shift information to disk as an HDF5.
+
     :param toi: df, a pandas dataframe with the shifts of the game
     :param season: int, the season
     :param game: int, the game
+
     :return: nothing
     """
     toi.to_hdf(get_game_parsed_toi_filename(season, game),
@@ -121,20 +131,16 @@ def save_parsed_toi(toi, season, game):
 
 def read_shifts_from_html_pages(rawtoi1, rawtoi2, teamid1, teamid2, season, game):
     """
+    Aggregates information from two html pages given into a dataframe with one row per second and one col per player.
 
-    :param rawtoi1: str
-        html page of shift log for team id1
-    :param rawtoi2: str
-        html page of shift log for teamid2
-    :param teamid1: int
-        team id corresponding to rawtoi1
-    :param teamid2: int
-        team id corresponding to rawtoi1
-    :param season: int
-        the season
-    :param game: int
-        the game
-    :return:
+    :param rawtoi1: str, html page of shift log for team id1
+    :param rawtoi2: str, html page of shift log for teamid2
+    :param teamid1: int, team id corresponding to rawtoi1
+    :param teamid2: int, team id corresponding to rawtoi1
+    :param season: int, the season
+    :param game: int, the game
+
+    :return: dataframe
     """
 
     from html_table_extractor.extractor import Extractor
@@ -193,11 +199,13 @@ def read_shifts_from_html_pages(rawtoi1, rawtoi2, teamid1, teamid2, season, game
 
 def read_shifts_from_page(rawtoi, season, game):
     """
+    Turns JSON shift start-ends into TOI matrix with one row per second and one col per player
 
-    :param rawtoi:
+    :param rawtoi: dict, json from NHL API
     :param season: int, the season
     :param game: int, the game
-    :return:
+
+    :return: dataframe
     """
     toi = rawtoi['data']
     if len(toi) == 0:
@@ -247,10 +255,12 @@ def read_shifts_from_page(rawtoi, season, game):
 def _finish_toidf_manipulations(df, season, game):
     """
     Takes dataframe of shifts (one row per shift) and makes into a matrix of players on ice for each second.
+
     :param df: dataframe
     :param season: int, the season
     :param game: int, the game
-    :return:
+
+    :return: dataframe
     """
     gameinfo = schedules.get_game_data_from_schedule(season, game)
 
@@ -485,9 +495,11 @@ def _finish_toidf_manipulations(df, season, game):
 def get_game_parsed_toi_filename(season, game):
     """
     Returns the filename of the parsed toi folder
+
     :param season: int, current season
     :param game: int, game
-    :return: /scrape/data/parsed/toi/[season]/[game].zlib
+
+    :return: str, /scrape/data/parsed/toi/[season]/[game].zlib
     """
     return os.path.join(organization.get_season_parsed_toi_folder(season), str(game) + '.h5')
 
@@ -495,6 +507,7 @@ def get_game_parsed_toi_filename(season, game):
 def parse_toi_setup():
     """
     Creates parsed toi folders if need be
+
     :return:
     """
     for season in range(2005, schedules.get_current_season() + 1):

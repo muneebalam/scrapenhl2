@@ -9,9 +9,11 @@ import scrapenhl2.scrape.schedules as schedules
 def update_schedule_with_result(season, game, result):
     """
     Updates the season schedule file with game result (which are listed 'N/A' at schedule generation)
+
     :param season: int, the season
     :param game: int, the game
     :param result: str, the result from home team perspective
+
     :return:
     """
 
@@ -30,10 +32,12 @@ def update_schedule_with_result(season, game, result):
 def _update_schedule_with_coaches(season, game, homecoach, roadcoach):
     """
     Updates the season schedule file with given coaches' names (which are listed 'N/A' at schedule generation)
+
     :param season: int, the season
     :param game: int, the game
     :param homecoach: str, the home coach name
     :param roadcoach: str, the road coach name
+
     :return:
     """
 
@@ -55,8 +59,10 @@ def _update_schedule_with_coaches(season, game, homecoach, roadcoach):
 def update_schedule_with_pbp_scrape(season, game):
     """
     Updates the schedule file saying that specified game's pbp has been scraped.
+
     :param season: int, the season
     :param game: int, the game, or list of ints
+
     :return: updated schedule
     """
     df = schedules.get_season_schedule(season)
@@ -71,8 +77,10 @@ def update_schedule_with_pbp_scrape(season, game):
 def update_schedule_with_toi_scrape(season, game):
     """
     Updates the schedule file saying that specified game's toi has been scraped.
+
     :param season: int, the season
     :param game: int, the game, or list of int
+
     :return: nothing
     """
     df = schedules.get_season_schedule(season)
@@ -87,9 +95,11 @@ def update_schedule_with_toi_scrape(season, game):
 def update_schedule_with_result_using_pbp(pbp, season, game):
     """
     Uses the PbP to update results for this game.
+
     :param pbp: json, the pbp for this game
     :param season: int, the season
     :param game: int, the game
+
     :return: nothing
     """
 
@@ -134,9 +144,11 @@ def update_schedule_with_result_using_pbp(pbp, season, game):
 def update_schedule_with_coaches(pbp, season, game):
     """
     Uses the PbP to update coach info for this game.
+
     :param pbp: json, the pbp for this game
     :param season: int, the season
     :param game: int, the game
+
     :return: nothing
     """
 

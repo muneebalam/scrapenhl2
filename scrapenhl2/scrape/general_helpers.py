@@ -17,10 +17,12 @@ from fuzzywuzzy import fuzz
 
 def print_and_log(message, level='info', print_and_log=True):
     """
-    A helper method that prints message to console and also writes to log with specified level
+    A helper method that prints message to console and also writes to log with specified level.
+
     :param message: str, the message
     :param level: str, the level of log: info, warn, error, critical
     :param print_and_log: bool. If False, logs only.
+
     :return: nothing
     """
     if print_and_log:
@@ -38,9 +40,10 @@ def print_and_log(message, level='info', print_and_log=True):
 def once_per_second(fn, calls_per_second=1):
     """
     A decorator that sleeps for one second after executing the function. Used when scraping NHL site.
-
     This also means all functions that access the internet sleep for a second.
+
     :param fn: the function
+
     :return: nothing
     """
 
@@ -52,9 +55,10 @@ def once_per_second(fn, calls_per_second=1):
 
 def log_exceptions(fn):
     """
-    A decorator that wraps the passed in function and logs
-    exceptions should one occur
+    A decorator that wraps the passed in function and logs exceptions should one occur
+
     :param function: the function
+
     :return: nothing
     """
 
@@ -115,7 +119,9 @@ start_logging()
 def check_types(obj):
     """
     A helper method to check if obj is int, float, np.int64, or str. This is frequently needed, so is helpful.
+
     :param obj: the object to check the type
+
     :return: bool
     """
     return check_number(obj) or isinstance(obj, str)
@@ -124,7 +130,9 @@ def check_types(obj):
 def check_number(obj):
     """
     A helper method to check if obj is int, float, np.int64, etc. This is frequently needed, so is helpful.
+
     :param obj: the object to check the type
+
     :return: bool
     """
     return isinstance(obj, int) or isinstance(obj, float) or isinstance(obj, np.number)
@@ -133,7 +141,9 @@ def check_number(obj):
 def check_number_last_first_format(name):
     """
     Checks if specified name looks like "8 Ovechkin, Alex"
+
     :param name: str
+
     :return: bool
     """
     if re.match('^\d{1,2}\s*[A-Z]+\s*[A-Z]+', name) is None:
@@ -145,7 +155,9 @@ def check_number_last_first_format(name):
 def infer_season_from_date(date):
     """
     Looks at a date and infers the season based on that: Year-1 if month is Aug or before; returns year otherwise.
+
     :param date: str, YYYY-MM-DD
+
     :return: int, the season. 2007-08 would be 2007.
     """
     season, month, day = [int(x) for x in date.split('-')]
@@ -157,7 +169,9 @@ def infer_season_from_date(date):
 def mmss_to_secs(strtime):
     """
     Converts time from mm:ss to seconds
-    :param strtime: str
+
+    :param strtime: str, mm:ss
+
     :return: int
     """
     mins, sec = strtime.split(':')
@@ -167,10 +181,12 @@ def mmss_to_secs(strtime):
 def try_to_access_dict(base_dct, *keys, **kwargs):
     """
     A helper method that accesses base_dct using keys, one-by-one. Returns None if a key does not exist.
+
     :param base_dct: dict, a dictionary
     :param keys: str, int, or other valid dict keys
     :param kwargs: can specify default using kwarg default_return=0, for example.
-    :return: base_dct[key1][key2][key3]... or None if a key is not in the dictionary
+
+    :return: obj, base_dct[key1][key2][key3]... or None if a key is not in the dictionary
     """
     temp = base_dct
     default_return = None
@@ -192,8 +208,10 @@ def try_to_access_dict(base_dct, *keys, **kwargs):
 def add_sim_scores(df, name):
     """
     Adds fuzzywuzzy's token set similarity scores to provded dataframe
+
     :param df: pandas dataframe with column Name
     :param name: str, name to compare to
+
     :return: df with an additional column SimScore
     """
     df.loc[:, 'SimScore'] = df.Name.apply(lambda x: fuzz.token_set_ratio(name, x))
@@ -205,9 +223,11 @@ def fuzzy_match_player(name_provided, names, minimum_similarity=50):
     This method checks similarity between each entry in names and the name_provided using token set matching and
     returns the entry that matches best. Returns None if no similarity is greater than minimum_similarity.
     (See e.g. http://chairnerd.seatgeek.com/fuzzywuzzy-fuzzy-string-matching-in-python/)
+
     :param name_provided: str, name to look for
     :param names: list (or ndarray, or similar) of
     :param minimum_similarity: int from 0 to 100, minimum similarity. If all are below this, returns None.
+
     :return: str, string in names that best matches name_provided
     """
     df = pd.DataFrame({'Name': names})
@@ -225,8 +245,10 @@ def intervals(lst, interval_pct=10):
     """
     A method that divides list into intervals and returns tuples indicating each interval mark.
     Useful for giving updates when cycling through games.
+
     :param lst: lst to divide
     :param interval_pct: int, pct for each interval to represent. e.g. 10 means it will mark every 10%.
+
     :return: a list of tuples of (index, value)
     """
 
@@ -247,7 +269,9 @@ def intervals(lst, interval_pct=10):
 def remove_leading_number(string):
     """
     Will convert 8 Alex Ovechkin to Alex Ovechkin, or Alex Ovechkin to Alex Ovechkin
+
     :param string: a string
+
     :return: string without leading numbers
     """
     newstring = string
@@ -259,7 +283,9 @@ def remove_leading_number(string):
 def flip_first_last(name):
     """
     Changes Ovechkin, Alex to Alex Ovechkin. Also changes to title case.
+
     :param name: str
+
     :return: str, flipped if applicable
     """
     if ',' not in name:
@@ -273,10 +299,8 @@ def flip_first_last(name):
 def period_contribution(x):
     """
     Turns period--1, 2, 3, OT, etc--into # of seconds elapsed in game until start.
-    :param x: str or int
-        1, 2, 3, etc
-    :return: int
-        Number of seconds elapsed until start of specified period
+    :param x: str or int, 1, 2, 3, etc
+    :return: int, number of seconds elapsed until start of specified period
     """
     try:
         x = int(x)

@@ -18,9 +18,11 @@ import scrapenhl2.scrape.scrape_pbp as scrape_pbp
 def parse_season_pbp(season, force_overwrite=False):
     """
     Parses pbp from the given season.
+
     :param season: int, the season
     :param force_overwrite: bool. If true, parses all games. If false, only previously unparsed ones
-    :return:
+
+    :return: nothing
     """
     if season is None:
         season = schedules.get_current_season()
@@ -45,8 +47,10 @@ def parse_season_pbp(season, force_overwrite=False):
 def get_parsed_pbp(season, game):
     """
     Loads the compressed json file containing this game's play by play from disk.
+
     :param season: int, the season
     :param game: int, the game
+
     :return: json, the json pbp
     """
     return pd.read_hdf(get_game_parsed_pbp_filename(season, game))
@@ -55,9 +59,11 @@ def get_parsed_pbp(season, game):
 def save_parsed_pbp(pbp, season, game):
     """
     Saves the pandas dataframe containing pbp information to disk as an HDF5.
+
     :param pbp: df, a pandas dataframe with the pbp of the game
     :param season: int, the season
     :param game: int, the game
+
     :return: nothing
     """
     pbp.to_hdf(get_game_parsed_pbp_filename(season, game),
@@ -68,10 +74,10 @@ def save_parsed_pbp(pbp, season, game):
 def _create_pbp_df_json(pbp, gameinfo):
     """
     Creates a pandas dataframe from the pbp, making use of gameinfo (from schedule file) as well
-    :param pbp: dict
-        dict from pbp json
-    :param gameinfo: dict
-        single row from schedule file
+
+    :param pbp: dict, from pbp json
+    :param gameinfo: dict, single row from schedule file
+
     :return: dataframe
     """
 
@@ -123,10 +129,12 @@ def _create_pbp_df_json(pbp, gameinfo):
 
 def _add_scores_to_pbp(pbpdf, gameinfo):
     """
+    Adds columns for home and road goals to supplied dataframe
 
-    :param pbp:
-    :param gameinfo:
-    :return:
+    :param pbp: dataframe of play by play events
+    :param gameinfo: dict, one row of the schedule file
+
+    :return: dataframe with two extra columns
     """
     # Add score
     homegoals = pbpdf[['Event', 'Period', 'MinSec', 'Team']] \
@@ -161,8 +169,9 @@ def _add_scores_to_pbp(pbpdf, gameinfo):
 def _add_times_to_pbp(pbpdf):
     """
     Uses period and time columns to add a column with time in seconds elapsed in game
-    :param pbp: df
-        pandas dataframe
+
+    :param pbp: df, pandas dataframe
+
     :return: pandas dataframe
     """
 
@@ -184,23 +193,24 @@ def read_events_from_page(rawpbp, season, game):
     """
     This method takes the json pbp and returns a pandas dataframe with the following columns:
 
-    - Index: int, index of event
-    - Period: str, period of event. In regular season, could be 1, 2, 3, OT, or SO. In playoffs, 1, 2, 3, 4, 5...
-    - MinSec: str, m:ss, time elapsed in period
-    - Time: int, time elapsed in game
-    - Event: str, the event name
-    - Team: int, the team id. Note that this is switched to blocked team for blocked shots to ease Corsi calculations.
-    - Actor: int, the acting player id. Switched with recipient for blocks (see above)
-    - ActorRole: str, e.g. for faceoffs there is a "Winner" and "Loser". Switched with recipient for blocks (see above)
-    - Recipient: int, the receiving player id. Switched with actor for blocks (see above)
-    - RecipientRole: str, e.g. for faceoffs there is a "Winner" and "Loser". Switched with actor for blocks (see above)
-    - X: int, the x coordinate of event (or NaN)
-    - Y: int, the y coordinate of event (or NaN)
-    - Note: str, additional notes, which may include penalty duration, assists on a goal, etc.
+    * Index: int, index of event
+    * Period: str, period of event. In regular season, could be 1, 2, 3, OT, or SO. In playoffs, 1, 2, 3, 4, 5...
+    * MinSec: str, m:ss, time elapsed in period
+    * Time: int, time elapsed in game
+    * Event: str, the event name
+    * Team: int, the team id. Note that this is switched to blocked team for blocked shots to ease Corsi calculations.
+    * Actor: int, the acting player id. Switched with recipient for blocks (see above)
+    * ActorRole: str, e.g. for faceoffs there is a "Winner" and "Loser". Switched with recipient for blocks (see above)
+    * Recipient: int, the receiving player id. Switched with actor for blocks (see above)
+    * RecipientRole: str, e.g. for faceoffs there is a "Winner" and "Loser". Switched with actor for blocks (see above)
+    * X: int, the x coordinate of event (or NaN)
+    * Y: int, the y coordinate of event (or NaN)
+    * Note: str, additional notes, which may include penalty duration, assists on a goal, etc.
 
     :param rawpbp: json, the raw json pbp
     :param season: int, the season
     :param game: int, the game
+
     :return: pandas dataframe, the pbp in a nicer format
     """
     pbp = helpers.try_to_access_dict(rawpbp, 'liveData', 'plays', 'allPlays')
@@ -221,9 +231,11 @@ def read_events_from_page(rawpbp, season, game):
 def get_game_parsed_pbp_filename(season, game):
     """
     Returns the filename of the parsed pbp folder
+
     :param season: int, current season
     :param game: int, game
-    :return: /scrape/data/parsed/pbp/[season]/[game].zlib
+
+    :return: str, /scrape/data/parsed/pbp/[season]/[game].zlib
     """
     return os.path.join(organization.get_season_parsed_pbp_folder(season), str(game) + '.h5')
 
@@ -232,9 +244,11 @@ def parse_game_pbp(season, game, force_overwrite=False):
     """
     Reads the raw pbp from file, updates player IDs, updates player logs, and parses the JSON to a pandas DF
     and writes to file. Also updates team logs accordingly.
+
     :param season: int, the season
     :param game: int, the game
     :param force_overwrite: bool. If True, will execute. If False, executes only if file does not exist yet.
+
     :return: True if parsed, False if not
     """
 
@@ -259,9 +273,11 @@ def parse_game_pbp_from_html(season, game, force_overwrite=False):
     """
     Reads the raw pbp from file, updates player IDs, updates player logs, and parses the JSON to a pandas DF
     and writes to file. Also updates team logs accordingly.
+
     :param season: int, the season
     :param game: int, the game
     :param force_overwrite: bool. If True, will execute. If False, executes only if file does not exist yet.
+
     :return: True if parsed, False if not
     """
 
@@ -270,7 +286,7 @@ def parse_game_pbp_from_html(season, game, force_overwrite=False):
         return False
 
     rawpbp = scrape_pbp.save(season, game)
-    update_player_ids_from_page(rawpbp)
+    players.update_player_ids_from_page(rawpbp)
     manipulate_schedules.update_player_logs_from_page(rawpbp, season, game)
     manipulate_schedules.update_schedule_with_coaches(rawpbp, season, game)
     manipulate_schedules.update_schedule_with_result(rawpbp, season, game)
@@ -284,7 +300,8 @@ def parse_game_pbp_from_html(season, game, force_overwrite=False):
 def parse_pbp_setup():
     """
     Creates parsed pbp folders if need be
-    :return:
+
+    :return: nothing
     """
     for season in range(2005, schedules.get_current_season() + 1):
         organization.check_create_folder(organization.get_season_parsed_pbp_folder(season))

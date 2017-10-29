@@ -19,8 +19,11 @@ import scrapenhl2.scrape.teams as teams
 def delete_game_html(season, game):
     """
     Deletes html files. HTML files are used for live game charts, but deleted in favor of JSONs when games go final.
+
     :param season: int, the season
+
     :param game: int, the game
+
     :return: nothing
     """
 
@@ -36,7 +39,9 @@ def autoupdate(season=None):
     """
     Run this method to update local data. It reads the schedule file for given season and scrapes and parses
     previously unscraped games that have gone final or are in progress.
+
     :param season: int, the season. If None (default), will do current season
+
     :return: nothing
     """
 
@@ -53,7 +58,9 @@ def autoupdate_old(season):
     """
     Run this method to update local data. It reads the schedule file for given season and scrapes and parses
     previously unscraped games that have gone final or are in progress. Use this for 2007, 2008, or 2009.
+
     :param season: int, the season. If None (default), will do current season
+
     :return: nothing
     """
     # TODO
@@ -63,7 +70,9 @@ def autoupdate_new(season):
     """
     Run this method to update local data. It reads the schedule file for given season and scrapes and parses
     previously unscraped games that have gone final or are in progress. Use this for 2010 or later.
+
     :param season: int, the season. If None (default), will do current season
+
     :return: nothing
     """
     # TODO: why does sometimes the schedule have the wrong game-team pairs, but when I regenerate, it's all ok?
@@ -118,6 +127,7 @@ def read_final_games(games, season):
 
     :param games:
     :param season:
+
     :return:
     """
     for game in games:
@@ -152,7 +162,9 @@ def read_final_games(games, season):
 def read_inprogress_games(inprogressgames, season):
     """
     Saves these games to file via html (for toi) and json (for pbp)
+
     :param inprogressgames: list of int
+
     :return:
     """
 

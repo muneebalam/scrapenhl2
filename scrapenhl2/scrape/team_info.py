@@ -18,23 +18,26 @@ import scrapenhl2.scrape.organization as organization
 def get_team_info_filename():
     """
     Returns the team information filename
-    :return: /scrape/data/other/TEAM_INFO.feather
+
+    :return: str, /scrape/data/other/TEAM_INFO.feather
     """
     return os.path.join(organization.get_other_data_folder(), 'TEAM_INFO.feather')
 
 
 def _get_team_info_file():
     """
-    Returns the team information file. This is stored as a feather file for fast read/write.
-    :return: file from /scrape/data/other/TEAM_INFO.feather
+    Returns the team information dataframe from file. This is stored as a feather file for fast read/write.
+
+    :return: dataframe from /scrape/data/other/TEAM_INFO.feather
     """
     return feather.read_dataframe(get_team_info_filename())
 
 
 def get_team_info_file():
     """
-    Returns the team information file. This is stored as a feather file for fast read/write.
-    :return: file from /scrape/data/other/TEAM_INFO.feather
+    Returns the team information dataframe from memory. This is stored as a feather file for fast read/write.
+
+    :return: dataframe from /scrape/data/other/TEAM_INFO.feather
     """
     return _TEAMS
 
@@ -42,7 +45,10 @@ def get_team_info_file():
 def write_team_info_file(df):
     """
     Writes the team information file. This is stored as a feather file for fast read/write.
+
     :param df: the (team information) dataframe to write to file
+
+    :returns: nothing
     """
     feather.write_dataframe(df, get_team_info_filename())
     team_setup()
@@ -51,10 +57,10 @@ def write_team_info_file(df):
 def get_team_info_url(teamid):
     """
     Gets the team url from the NHL API.
-    :param teamid: int
-        the team ID
-    :return: str
-        http://statsapi.web.nhl.com/api/v1/teams/[teamid]
+
+    :param teamid: int, the team ID
+
+    :return: str, http://statsapi.web.nhl.com/api/v1/teams/[teamid]
     """
     return 'http://statsapi.web.nhl.com/api/v1/teams/{0:d}'.format(teamid)
 
@@ -62,7 +68,9 @@ def get_team_info_url(teamid):
 def get_team_info_from_url(teamid):
     """
     Pulls ID, abbreviation, and name from the NHL API.
+
     :param teamid: int, the team ID
+
     :return: (id, abbrev, name)
     """
 
@@ -82,7 +90,9 @@ def get_team_info_from_url(teamid):
 def add_team_to_info_file(teamid):
     """
     In case we come across teams that are not in the default list (1-110), use this method to add them to the file.
+
     :param teamid: int, the team ID
+
     :return: (tid, tabbrev, tname)
     """
 
@@ -108,6 +118,7 @@ def generate_team_ids_file(teamids=None):
     - Name: str (full name)
 
     :param teamids: iterable of int. Tries to access team ids as listed in teamids. If not, goes from 1-110.
+
     :return: nothing
     """
     # TODO how about teams like 5460? Or Olympic teams? Read data automatically from game files in some cases
@@ -150,7 +161,9 @@ def generate_team_ids_file(teamids=None):
 def team_as_id(team):
     """
     A helper method. If team entered is int, returns that. If team is str, returns integer id of that team.
+
     :param team: int, or str
+
     :return: int, the team ID
     """
     if helpers.check_number(team):
@@ -175,8 +188,10 @@ def team_as_id(team):
 def team_as_str(team, abbreviation=True):
     """
     A helper method. If team entered is str, returns that. If team is int, returns string name of that team.
+
     :param team: int, or str
     :param abbreviation: bool, whether to return 3-letter abbreviation or full name
+
     :return: str, the team name
     """
     col_to_access = 'Abbreviation' if abbreviation else 'Name'
@@ -209,6 +224,7 @@ def team_as_str(team, abbreviation=True):
 def get_team_colordict():
     """
     Get the team color dictionary
+
     :return: a dictionary of IDs to tuples of hex colors
     """
     return _TEAM_COLORS
@@ -217,6 +233,7 @@ def get_team_colordict():
 def _get_team_colordict():
     """
     Run at startup to get the team color dictionary. Source: https://teamcolorcodes.com/category/nhl-team-color-codes/
+
     :return: a dictionary of names to tuples of hex colors
     """
     return {'ANA': ["#91764B", '#000000', '#EF5225'], 'ARI': ['#841F27', '#000000', '#EFE1C6'],
@@ -240,7 +257,9 @@ def _get_team_colordict():
 def get_team_colors(team):
     """
     Returns primary and secondary color for this team.
+
     :param team: str or int, the team
+
     :return: tuple of hex colors
     """
     return get_team_colordict()[team_as_str(team)]
@@ -249,6 +268,7 @@ def get_team_colors(team):
 def team_setup():
     """
     This method loads the team info df into memory
+
     :return: nothing
     """
     global _TEAMS, _TEAM_COLORS

@@ -1,8 +1,0 @@
-scrape
-======
-
-.. toctree::
-:maxdepth: 4
-
-       scrape_game
-       scrape_setup

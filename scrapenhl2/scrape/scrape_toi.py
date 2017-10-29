@@ -15,9 +15,11 @@ import scrapenhl2.scrape.schedules as schedules
 def scrape_game_toi(season, game, force_overwrite=False):
     """
     This method scrapes the toi for the given game.
+
     :param season: int, the season
     :param game: int, the game
     :param force_overwrite: bool. If file exists already, won't scrape again
+
     :return: nothing
     """
     filename = get_game_raw_toi_filename(season, game)
@@ -39,12 +41,11 @@ def scrape_game_toi(season, game, force_overwrite=False):
 def get_home_shiftlog_filename(season, game):
     """
     Returns the filename of the parsed toi html home shifts
-    :param season: int
-        The season
-    :param game: int
-        The game
-    :return: str
-        /scrape/data/raw/pbp/[season]/[game]H.html
+
+    :param season: int, the season
+    :param game: int, the game
+
+    :return: str, /scrape/data/raw/pbp/[season]/[game]H.html
     """
     return os.path.join(organization.get_season_raw_toi_folder(season), str(game) + 'H.html')
 
@@ -52,12 +53,10 @@ def get_home_shiftlog_filename(season, game):
 def get_road_shiftlog_filename(season, game):
     """
     Returns the filename of the parsed toi html road shifts
-    :param season: int
-        current season
-    :param game: int
-        game
-    :return: str
-        /scrape/data/raw/pbp/[season]/[game]H.html
+
+    :param season: int, current season
+    :param game: int, game
+    :return: str, /scrape/data/raw/pbp/[season]/[game]H.html
     """
     return os.path.join(organization.get_season_raw_toi_folder(season), str(game) + 'R.html')
 
@@ -65,12 +64,11 @@ def get_road_shiftlog_filename(season, game):
 def scrape_game_toi_from_html(season, game, force_overwrite=True):
     """
     This method scrapes the toi html logs for the given game.
-    :param season: int
-        the season
-    :param game: int
-        the game
-    :param force_overwrite: bool
-        If file exists already, won't scrape again
+
+    :param season: int, the season
+    :param game: int, the game
+    :param force_overwrite: bool. If file exists already, won't scrape again
+
     :return: nothing
     """
     filenames = (get_home_shiftlog_filename(season, game), get_road_shiftlog_filename(season, game))
@@ -92,11 +90,11 @@ def scrape_game_toi_from_html(season, game, force_overwrite=True):
 def save_raw_toi(page, season, game):
     """
     Takes the bytes page containing shift information and saves to disk as a compressed zlib.
+
     :param page: bytes. str(page) would yield a string version of the json shifts
-    :param season: int
-        the season
-    :param game: int
-        the game
+    :param season: int, the season
+    :param game: int, the game
+
     :return: nothing
     """
     page2 = zlib.compress(page, level=9)
@@ -109,13 +107,12 @@ def save_raw_toi(page, season, game):
 def save_raw_toi_from_html(page, season, game, homeroad):
     """
     Takes the bytes page containing shift information and saves to disk as html.
+
     :param page: bytes. str(page) would yield a string version of the json shifts
-    :param season: int
-        the season
-    :param game: int
-        the game
-    :param homeroad: str
-        'H' or 'R'
+    :param season: int, he season
+    :param game: int, the game
+    :param homeroad: str, 'H' or 'R'
+
     :return: nothing
     """
     if homeroad == 'H':
@@ -130,14 +127,12 @@ def save_raw_toi_from_html(page, season, game, homeroad):
 def get_raw_html_toi(season, game, homeroad):
     """
     Loads the html file containing this game's toi from disk.
-    :param season: int
-        the season
-    :param game: int
-        the game
-    :param homeroad: str
-        'H' for home or 'R' for road
-    :return: str
-        the html toi
+
+    :param season: int, the season
+    :param game: int, the game
+    :param homeroad: str, 'H' for home or 'R' for road
+
+    :return: str, the html toi
     """
     if homeroad == 'H':
         filename = get_home_shiftlog_filename(season, game)
@@ -151,12 +146,11 @@ def get_raw_html_toi(season, game, homeroad):
 def get_raw_toi(season, game):
     """
     Loads the compressed json file containing this game's shifts from disk.
-    :param season: int
-        the season
-    :param game: int
-        the game
-    :return: dict
-        the json shifts
+
+    :param season: int, the season
+    :param game: int, the game
+
+    :return: dict, the json shifts
     """
     with open(get_game_raw_toi_filename(season, game), 'rb') as reader:
         page = reader.read()
@@ -166,12 +160,11 @@ def get_raw_toi(season, game):
 def get_home_shiftlog_url(season, game):
     """
     Gets the url for a page containing shift information for specified game from HTML tables for home team.
-    :param season: int
-        the season
-    :param game: int
-        the game
-    :return : str
-        e.g. http://www.nhl.com/scores/htmlreports/20072008/TH020001.HTM
+
+    :param season: int, the season
+    :param game: int, the game
+
+    :return : str, e.g. http://www.nhl.com/scores/htmlreports/20072008/TH020001.HTM
     """
     return 'http://www.nhl.com/scores/htmlreports/{0:d}{1:d}/TH0{2:d}.HTM'.format(season, season + 1, game)
 
@@ -179,12 +172,11 @@ def get_home_shiftlog_url(season, game):
 def get_road_shiftlog_url(season, game):
     """
     Gets the url for a page containing shift information for specified game from HTML tables for road team.
-    :param season: int
-        the season
-    :param game: int
-        the game
-    :return : str
-        e.g. http://www.nhl.com/scores/htmlreports/20072008/TV020001.HTM
+
+    :param season: int, the season
+    :param game: int, the game
+
+    :return : str, e.g. http://www.nhl.com/scores/htmlreports/20072008/TV020001.HTM
     """
     return 'http://www.nhl.com/scores/htmlreports/{0:d}{1:d}/TV0{2:d}.HTM'.format(season, season + 1, game)
 
@@ -192,12 +184,11 @@ def get_road_shiftlog_url(season, game):
 def get_shift_url(season, game):
     """
     Gets the url for a page containing shift information for specified game from NHL API.
-    :param season: int
-        the season
-    :param game: int
-        the game
-    :return : str
-        http://www.nhl.com/stats/rest/shiftcharts?cayenneExp=gameId=[season]0[game]
+
+    :param season: int, the season
+    :param game: int, the game
+
+    :return : str, http://www.nhl.com/stats/rest/shiftcharts?cayenneExp=gameId=[season]0[game]
     """
     return 'http://www.nhl.com/stats/rest/shiftcharts?cayenneExp=gameId={0:d}0{1:d}'.format(season, game)
 
@@ -205,9 +196,11 @@ def get_shift_url(season, game):
 def get_game_raw_toi_filename(season, game):
     """
     Returns the filename of the raw toi folder
+
     :param season: int, current season
     :param game: int, game
-    :return:  /scrape/data/raw/toi/[season]/[game].zlib
+
+    :return: str, /scrape/data/raw/toi/[season]/[game].zlib
     """
     return os.path.join(organization.get_season_raw_toi_folder(season), str(game) + '.zlib')
 
@@ -215,6 +208,7 @@ def get_game_raw_toi_filename(season, game):
 def scrape_toi_setup():
     """
     Creates raw toi folders if need be
+
     :return:
     """
     for season in range(2005, schedules.get_current_season() + 1):

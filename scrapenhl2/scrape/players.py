@@ -21,6 +21,7 @@ _PLAYER_LOG = None
 def get_player_log_file():
     """
     Returns the player log file from memory.
+
     :return: dataframe, the log
     """
     return _PLAYER_LOG
@@ -29,6 +30,7 @@ def get_player_log_file():
 def _get_player_log_file():
     """
     Returns the player log file, reading from file. This is stored as a feather file for fast read/write.
+
     :return: dataframe from /scrape/data/other/PLAYER_LOG.feather
     """
     return feather.read_dataframe(get_player_log_filename())
@@ -37,6 +39,7 @@ def _get_player_log_file():
 def get_player_ids_file():
     """
     Returns the player information file. This is stored as a feather file for fast read/write.
+
     :return: /scrape/data/other/PLAYER_INFO.feather
     """
     return _PLAYERS
@@ -45,6 +48,7 @@ def get_player_ids_file():
 def _get_player_ids_file():
     """
     Runs at startup to read the player information file. This is stored as a feather file for fast read/write.
+
     :return: /scrape/data/other/PLAYER_INFO.feather
     """
     return feather.read_dataframe(get_player_ids_filename())
@@ -53,7 +57,9 @@ def _get_player_ids_file():
 def write_player_log_file(df):
     """
     Writes the given dataframe to file as the player log filename
+
     :param df: pandas dataframe
+
     :return: nothing
     """
     feather.write_dataframe(df.drop_duplicates(), get_player_log_filename())
@@ -63,6 +69,7 @@ def write_player_log_file(df):
 def get_player_log_filename():
     """
     Returns the player log filename.
+
     :return: str, /scrape/data/other/PLAYER_LOG.feather
     """
     return os.path.join(organization.get_other_data_folder(), 'PLAYER_LOG.feather')
@@ -76,7 +83,10 @@ def check_default_player_id(playername):
     """
     E.g. For Mike Green, I should automatically assume we mean 8471242 (WSH/DET), not 8468436.
     Returns None if not in dict.
+    Ideally improve code so this isn't needed.
+
     :param playername: str
+
     :return: int, or None
     """
     # TODO gradually add to this
@@ -86,6 +96,7 @@ def check_default_player_id(playername):
 def player_setup():
     """
     Loads team info file into memory.
+
     :return: nothing
     """
     global _PLAYERS, _PLAYER_LOG
@@ -104,7 +115,9 @@ def rescrape_player(playerid):
     """
     If you notice that a player name, position, etc, is outdated, call this method on their ID. It will
     re-scrape their data from the NHL API.
+
     :param playerid: int, their ID. Also accepts str, their name.
+
     :return: nothing
     """
     playerid = player_as_id(playerid)
@@ -114,7 +127,9 @@ def rescrape_player(playerid):
 def write_player_ids_file(df):
     """
     Writes the given dataframe to disk as the player ids mapping.
+
     :param df: pandas dataframe, player ids file
+
     :return: nothing
     """
     feather.write_dataframe(df.drop_duplicates(), get_player_ids_filename())
@@ -123,10 +138,10 @@ def write_player_ids_file(df):
 def get_player_url(playerid):
     """
     Gets the url for a page containing information for specified player from NHL API.
-    :param playerid: int
-        the player ID
-    :return: str
-        https://statsapi.web.nhl.com/api/v1/people/[playerid]
+
+    :param playerid: int, the player ID
+
+    :return: str, https://statsapi.web.nhl.com/api/v1/people/[playerid]
     """
     return 'https://statsapi.web.nhl.com/api/v1/people/{0:s}'.format(str(playerid))
 
@@ -134,8 +149,10 @@ def get_player_url(playerid):
 def update_player_ids_file(playerids, force_overwrite=False):
     """
     Adds these entries to player IDs file if need be.
+
     :param playerids: a list of IDs
     :param force_overwrite: bool. If True, will re-scrape data for all player ids. If False, only new ones.
+
     :return: nothing
     """
     # In case we get just one number
@@ -186,11 +203,13 @@ def update_player_log_file(playerids, seasons, games, teams, statuses):
     """
     Updates the player log file with given players. The player log file notes which players played in which games
     and whether they were scratched or played.
+
     :param playerids: int or str or list of int
     :param seasons: int, the season, or list of int the same length as playerids
     :param games: int, the game, or list of int the same length as playerids
     :param teams: str or int, the team, or list of int the same length as playerids
     :param statuses: str, or list of str the same length as playerids
+
     :return: nothing
     """
 
@@ -224,9 +243,10 @@ def update_player_log_file(playerids, seasons, games, teams, statuses):
 def player_as_id(player, filterdf=get_player_ids_file()):
     """
     A helper method. If player entered is int, returns that. If player is str, returns integer id of that player.
-    :param player: int, or str
-    :param filterdf: df
-        a dataframe of players to choose from. Defaults to all.
+
+    :param player: int, or str, the player whose names you want to retrieve
+    :param filterdf: a dataframe of players to choose from. Defaults to all.
+
     :return: int, the player ID
     """
     pids = filterdf
@@ -267,9 +287,10 @@ def player_as_id(player, filterdf=get_player_ids_file()):
 def playerlst_as_str(players, filterdf=get_player_ids_file()):
     """
     Similar to player_as_str, but less robust against errors, and works on a list of players
-    :param players: a list of int, or str
-    :param filterdf: df
-        a dataframe of players to choose from. Defaults to all.
+
+    :param players: a list of int, or str, players whose names you want to retrieve
+    :param filterdf: df, a dataframe of players to choose from. Defaults to all.
+
     :return: a list of str
     """
     df = pd.DataFrame({'ID': players})
@@ -283,10 +304,11 @@ def playerlst_as_str(players, filterdf=get_player_ids_file()):
 def playerlst_as_id(playerlst, exact=False, filterdf=get_player_ids_file()):
     """
     Similar to player_as_id, but less robust against errors, and works on a list of players.
-    :param players: a list of int, or str
+
+    :param players: a list of int, or str, players whose IDs you want to retrieve.
     :param exact: bool. If True, looks for exact matches. If False, does not, using player_as_id (but will be slower)
-    :param filterdf: df
-        a dataframe of players to choose from. Defaults to all.
+    :param filterdf: df, a dataframe of players to choose from. Defaults to all.
+
     :return: a list of int/float
     """
     df = pd.DataFrame({'Name': playerlst})
@@ -303,9 +325,10 @@ def playerlst_as_id(playerlst, exact=False, filterdf=get_player_ids_file()):
 def player_as_str(player, filterdf):
     """
     A helper method. If player is int, returns string name of that player. Else returns standardized name.
-    :param player: int, or str
-    :param filterdf: df
-        a dataframe of players to choose from. Defaults to all.
+
+    :param player: int, or str, player whose name you want to retrieve
+    :param filterdf: df, a dataframe of players to choose from. Defaults to all.
+
     :return: str, the player name
     """
     if isinstance(player, str):
@@ -330,7 +353,9 @@ def player_as_str(player, filterdf):
 def get_player_info_from_url(playerid):
     """
     Gets ID, Name, Hand, Pos, DOB, Height, Weight, and Nationality from the NHL API.
+
     :param playerid: int, the player id
+
     :return: dict with player ID, name, handedness, position, etc
     """
     with urllib.request.urlopen(get_player_url(playerid)) as reader:
@@ -384,6 +409,7 @@ def generate_player_log_file():
     """
     Run this when no player log file exists already. This is for getting the datatypes right. Adds Alex Ovechkin
     in Game 1 vs Pittsburgh in 2016-2017.
+
     :return: nothing
     """
     df = pd.DataFrame({'ID': [8471214],  # Player ID (Ovi)
@@ -399,7 +425,9 @@ def generate_player_log_file():
 def update_player_ids_from_page(pbp):
     """
     Reads the list of players listed in the game file and adds to the player IDs file if they are not there already.
+
     :param pbp: json, the raw pbp
+
     :return: nothing
     """
     playerdict = pbp['gameData']['players']  # yields the subdictionary with players
@@ -411,9 +439,11 @@ def update_player_logs_from_page(pbp, season, game):
     """
     Takes the game play by play and adds players to the master player log file, noting that they were on the roster
     for this game, which team they played for, and their status (P for played, S for scratch).
+
     :param season: int, the season
     :param game: int, the game
     :param pbp: json, the pbp of the game
+
     :return: nothing
     """
 
