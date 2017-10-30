@@ -87,6 +87,7 @@ def rolling_player_cf(player, roll_len=25, startseason=None, endseason=None, sav
         return plt.gcf()
     else:
         plt.savefig(save_file)
+    plt.close()
 
 
 def _get_rolling_cf_title(player, roll_len, startseason, endseason):

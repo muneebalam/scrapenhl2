@@ -109,6 +109,7 @@ def game_timeline(season, game, save_file=None):
         return plt.gcf()
     else:
         plt.savefig(save_file)
+    plt.close()
 
 
 def _get_home_adv_for_timeline(season, game):

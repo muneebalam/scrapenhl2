@@ -47,7 +47,8 @@ def game_h2h(season, game, save_file=None):
 
     # TODO create chart and filter out RH, HH, and RR
     # TODO link players by ID. When I link by name have issue with Mike Green for example
-    return _game_h2h_chart(season, game, h2hcorsi, h2htoi, playerorder_h, playerorder_r, numf_h, numf_r, save_file)
+    _game_h2h_chart(season, game, h2hcorsi, h2htoi, playerorder_h, playerorder_r, numf_h, numf_r, save_file)
+    plt.close()
 
 
 def _game_h2h_chart(season, game, corsi, toi, orderh, orderr, numf_h=None, numf_r=None, save_file=None):

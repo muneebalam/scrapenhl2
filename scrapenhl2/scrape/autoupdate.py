@@ -117,6 +117,7 @@ def read_final_games(games, season):
         except Exception as e:
             print(str(e))
         try:
+            # TODO update only a couple of days later from json and delete html and don't update with toi scrape until then
             if season < 2010:
                 scrape_toi.scrape_game_toi_from_html(season, game, True)
                 manipulate_schedules.update_schedule_with_toi_scrape(season, game)
@@ -125,6 +126,12 @@ def read_final_games(games, season):
                 scrape_toi.scrape_game_toi(season, game, True)
                 manipulate_schedules.update_schedule_with_toi_scrape(season, game)
                 parse_toi.parse_game_toi(season, game, True)
+
+                # If you scrape soon after a game the json only has like the first period for example.
+                # If I don't have the full game, use html
+                if len(parse_toi.get_parsed_toi(season, game)) < 3600:
+                    scrape_toi.scrape_game_toi_from_html(season, game, True)
+                    parse_toi.parse_game_toi_from_html(season, game, True)
         except urllib.error.HTTPError as he:
             print('Could not access toi url for {0:d} {1:d}'.format(season, game))
             print(str(he))
