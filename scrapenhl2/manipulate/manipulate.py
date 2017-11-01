@@ -392,6 +392,8 @@ def get_5v5_player_game_toi(season, team):
                          var_name='Team', value_name='Player') \
         .drop('Team', axis=1)
 
+    fives_long = merge_onto_all_team_games_and_zero_fill(fives_long, season, team)
+
     # Now, by player. First at a game level to get TOIOFF
     toi_by_player = fives_long.groupby(['Player', 'Game']).count() \
         .reset_index() \
@@ -613,6 +615,8 @@ def get_5v5_player_game_boxcars(season, team):
         .merge(isog, how='outer', on=['Game', 'PlayerID']) \
         .merge(iff, how='outer', on=['Game', 'PlayerID']) \
         .merge(icf, how='outer', on=['Game', 'PlayerID'])
+
+    boxcars = merge_onto_all_team_games_and_zero_fill(boxcars, season, team)
 
     for col in boxcars.columns:
         boxcars.loc[:, col] = boxcars[col].fillna(0)
@@ -889,13 +893,15 @@ def generate_5v5_player_log(season):
     for team in schedules.get_teams_in_season(season):
         try:
             goals = get_5v5_player_game_boxcars(season, team)  # G, A1, A2, SOG, iCF
-            cfca = get_5v5_player_game_cfca(season, team)  # CFON, CAON, CFOFF, CAOFF, and same for goals
+            cfca = get_5v5_player_game_cfca(season, team)  # CFON, CAON, CFOFF, CAOFF
+            gfga = get_5v5_player_game_gfga(season, team)  # GFON, GAON, GFOFF, GAOFF
             toi = get_5v5_player_game_toi(season, team)  # TOION and TOIOFF
             toicomp = get_5v5_player_game_toicomp(season, team)  # FQoC, F QoT, D QoC, D QoT, and respective Ns
-            shifts = get_5v5_player_game_shift_startend(season, team)  # OZ, NZ, DZ, OTF-O, OTF-D, OTF-N
+            # shifts = get_5v5_player_game_shift_startend(season, team)  # OZ, NZ, DZ, OTF-O, OTF-D, OTF-N
 
             temp = toi \
                 .merge(cfca, how='left', on=['PlayerID', 'Game']) \
+                .merge(gfga, how='left', on=['PlayerID', 'Game']) \
                 .merge(toicomp.drop('Team', axis=1), how='left', on=['PlayerID', 'Game']) \
                 .merge(goals, how='left', on=['PlayerID', 'Game'])
             # .merge(shifts, how='left', on=['PlayerID', 'Game'])
@@ -965,12 +971,34 @@ def _get_5v5_player_game_fa(season, team, gc):
         .rename(columns={metrics['F']: metrics['FON'], metrics['A']: metrics['AON']})
 
     df = indivtotals.merge(teamtotals, how='inner', on='Game')
+
+    df = merge_onto_all_team_games_and_zero_fill(df, season, team)
+
     for col in [metrics['FON'], metrics['AON'], metrics['TeamF'], metrics['TeamA']]:
         if col not in df.columns:
             df.loc[:, col] = 0
         df.loc[:, col] = df[col].fillna(0)
-    df.loc[metrics['FOFF']] = df[metrics['TeamF']] - df[metrics['FON']]
-    df.loc[metrics['AOFF']] = df[metrics['TeamA']] - df[metrics['AON']]
+    df.loc[:, metrics['FOFF']] = df[metrics['TeamF']] - df[metrics['FON']]
+    df.loc[:, metrics['AOFF']] = df[metrics['TeamA']] - df[metrics['AON']]
+    return df
+
+
+def merge_onto_all_team_games_and_zero_fill(df, season, team):
+    """
+    A method that gets all team games from this season and left joins df onto it on game, then zero fills NAs.
+    Makes sure you didn't miss any games and get NAs later.
+
+    :param df: dataframe
+    :param season: int, the season
+    :param team: int or str, the team
+
+    :return: dataframe
+    """
+    # Join onto schedule in case there were 0-0 games at 5v5
+    sch = schedules.get_team_schedule(season, team)
+    df = schedules.get_team_schedule(season, team)[['Game']].merge(df, how='left', on='Game')
+    for col in df.columns:
+        df.loc[:, col] = df[col].fillna(0)
     return df
 
 
@@ -986,7 +1014,7 @@ def get_5v5_player_game_cfca(season, team):
     return _get_5v5_player_game_fa(season, team, 'C')
 
 
-def get_5v5_player_game_cfca(season, team):
+def get_5v5_player_game_gfga(season, team):
     """
     Gets GFON, GAON, GFOFF, and GAOFF by game for given team in given season.
 
@@ -1420,4 +1448,6 @@ def player_columns_to_name(df, columns=None):
 
 
 if __name__ == '__main__':
-    get_5v5_player_game_shift_startend(2017, 15)
+    for season in range(2010, 2018):
+        get_5v5_player_log(season, True)
+    # get_5v5_player_game_shift_startend(2017, 15)

@@ -239,6 +239,24 @@ def update_player_log_file(playerids, seasons, games, teams, statuses):
         write_player_log_file(pd.concat([get_player_log_file(), df]))
 
 
+def get_player_position(player):
+    """
+    Retrieves position of player
+
+    :param player: str or int, the player name or ID
+
+    :return: str, player position (e.g. C, D, R, L, G)
+    """
+
+    df = get_player_ids_file()
+    df = df[df.ID == player_as_id(player)]
+    if len(df) == 1:
+        return df.Pos.iloc[0]
+    else:
+        print('Could not find position for', player)
+        return None
+
+
 @functools.lru_cache(maxsize=128, typed=False)
 def player_as_id(playername, filterdf=None):
     """
@@ -329,6 +347,7 @@ def playerlst_as_id(playerlst, exact=False, filterdf=None):
         return df.ID
 
 
+# TODO: this caches, so can't use pandas df as an arg
 @functools.lru_cache(maxsize=128, typed=False)
 def player_as_str(playerid, filterdf=None):
     """
@@ -342,7 +361,10 @@ def player_as_str(playerid, filterdf=None):
     if filterdf is None:
         filterdf = get_player_ids_file()
     if isinstance(playerid, str):
-        return player_as_str(player_as_id(playerid, filterdf))
+        # full name
+        newfilterdf = filterdf
+        realid = player_as_id(playerid)
+        return player_as_str(realid)
     elif helpers.check_number(playerid):
         player = int(playerid)
         df = filterdf.query('ID == {0:d}'.format(playerid))

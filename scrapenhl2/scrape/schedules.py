@@ -59,6 +59,32 @@ def get_season_schedule(season):
     return _SCHEDULES[season]
 
 
+def get_team_schedule(season, team):
+    """
+    Gets the schedule for given team in given season.
+
+    :param season: int, the season
+    :param team: int or str, the team
+
+    :return: dataframe
+    """
+    df = get_season_schedule(season)
+    tid = team_info.team_as_id(team)
+    return df[(df.Home == tid) | (df.Road == tid)]
+
+
+def get_team_games(season, team):
+    """
+    Returns list of games played by team in season.
+
+    :param season: int, the season
+    :param team: int or str, the team
+
+    :return: series of games
+    """
+    return get_team_schedule(season, team).Game
+
+
 def _get_season_schedule(season):
     """
     Gets the the season's schedule file. Stored as a feather file for fast read/write
