@@ -149,7 +149,7 @@ def make_5v5_rolling(df, **kwargs):
             numeric_df.drop('Row', axis=1, inplace=True)
 
             # Calculate rolling
-            rollingdf = numeric_df.dropna().rolling(roll_len).sum().assign(Row=games_played)
+            rollingdf = numeric_df.dropna().rolling(roll_len, min_periods=1).sum().assign(Row=games_played)
 
         # Rename columns
         columnnames = {col: '{0:d}-game {1:s}'.format(roll_len, col) for col in numeric_df.columns}

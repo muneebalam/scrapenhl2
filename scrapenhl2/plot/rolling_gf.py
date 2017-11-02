@@ -5,73 +5,40 @@ import pandas as pd  # standard scientific python stack
 import scrapenhl2.manipulate.manipulate as manip
 from scrapenhl2.scrape import players
 from scrapenhl2.scrape import schedules
+from scrapenhl2.plot import visualization_helper as vhelper
 
 
-def rolling_player_gf(player, roll_len=25, startseason=None, endseason=None, save_file=None):
+def rolling_player_gf(player, **kwargs):
     """
-    Creates a graph with GF% and GF% off.
+    Creates a graph with GF% and GF% off. Defaults to roll_len of 40.
 
-    :param players: int or str
-    :param startseason: int, the season to start (inclusive). Defaults to 3 years ago.
-    :param endseason: int, the season to finish (inclusive). If not specified, startseason. Else, current.
-    :param save_file: str to save, or None to show. Or 'fig' to return figure
+    :param player: str or int, player to generate for
+    :param kwargs: other filters. See scrapenhl2.plot.visualization_helper.get_and_filter_5v5_log for more information.
 
     :return: nothing, or figure
     """
+
+    kwargs['player'] = player
+    if 'roll_len' not in kwargs:
+        kwargs['roll_len'] = 40
+    gfga = vhelper.get_and_filter_5v5_log(**kwargs)
+
+    df = pd.concat([gfga[['Season', 'Game']], calculate_gf_rates(gfga)], axis=1)
+    col_dict = {col[col.index(' ') + 1:]: col for col in df.columns if '%' in col}
+
     plt.clf()
-    if startseason is None and endseason is None:
-        endseason = schedules.get_current_season()()
-        startseason = endseason - 3
-    elif startseason is None:
-        startseason = endseason
-    elif endseason is None:
-        endseason = startseason
-
-    playerid = players.player_as_id()(player)
-    df = []
-    for season in range(startseason, endseason + 1):
-        temp = manip.get_5v5_player_log(season)
-        temp = temp.query("PlayerID == {0:d}".format(playerid))
-        temp = temp.assign(Season=season)
-        df.append(temp)
-    df = pd.concat(df).sort_values(['Season', 'Game'])
-
-    columnnames = {col: '{0:d}-game {1:s}'.format(roll_len, col) for col in \
-                   ['GFON', 'GAON', 'GFOFF', 'GAOFF']}
-    columnnames2 = {col: '{0:d}-game {1:s}'.format(roll_len, col) for col in ['GF%', 'GF Off%']}
-    df.loc[:, 'GFOFF'] = df.TeamGF - df.GFON
-    df.loc[:, 'GAOFF'] = df.TeamGA - df.GAON
-
-    # Calculate rolling numbers
-    rollingdf = df[list(columnnames.keys())].rolling(roll_len).sum()
-
-    # The first roll_len entries will be NaN--need to fillna using cumsum
-    for col in rollingdf:
-        rollingdf.loc[:, col] = rollingdf[col].fillna(df[col].cumsum())
-
-    # Rename to new column names
-    rollingdf.rename(columns=columnnames, inplace=True)
-
-    # Add to old df
-    df = pd.concat([df, rollingdf], axis=1)
-
-    df.loc[:, '{0:d}-game GF%'.format(roll_len)] = \
-        df['{0:d}-game GFON'.format(roll_len)] / (df['{0:d}-game GFON'.format(roll_len)] +
-                                                  df['{0:d}-game GAON'.format(roll_len)])
-    df.loc[:, '{0:d}-game GF Off%'.format(roll_len)] = \
-        df['{0:d}-game GFOFF'.format(roll_len)] / (df['{0:d}-game GFOFF'.format(roll_len)] +
-                                                  df['{0:d}-game GAOFF'.format(roll_len)])
 
     df.loc[:, 'Game Number'] = 1
     df.loc[:, 'Game Number'] = df['Game Number'].cumsum()
+    df.set_index('Game Number', inplace=True)
 
     label = 'GF%'
-    plt.plot(df['Game Number'], df[columnnames2[label]], label=label)
-    label = 'GF Off%'
-    plt.plot(df['Game Number'], df[columnnames2[label]], label=label, ls='--')
+    plt.plot(df.index, df[col_dict[label]], label=label)
+    label = 'GF% Off'
+    plt.plot(df.index, df[col_dict[label]], label=label, ls='--')
     plt.legend(loc=1, fontsize=10)
 
-    plt.title(_get_rolling_gf_title(player, roll_len, startseason, endseason))
+    plt.title(_get_rolling_gf_title(**kwargs))
 
     # axes
     plt.xlabel('Game')
@@ -81,28 +48,54 @@ def rolling_player_gf(player, roll_len=25, startseason=None, endseason=None, sav
     ticks = list(np.arange(0.3, 0.71, 0.05))
     plt.yticks(ticks, ['{0:.0f}%'.format(100 * tick) for tick in ticks])
 
-    if save_file is None:
-        plt.show()
-    elif save_file == 'fig':
-        return plt.gcf()
-    else:
-        plt.savefig(save_file)
-    plt.close()
+    vhelper.savefilehelper(**kwargs)
 
 
-def _get_rolling_gf_title(player, roll_len, startseason, endseason):
+def calculate_gf_rates(df):
+    """
+    Calculates GF% and GF% Off
+
+    :param dataframe: dataframe
+
+    :return: dataframe
+    """
+
+    # Select columns
+    gfga = df.filter(regex='\d{2}-game')
+    cols_wanted = {'GFON', 'GFOFF', 'GAON', 'GAOFF'}
+    gfga = gfga.select(lambda colname: colname[colname.index(' ') + 1:] in cols_wanted, axis=1)
+
+    # This is to help me select columns
+    col_dict = {col[col.index(' ') + 1:]: col for col in gfga.columns}
+
+    # Transform
+    prefix = col_dict['GFON'][:col_dict['GFON'].index(' ')]  # e.g. 25-game
+    gfga.loc[:, prefix + ' GF%'] = gfga[col_dict['GFON']] / (gfga[col_dict['GFON']] + gfga[col_dict['GAON']])
+    gfga.loc[:, prefix + ' GF% Off'] = gfga[col_dict['GFOFF']] / (gfga[col_dict['GFOFF']] + gfga[col_dict['GAOFF']])
+
+    # Keep only those columns
+    gfga = gfga[[prefix + ' GF%', prefix + ' GF% Off']]
+
+    return gfga
+
+
+def _get_rolling_gf_title(**kwargs):
     """
     Returns default title for this type of graph
 
-    :param player: int or str, the player
-    :param roll_len: int, number of games in rolling window
-    :param startseason: int, starting season
-    :param endseason: int, ending season
+    :param kwargs:
 
     :return: str, the title
     """
 
-    player = players.player_as_str()(players.player_as_id()(player))
-    return '{0:d}-game rolling GF% for {1:s}, {2:d}-{3:d}'.format(roll_len, player, startseason, endseason + 1)
+    title = 'Rolling {0:d}-game rolling GF% for {1:s}'.format(kwargs['roll_len'],
+                                                              players.player_as_str(kwargs['player']))
+    title += '\n{0:s} to {1:s}'.format(*(str(x) for x in vhelper.get_startdate_enddate_from_kwargs(**kwargs)))
+    return title
+
+
+if __name__ == '__main__':
+    rolling_player_gf(player='Nicklas Backstrom')
+
 
 

@@ -31,9 +31,9 @@ def rolling_player_boxcars(player, **kwargs):
 
     # Set an index
     # TODO allow for datetime index
-    boxcars.loc[:, 'Row'] = 1
-    boxcars.loc[:, 'Row'] = boxcars.Row.cumsum()
-    boxcars.set_index('Row', inplace=True)
+    boxcars.loc[:, 'Game Number'] = 1
+    boxcars.loc[:, 'Game Number'] = boxcars['Game Number'].cumsum()
+    boxcars.set_index('Game Number', inplace=True)
     plt.fill_between(boxcars.index, 0, boxcars[col_dict['iG']], label='G', color='k')
     plt.fill_between(boxcars.index, boxcars[col_dict['iG']], boxcars[col_dict['iP1']], label='A1', color='b')
     plt.fill_between(boxcars.index, boxcars[col_dict['iG']], boxcars[col_dict['iP']], label='A2', color='dodgerblue')
