@@ -90,7 +90,12 @@ def check_default_player_id(playername):
     :return: int, or None
     """
     # TODO gradually add to this
-    return helpers.try_to_access_dict({'Mike Green': 8471242}, playername)
+    return helpers.try_to_access_dict({'Mike Green': 8471242,
+                                       'Francois Beauchemin': 8467400,
+                                       'Erik Karlsson': 8474578,
+                                       'Mike Hoffman': 8474884,
+                                       'Tyler Johnson': 8474870,
+                                       'Josh Anderson': 8476981}, playername)
 
 
 def player_setup():

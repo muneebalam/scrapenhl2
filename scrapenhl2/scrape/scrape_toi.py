@@ -8,8 +8,9 @@ import urllib.request
 import zlib
 from time import sleep
 
-import scrapenhl2.scrape.organization as organization
-import scrapenhl2.scrape.schedules as schedules
+from scrapenhl2.scrape import organization
+from scrapenhl2.scrape import schedules
+from scrapenhl2.scrape import general_helpers as helpers
 
 
 def scrape_game_toi(season, game, force_overwrite=False):
@@ -26,9 +27,7 @@ def scrape_game_toi(season, game, force_overwrite=False):
     if not force_overwrite and os.path.exists(filename):
         return False
 
-    url = get_shift_url(season, game)
-    with urllib.request.urlopen(url) as reader:
-        page = reader.read()
+    page = helpers.try_url_n_times(get_shift_url(season, game))
     save_raw_toi(page, season, game)
     # ed.print_and_log('Scraped toi for {0:d} {1:d}'.format(season, game))
     sleep(1)  # Don't want to overload NHL servers
@@ -79,9 +78,7 @@ def scrape_game_toi_from_html(season, game, force_overwrite=True):
         if not force_overwrite and os.path.exists(filename):
             pass
 
-        url = urls[i]
-        with urllib.request.urlopen(url) as reader:
-            page = reader.read()
+        page = helpers.try_url_n_times(urls[i])
         save_raw_toi_from_html(page, season, game, filetypes[i])
         sleep(1)  # Don't want to overload NHL servers
         print('Scraped html toi for {0:d} {1:d}'.format(season, game))

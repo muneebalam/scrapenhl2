@@ -9,6 +9,8 @@ import os.path
 import pickle
 import re
 import time
+import urllib.request
+import urllib.error
 
 import numpy as np
 import pandas as pd
@@ -307,3 +309,30 @@ def period_contribution(x):
         return 1200 * (x - 1)
     except ValueError:
         return 3600 if x == 'OT' else 3900  # OT or SO
+
+
+def try_url_n_times(url, timeout=5, n=5):
+    """
+    A helper method that tries to access given url up to five times, returning the page.
+
+    :param url: str, the url to access
+    :param timeout: int, number of secs to wait before timeout. Default 5.
+    :param n: int, the max number of tries. Default 5.
+
+    :return: bytes
+    """
+
+    page = None
+    tries = 0
+    while tries < n:
+        tries += 1
+        try:
+            with urllib.request.urlopen(url, timeout=5) as reader:
+                page = reader.read()
+            break
+        except urllib.error.HTTPError as httpe:
+            print('HTTP error with', url, httpe, httpe.args)
+        except Exception as e:  # timeout
+            tries += 1
+            print('Could not access {0:s}; try {1:d} of {2:d}'.format(url, tries, trylim))
+    return page

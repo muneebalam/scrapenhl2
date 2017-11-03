@@ -54,7 +54,6 @@ def autoupdate(season=None):
     sch = schedules.get_season_schedule(season)
 
     # First, for all games that were in progress during last scrape, delete html charts
-    print('Scraping previously in-progress games')
     inprogress = sch.query('Status == "In Progress"')
     inprogressgames = inprogress.Game.values
     inprogressgames.sort()

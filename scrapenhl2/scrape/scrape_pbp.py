@@ -10,6 +10,7 @@ from time import sleep
 
 import scrapenhl2.scrape.organization as organization
 import scrapenhl2.scrape.schedules as schedules
+import scrapenhl2.scrape.general_helpers as helpers
 
 
 def scrape_game_pbp_from_html(season, game, force_overwrite=True):
@@ -139,10 +140,8 @@ def get_game_from_url(season, game):
 
     :return: str, the page at the url
     """
-    url = get_game_url(season, game)
-    with urllib.request.urlopen(url) as reader:
-        page = reader.read()
-    return page
+
+    return helpers.try_url_n_times(get_game_url(season, game))
 
 
 def get_game_pbplog_url(season, game):

@@ -7,7 +7,7 @@ import feather
 import pandas as pd
 
 from scrapenhl2.scrape import general_helpers as helpers
-from scrapenhl2.scrape import organization, schedules, teams, parse_pbp, parse_toi, players, events, team_info
+from scrapenhl2.scrape import organization, schedules, teams, parse_pbp, parse_toi, players, events, team_info, scrape_pbp
 
 
 def get_player_toion_toioff_filename(season):
@@ -790,28 +790,111 @@ def get_5v5_player_game_shift_startend(season, team):
         how='left', on=['Game', 'StartTime'])
 
     # Add locations
-    foshifts = _infer_zones_for_faceoffs(foshifts, season, team, 'StartX', 'StartY', 'StartTime') \
+    directions = get_directions_for_xy_for_season(season, team)
+    foshifts = _infer_zones_for_faceoffs(foshifts, directions, 'StartX', 'StartY', 'StartTime') \
         .rename(columns={'FacLoc': 'Start'})
     foshifts.loc[:, 'Start'] = foshifts.Start.fillna('OtF')
-    foshifts = _infer_zones_for_faceoffs(foshifts, season, team, 'EndX', 'EndY', 'EndTime') \
+    foshifts = _infer_zones_for_faceoffs(foshifts, directions, 'EndX', 'EndY', 'EndTime') \
         .rename(columns={'FacLoc': 'End'})
     foshifts.loc[:, 'End'] = foshifts.End.fillna('OtF')
-
-    # TODO see 20022 all 2nd period faceoffs flipped. Also 20008. Also 20166
-    # TODO in the json maybe I can use livedata-linescore-periods; home and road have 'rinkSide' attribute
-    # TODO Validate this by making sure most shots come from OZ and most PP faceoffs are OZ
 
     # Filter out shifts that don't both start and end at 5v5
     fives = filter_for_five_on_five(teamtoi)[['Time', 'Game']]
     fiveshifts = foshifts.merge(fives.rename(columns={'Time': 'StartTime'}), how='inner', on=['StartTime', 'Game']) \
         .merge(fives.rename(columns={'Time': 'EndTime'}), how='inner', on=['EndTime', 'Game'])
 
+    # Get counts and go long to wide
+
+    starts = fiveshifts[['PlayerID', 'Game', 'StartWL', 'Start']].assign(Count=1)
+    starts.loc[starts.StartWL.notnull(), 'Start'] = starts.Start.str.cat(starts.StartWL, sep='_')
+    starts.drop('StartWL', axis=1, inplace=True)
+    starts_w = starts.groupby(['PlayerID', 'Game', 'Start']).count().reset_index() \
+        .pivot_table(index=['PlayerID', 'Game'], columns='Start', values='Count').reset_index()
+
+    ends = fiveshifts[['PlayerID', 'Game', 'End']].assign(Count=1) \
+        .groupby(['PlayerID', 'Game', 'End']).count().reset_index() \
+        .pivot_table(index=['PlayerID', 'Game'], columns='End', values='Count').reset_index()
+
+    finalshifts = starts_w.merge(ends, how='outer', on=['PlayerID', 'Game'])
+    for col in finalshifts:
+        finalshifts.loc[:, col] = finalshifts[col].fillna(0)
+
+    return finalshifts
 
 
-    return fiveshifts
+def get_directions_for_xy_for_season(season, team):
+    """
+    Gets directions for team specified using get_directions_for_xy_for_game
+
+    :param season: int, the season
+    :param team: int or str, the team
+
+    :return: dataframe
+    """
+    sch = schedules.get_team_schedule(season, team) \
+        .query('Status == "Final" & Game >= 20001')[['Game', 'Home', 'Road']]
+
+    lrswitch = {'left': 'right', 'right': 'left', 'N/A': 'N/A'}
+
+    game_to_directions = {}
+    for index, game, home, road in sch.itertuples():
+        try:
+            dirdct = get_directions_for_xy_for_game(season, game)
+        except Exception as e:
+            print('Issue getting team directions for', season, game)
+            print(e, e.args)
+
+        game_to_directions[game] = []
+        for period, direction in dirdct.items():
+            if team == home:
+                game_to_directions[game].append(direction)
+            else:
+                game_to_directions[game].append(lrswitch[direction])
+    games = []
+    periods = []
+    directions = []
+    for game in game_to_directions:
+        for period, direction in enumerate(game_to_directions[game]):
+            games.append(game)
+            periods.append(period + 1)
+            directions.append(direction)
+    df = pd.DataFrame({'Game': games, 'Period': periods, 'Direction': directions})
+    return df
 
 
-def _infer_zones_for_faceoffs(df, season, team, xcol='X', ycol='Y', timecol='Time'):
+def get_directions_for_xy_for_game(season, game):
+    """
+    It doesn't seem like there are rules for whether positive X in XY event locations corresponds to offensive zone
+    events, for example. Best way is to use fields in the the json.
+
+    :param season: int, the season
+    :param game: int, the game
+
+    :return: dict indicating which direction home team is attacking by period
+    """
+
+    json = scrape_pbp.get_raw_pbp(season, game)
+
+    minidict = helpers.try_to_access_dict(json, 'liveData', 'linescore', 'periods')
+    if minidict is None:
+        # for games with no data, fill in N/A
+        periods = {pernum: 'N/A' for pernum in range(1, 8)}
+        return periods
+
+    periods = {}
+    for i in range(len(minidict)):
+        val = helpers.try_to_access_dict(minidict[i], 'home', 'rinkSide')
+        if val is not None:
+            periods[helpers.try_to_access_dict(minidict[i], 'num')] = val
+        else:
+            periods[helpers.try_to_access_dict(minidict[i], 'num')] = 'N/A'
+    while len(periods) < 3:
+        periods[len(periods)] = 'N/A'
+
+    return periods
+
+
+def _infer_zones_for_faceoffs(df, directions, xcol='X', ycol='Y', timecol='Time'):
     """
     Inferring zones for faceoffs from XY is hard--this method takes are of that.
 
@@ -831,8 +914,7 @@ def _infer_zones_for_faceoffs(df, season, team, xcol='X', ycol='Y', timecol='Tim
     - N (center ice)
 
     :param df: dataframe with columns Game, specified xcol, and specified ycol
-    :param season: int, the season
-    :param team: int, the team
+    :param directions: dataframe with columns Game, Period, and Direction ('left' or 'right')
     :param xcol: str, the column containing X coordinates
     :param ycol: str, the column containing Y coordinates
     :param timecol: str, the column containing the time in seconds.
@@ -840,40 +922,33 @@ def _infer_zones_for_faceoffs(df, season, team, xcol='X', ycol='Y', timecol='Tim
     :return: dataframe with extra column FacLoc
     """
 
+    # Center ice is easy
     df.loc[(df[xcol] == 0) & (df[ycol] == 0), 'FacLoc'] = 'N'
 
-    df.loc[:, '_X'] = df[xcol]
-    df.loc[:, '_Y'] = df[ycol]
+    # Infer periods
+    df.loc[:, '_Period'] = df[timecol].apply(lambda x: x // 1200 + 1)
 
-    # Flip XY for even periods
-    # TODO: Actually maybe not...???
-    # df.loc[:, '_Period'] = df[timecol].apply(lambda x: x // 1200 + 1)
-    # df.loc[df['_Period'] % 2 == 0, '_X'] = -1 * df['_X']
-    # df.loc[df['_Period'] % 2 == 0, '_Y'] = -1 * df['_Y']
-    # df.drop('_Period', axis=1, inplace=True)
+    # Join
+    df2 = df.merge(directions.rename(columns={'Period': "_Period"}), how='left', on=['Game', '_Period'])
 
-    # Flip XY based on team IDs
-    maxteams = df[['Game']].drop_duplicates()
-    maxteams.loc[:, '_MaxTeamID'] = maxteams.Game.apply(lambda x: max(schedules.get_home_team(season, x),
-                                                                  schedules.get_road_team(season, x)))
-    df = df.merge(maxteams, how='left', on='Game')  # doing it via join more efficient
-    df.loc[df['_MaxTeamID'] != team, '_X'] = -1 * df['_X']
-    df.loc[df['_MaxTeamID'] != team, '_Y'] = -1 * df['_Y']
-    df.drop('_MaxTeamID', axis=1, inplace=True)
+    # Flip
+    df2.loc[:, '_Mult'] = df2.Direction.apply(lambda x: 1 if x == 'right' else -1)
+    df2.loc[:, '_X'] = df2[xcol] * df2['_Mult']
+    df2.loc[:, '_Y'] = df2[ycol] * df2['_Mult']
 
-    df.loc[(df[xcol] == -69) & (df[ycol] == -22), 'FacLoc'] = 'OL'
-    df.loc[(df[xcol] == -69) & (df[ycol] == 22), 'FacLoc'] = 'OR'
-    df.loc[(df[xcol] == 69) & (df[ycol] == -22), 'FacLoc'] = 'DL'
-    df.loc[(df[xcol] == 69) & (df[ycol] == 22), 'FacLoc'] = 'DR'
+    df2.loc[(df2[xcol] == 69) & (df2[ycol] == 22), 'FacLoc'] = 'OL'
+    df2.loc[(df2[xcol] == 69) & (df2[ycol] == -22), 'FacLoc'] = 'OR'
+    df2.loc[(df2[xcol] == -69) & (df2[ycol] == 22), 'FacLoc'] = 'DL'
+    df2.loc[(df2[xcol] == -69) & (df2[ycol] == -22), 'FacLoc'] = 'DR'
 
-    df.loc[(df[xcol] == -20) & (df[ycol] == -22), 'FacLoc'] = 'NOL'
-    df.loc[(df[xcol] == -20) & (df[ycol] == 22), 'FacLoc'] = 'NOR'
-    df.loc[(df[xcol] == 20) & (df[ycol] == -22), 'FacLoc'] = 'NDL'
-    df.loc[(df[xcol] == 20) & (df[ycol] == 22), 'FacLoc'] = 'NDR'
+    df2.loc[(df2[xcol] == 20) & (df2[ycol] == 22), 'FacLoc'] = 'NOL'
+    df2.loc[(df2[xcol] == 20) & (df2[ycol] == -22), 'FacLoc'] = 'NOR'
+    df2.loc[(df2[xcol] == -20) & (df2[ycol] == 22), 'FacLoc'] = 'NDL'
+    df2.loc[(df2[xcol] == -20) & (df2[ycol] == -22), 'FacLoc'] = 'NDR'
 
-    df.drop(['_X', '_Y'], axis=1, inplace=True)
+    df2.drop(['_X', '_Y', '_Period', '_Mult', 'Direction'], axis=1, inplace=True)
 
-    return df
+    return df2
 
 
 def generate_5v5_player_log(season):
@@ -897,19 +972,21 @@ def generate_5v5_player_log(season):
             gfga = get_5v5_player_game_gfga(season, team)  # GFON, GAON, GFOFF, GAOFF
             toi = get_5v5_player_game_toi(season, team)  # TOION and TOIOFF
             toicomp = get_5v5_player_game_toicomp(season, team)  # FQoC, F QoT, D QoC, D QoT, and respective Ns
-            # shifts = get_5v5_player_game_shift_startend(season, team)  # OZ, NZ, DZ, OTF-O, OTF-D, OTF-N
+            shifts = get_5v5_player_game_shift_startend(season, team)  # OZ, NZ, DZ, OTF-O, OTF-D, OTF-N
 
             temp = toi \
                 .merge(cfca, how='left', on=['PlayerID', 'Game']) \
                 .merge(gfga, how='left', on=['PlayerID', 'Game']) \
                 .merge(toicomp.drop('Team', axis=1), how='left', on=['PlayerID', 'Game']) \
-                .merge(goals, how='left', on=['PlayerID', 'Game'])
-            # .merge(shifts, how='left', on=['PlayerID', 'Game'])
+                .merge(goals, how='left', on=['PlayerID', 'Game']) \
+                .merge(shifts, how='left', on=['PlayerID', 'Game'])
 
             to_concat.append(temp)
         except Exception as e:
             print('Issue with generating game-by-game for', season, team)
-            print(e)
+            print(e, e.args)
+
+    print('Done generating for teams; aggregating')
 
     df = pd.concat(to_concat)
     for col in df.columns:
@@ -920,6 +997,7 @@ def generate_5v5_player_log(season):
         if df[col].isnull().sum() > 0:
             print('In player log, {0:s} has null values; filling with zeroes'.format(col))
             df.loc[:, col] = df[col].fillna(0)
+    print('Done generating game-by-game')
     return df
 
 
@@ -1450,4 +1528,3 @@ def player_columns_to_name(df, columns=None):
 if __name__ == '__main__':
     for season in range(2010, 2018):
         get_5v5_player_log(season, True)
-    # get_5v5_player_game_shift_startend(2017, 15)
