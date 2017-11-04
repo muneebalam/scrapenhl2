@@ -5,9 +5,11 @@ This method contains utilities for visualization.
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import datetime
 
 from scrapenhl2.scrape import schedules
 from scrapenhl2.scrape import players
+from scrapenhl2.scrape import team_info
 from scrapenhl2.manipulate import manipulate as manip
 from scrapenhl2.scrape import general_helpers as helper
 
@@ -108,6 +110,7 @@ def get_and_filter_5v5_log(**kwargs):
     # TODO many of these methods can be moved to manip
     df = get_5v5_df_start_end(**kwargs)
     df = filter_5v5_for_player(df, **kwargs)
+    df = filter_5v5_for_team(df, **kwargs)
     df = make_5v5_rolling(df, **kwargs)
 
     return df
@@ -161,6 +164,24 @@ def make_5v5_rolling(df, **kwargs):
     return df
 
 
+def filter_5v5_for_team(df, **kwargs):
+    """
+    This method filters the given dataframe for given team(s), if specified
+
+    :param df: dataframe
+
+    :param kwargs: relevant one is team
+
+    :return: dataframe, filtered for specified players
+    """
+
+    if 'team' in kwargs:
+        teamid = team_info.team_as_id(kwargs['team'])
+        df2 = df.query("TeamID == {0:d}".format(teamid))
+        return df2
+    return df
+
+
 def filter_5v5_for_player(df, **kwargs):
     """
     This method filters the given dataframe for given player(s), if specified
@@ -185,7 +206,8 @@ def get_enddate_from_kwargs(**kwargs):
     if 'enddate' in kwargs:
         return kwargs['enddate']
     elif 'endseason' in kwargs:
-        return '{0:d}-06-21'.format(kwargs['endseason']+1)
+        today = datetime.datetime.now().strftime('%Y-%m-%d')
+        return min('{0:d}-06-21'.format(kwargs['endseason']+1), today)
     elif 'startseason' in kwargs:
         return get_enddate_from_kwargs(endseason=kwargs['startseason'])
     elif 'startdate' in kwargs:
@@ -198,7 +220,11 @@ def get_startdate_enddate_from_kwargs(**kwargs):
     """Returns startseason and endseason kwargs. Defaults to current - 3 and current"""
 
     enddate = get_enddate_from_kwargs(**kwargs)
-    if 'startdate' in kwargs:
+    if 'last_n_days' in kwargs:
+        enddate2 = datetime.datetime(*[int(x) for x in enddate.split('-')])
+        startdate2 = enddate2 - datetime.timedelta(days=kwargs['last_n_days'])
+        startdate = startdate2.strftime('%Y-%m-%d')
+    elif 'startdate' in kwargs:
         startdate = kwargs['startdate']
     elif 'startseason' in kwargs:
         startdate = '{0:d}-09-15'.format(kwargs['startseason'])
@@ -256,5 +282,5 @@ def savefilehelper(**kwargs):
 if __name__ == '__main__':
     from scrapenhl2.plot import game_timeline as gt
     from scrapenhl2.plot import game_h2h as gh
-    gt.live_timeline('PHI', 'ARI', False)
-    # gh.live_h2h('PHI', 'ARI', False)
+    gt.live_timeline('WSH', 'NYI', True)
+    gh.live_h2h('WSH', 'NYI', False)

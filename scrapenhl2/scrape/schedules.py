@@ -22,8 +22,9 @@ def _get_current_season():
 
     :return: int, current season
     """
-    season = datetime.datetime.now().year - 1
-    if datetime.datetime.now().month >= 9:
+    date = datetime.datetime.now()
+    season = date.year - 1
+    if date.month >= 9:
         season += 1
     return season
 

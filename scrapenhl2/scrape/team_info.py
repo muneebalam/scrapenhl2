@@ -75,10 +75,8 @@ def get_team_info_from_url(teamid):
     """
 
     teamid = int(teamid)
-    url = get_team_info_url(teamid)
-    with urllib.request.urlopen(url) as reader:
-        page = reader.read()
-    teaminfo = json.loads(page.decode('latin-1'))
+    page = helpers.try_url_n_times(get_team_info_url(teamid)).decode('latin-1')
+    teaminfo = json.loads(page)
 
     tid = teaminfo['teams'][0]['id']
     tabbrev = teaminfo['teams'][0]['abbreviation']

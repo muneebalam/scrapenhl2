@@ -647,10 +647,10 @@ def get_5v5_player_game_toicomp(season, team):
                                   Opp3=toidf.Team3, Opp4=toidf.Team4, Opp5=toidf.Team5)
 
         qc1 = _long_on_player_and_opp(df_for_qoc)
-        qc2 = _merge_toi60_position_calculate_comp(qc1, season, 'Comp')
+        qc2 = _merge_toi60_position_calculate_sums(qc1, season, 'Comp')
 
         qt1 = _long_on_player_and_opp(df_for_qot)
-        qt2 = _merge_toi60_position_calculate_comp(qt1, season, 'Team')
+        qt2 = _merge_toi60_position_calculate_sums(qt1, season, 'Team')
 
         qct = qc2.merge(qt2, how='inner', on=['Game', 'TeamPlayerID'])
         qct.loc[:, 'Team'] = team
@@ -684,12 +684,17 @@ def _long_on_player_and_opp(df):
     return df2
 
 
-def _merge_toi60_position_calculate_comp(df, season, suffix='Comp'):
+def _merge_toi60_position_calculate_sums(df, season, suffix='Comp'):
     """
-    Merges dataframe with toi60 and positions to calculate QoC or QoT by player and game.
-    Used in get_5v5_player_game_toicomp
+    Merges dataframe with toi60 and positions to calculate sums for QoC or QoT by player and game.
+    The reason this method doesn't calculate QoC and QoT is because you may want to sum over games.
+    So it gives you the sum of TOI, and the N. Just sum over the games you want and divide TOI by N to get QoC/QoT.
+
+    Used in get_5v5_player_game_toicomp.
+
     :param df: dataframe with players and times faced
     :param suffix: use 'Comp' for QoC and 'Team' for QoT
+
     :return: a dataframe with QoC and QoT by player and game
     """
 
@@ -706,10 +711,18 @@ def _merge_toi60_position_calculate_comp(df, season, suffix='Comp'):
     qoc = qoc.drop('Pos', axis=1)
     qoc = qoc.drop({'OppPlayerID', 'TOI60'}, axis=1) \
         .groupby(['Game', 'TeamPlayerID', 'Pos2']).sum().reset_index()
-    qoc.loc[:, suffix] = qoc.TOI60Sum / qoc.Secs
-    qoc = qoc[['Game', 'TeamPlayerID', 'Pos2', suffix]] \
-        .pivot_table(index=['Game', 'TeamPlayerID'], columns='Pos2', values=suffix).reset_index()
-    return qoc
+
+    sums = qoc.drop('Secs', axis=1)
+    sums.loc[:, 'Pos2'] = sums.Pos2.apply(lambda x: x + 'Sum')
+    sums = sums.pivot_table(index=['Game', 'TeamPlayerID'], columns='Pos2', values='TOI60Sum').reset_index()
+
+    ns = qoc.drop('TOI60Sum', axis=1)
+    ns.loc[:, 'Pos2'] = ns.Pos2.apply(lambda x: x + 'N')
+    ns = ns.pivot_table(index=['Game', 'TeamPlayerID'], columns='Pos2', values='Secs').reset_index()
+
+    assert len(sums) == len(ns)
+
+    return sums.merge(ns, how='inner', on=['Game', 'TeamPlayerID'])
 
 
 def _retrieve_start_end_times(toidf):
@@ -793,10 +806,10 @@ def get_5v5_player_game_shift_startend(season, team):
     directions = get_directions_for_xy_for_season(season, team)
     foshifts = _infer_zones_for_faceoffs(foshifts, directions, 'StartX', 'StartY', 'StartTime') \
         .rename(columns={'FacLoc': 'Start'})
-    foshifts.loc[:, 'Start'] = foshifts.Start.fillna('OtF')
+    foshifts.loc[:, 'Start'] = foshifts.Start.fillna('S-OtF')
     foshifts = _infer_zones_for_faceoffs(foshifts, directions, 'EndX', 'EndY', 'EndTime') \
         .rename(columns={'FacLoc': 'End'})
-    foshifts.loc[:, 'End'] = foshifts.End.fillna('OtF')
+    foshifts.loc[:, 'End'] = foshifts.End.fillna('E-OtF')
 
     # Filter out shifts that don't both start and end at 5v5
     fives = filter_for_five_on_five(teamtoi)[['Time', 'Game']]
@@ -979,7 +992,8 @@ def generate_5v5_player_log(season):
                 .merge(gfga, how='left', on=['PlayerID', 'Game']) \
                 .merge(toicomp.drop('Team', axis=1), how='left', on=['PlayerID', 'Game']) \
                 .merge(goals, how='left', on=['PlayerID', 'Game']) \
-                .merge(shifts, how='left', on=['PlayerID', 'Game'])
+                .merge(shifts, how='left', on=['PlayerID', 'Game']) \
+                .assign(TeamID=team)
 
             to_concat.append(temp)
         except Exception as e:
@@ -1526,5 +1540,5 @@ def player_columns_to_name(df, columns=None):
 
 
 if __name__ == '__main__':
-    for season in range(2010, 2018):
+    for season in range(2015, 2016):
         get_5v5_player_log(season, True)
