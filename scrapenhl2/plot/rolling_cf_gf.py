@@ -22,7 +22,7 @@ def rolling_player_gf(player, **kwargs):
     """
     if 'roll_len' not in kwargs:
         kwargs['roll_len'] = 40
-    rolling_player_f(player, 'G', **kwargs)
+    _rolling_player_f(player, 'G', **kwargs)
 
 
 def rolling_player_cf(player, **kwargs):
@@ -36,10 +36,10 @@ def rolling_player_cf(player, **kwargs):
     """
     if 'roll_len' not in kwargs:
         kwargs['roll_len'] = 25
-    rolling_player_f(player, 'C', **kwargs)
+    _rolling_player_f(player, 'C', **kwargs)
 
 
-def rolling_player_f(player, gfcf, **kwargs):
+def _rolling_player_f(player, gfcf, **kwargs):
     """
     Creates a graph with CF% or GF% (on plus off). Use gfcf to indicate which one.
 
@@ -81,7 +81,7 @@ def rolling_player_f(player, gfcf, **kwargs):
     vhelper.savefilehelper(**kwargs)
 
 
-def calculate_f_rates(df, gfcf):
+def _calculate_f_rates(df, gfcf):
     """
     Calculates GF% or CF% (plus off)
 
@@ -126,8 +126,3 @@ def _get_rolling_f_title(gfcf, **kwargs):
     title = 'Rolling {0:d}-game rolling {1:s}F% for {2:s}'.format(kwargs['roll_len'], gfcf,
                                                                   players.player_as_str(kwargs['player']))
     title += '\n{0:s} to {1:s}'.format(*(str(x) for x in vhelper.get_startdate_enddate_from_kwargs(**kwargs)))
-    return title
-
-if __name__ == '__main__':
-    rolling_player_cf('Nicklas Backstrom')
-    rolling_player_gf('Nicklas Backstrom')
