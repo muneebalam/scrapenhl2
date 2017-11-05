@@ -57,14 +57,9 @@ Coming soon...
 Individuals
 ~~~~~~~~~~~~
 
-Player rolling CF
-~~~~~~~~~~~~~~~~~~
-.. automodule:: scrapenhl2.plot.rolling_cf
-   :members:
-
-Player rolling GF
-~~~~~~~~~~~~~~~~~~
-.. automodule:: scrapenhl2.plot.rolling_cf
+Player rolling CF and GF
+~~~~~~~~~~~~~~~~~~~~~~~~~
+.. automodule:: scrapenhl2.plot.rolling_cf_gf
    :members:
 
 Player rolling boxcars

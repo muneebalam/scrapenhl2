@@ -66,32 +66,37 @@ Use
 On startup, when you have an internet connection and some games have gone final since you last used the package,
 open up your python environment and update::
 
-    from scrapenhl2 import *
-    autoupdate()
+    from scrapenhl2.scrape import autoupdate
+    autoupdate.autoupdate()
 
 Autoupdate should update you regularly on its progress; be patient.
 
 To get a game H2H, use::
 
+    from scrapenhl2.plot import game_h2h
     season = 2016
     game = 30136
-    game_h2h(season, game)
+    game_h2h.game_h2h(season, game)
 
 .. image:: _static/WSH-TOR_G6.png
 
 To get a game timeline, use::
 
-    game_h2h(season, game)
+    from scrapenhl2.plot import game_timeline
+    season = 2016
+    game = 30136
+    game_timeline.game_timeline(season, game)
 
 .. image:: _static/WSH-TOR_G6_timeline.png
 
 To get a player rolling CF% graph, use::
 
+    from scrapenhl2.plot import rolling_cf_gf
     player = 'Ovechkin'
     rolling_games = 25
     start_year = 2015
     end_year = 2017
-    rolling_player_cf(player, rolling_games, start_year, end_year)
+    rolling_cf_gf.rolling_player_cf(player, rolling_games, start_year, end_year)
 
 .. image:: _static/Ovechkin_rolling_cf.png
 

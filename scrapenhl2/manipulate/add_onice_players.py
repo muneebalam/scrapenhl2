@@ -8,10 +8,12 @@ from scrapenhl2.scrape import schedules, parse_toi, autoupdate, team_info, teams
 from scrapenhl2.scrape import general_helpers as helpers
 
 def add_players_to_file(filename, focus_team, season=None, gamecol='Game', periodcol='Period', timecol='Time',
-                        time_format='Elapsed', update_data=False, player_output='names'):
+                        time_format='elapsed', update_data=False, player_output='names'):
     """
-    Adds names of on-ice players to the end of each line. You cannot necessarily trust results when times coincide
-    with faceoff or stoppage times.
+    Adds names of on-ice players to the end of each line, and writes to file in the same folder as input file.
+    Specifically, adds 1 second to the time in the spreadsheet and adds players who were on the ice at that time.
+
+    You cannot necessarily trust results when times coincide with stoppages--and it's worth checking faceoffs as well.
 
     :param filename: str, the file to read. Will save output as this filename but ending in "on-ice.csv"
     :param focus_team: str or int, e.g. 'WSH' or 'WPG'
@@ -20,13 +22,14 @@ def add_players_to_file(filename, focus_team, season=None, gamecol='Game', perio
     :param periodcol: str. The column holding period number/name (1, 2, 3, 4 or OT, etc). By default: "Period"
     :param timecol: str. The column holding time in period in M:SS format.
     :param time_format: str, how to interpret timecol. Use 'elapsed' or 'remaining'.
-    E.g. the start of a period is 0:00 with elapsed and 20:00 in remaining.
+        E.g. the start of a period is 0:00 with elapsed and 20:00 in remaining.
     :param update_data: bool. If True, will autoupdate() data for given season. If not, will not update game data.
-    Use when file includes data from games not already scraped.
+        Use when file includes data from games not already scraped.
     :param player_output: str, use 'names' or 'nums'. Currently only supports 'names'
 
     :return: nothing
     """
+    # TODO handle date instead of season and game
 
     if season is None:
         season = schedules.get_current_season()
@@ -70,11 +73,11 @@ def _add_onice_players_to_df(df, focus_team, season, gamecol, player_output):
     teamname = team_info.team_as_str(focus_team)
 
     toi = teams.get_team_toi(season, focus_team).rename(columns={'Time': '_Secs'})
-    toi = toi[['Game', '_Secs', 'Team1', 'Team2', 'Team3', 'Team4', 'Team5',
-               'Opp1', 'Opp2', 'Opp3', 'Opp4', 'Opp5']]
+    toi = toi[['Game', '_Secs', 'Team1', 'Team2', 'Team3', 'Team4', 'Team5', 'Team6',
+               'Opp1', 'Opp2', 'Opp3', 'Opp4', 'Opp5', 'Opp6']]
 
     # Now convert to names or numbers
-    for col in toi.columns[-10:]:
+    for col in toi.columns[-12:]:
         toi.loc[:, col] = players.playerlst_as_str(toi[col])
         if player_output == 'nums':
             pass  # TODO
@@ -135,7 +138,6 @@ def _add_times_to_file(df, periodcol, timecol, time_format):
 
         df.loc[:, '_Period_Contribution'] = df[periodcol].apply(lambda x: period_cont(x))
         df.loc[:, '_Secs'] = df['_Period_Contribution'] + df['_MMSS']
-        df.drop({'_MMSS','_Period_Contribution'}, axis=1, inplace=True)
     elif time_format == 'remaining':
         def period_cont(x):
             y = str(x)[0]  # take just first since this may be a float
@@ -150,7 +152,8 @@ def _add_times_to_file(df, periodcol, timecol, time_format):
         df.loc[:, '_Period_Contribution'] = df[periodcol].apply(lambda x: period_cont(x))
         df.loc[:, '_Secs'] = df['_Period_Contribution'] - df['_MMSS']
 
-    df.drop({'_MMSS','_Period_Contribution'}, axis=1, inplace=True, errors='ignore')
+    df.loc[:, '_Secs'] = df['_Secs'] + 1
+    df = df.drop({'_MMSS','_Period_Contribution'}, axis=1, errors='ignore')
     return df
 
 
@@ -170,3 +173,13 @@ def _read_tracking_file(fname):
         return pd.read_excel(fname)
     else:
         print('Did not recognize extension for', fname)
+
+
+if __name__ == '__main__':
+    #add_players_to_file('/Users/muneebalam/Downloads/Total Entries Year Isles 2018 13 games CSV for On-Ice Data.csv',
+    #                    'NYI', time_format='remaining')
+    orgfile = '/Users/muneebalam/Downloads/Total Entries Year Isles 2018 13 games CSV for On-Ice Data.csv'
+    newfile = '/Users/muneebalam/Downloads/Total Entries Year Isles 2018 13 games CSV for On-Ice Data_on-ice.csv'
+
+    orgdf = pd.read_csv(orgfile)
+    newdf = pd.read_csv(newfile)

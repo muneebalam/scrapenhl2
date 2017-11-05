@@ -1127,7 +1127,7 @@ def _convert_to_all_combos(df, fillval=0, *args):
     :param df: the pandas dataframe
     :param fillval: obj, the value with which to fill. Default fill is 0
     :param args: str, column names, or tuples of combinations of column names
-    
+
     :return: df with all combos of columns specified
     """
     args = set(args)
