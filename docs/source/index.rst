@@ -9,7 +9,6 @@ Table of Contents
 .. toctree::
     :maxdepth: 1
 
-    Home <index>
     Scraping <scrape>
     Manipulating <manipulate>
     Plotting <plot>

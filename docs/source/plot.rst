@@ -64,7 +64,7 @@ Player rolling CF and GF
 
 Player rolling boxcars
 ~~~~~~~~~~~~~~~~~~~~~~
-.. automodule:: scrapenhl2.plot.rolling_cf
+.. automodule:: scrapenhl2.plot.rolling_boxcars
    :members:
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -73,7 +73,7 @@ Individuals (comparison)
 
 Usage
 ~~~~~~
-.. automodule:: scrapenhl2.plt.usage
+.. automodule:: scrapenhl2.plot.usage
    :members:
 
 ~~~~~~~~~~~~~~~

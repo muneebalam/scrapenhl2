@@ -7,10 +7,8 @@ from matplotlib.animation import FuncAnimation
 import pandas as pd
 import numpy as np
 
-from scrapenhl2.scrape import players
+from scrapenhl2.scrape import players, team_info, schedules
 from scrapenhl2.scrape import general_helpers as helpers
-from scrapenhl2.scrape import team_info
-from scrapenhl2.scrape import schedules
 from scrapenhl2.plot import visualization_helper as vhelper
 from scrapenhl2.plot import label_lines
 

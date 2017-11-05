@@ -174,12 +174,3 @@ def _read_tracking_file(fname):
     else:
         print('Did not recognize extension for', fname)
 
-
-if __name__ == '__main__':
-    #add_players_to_file('/Users/muneebalam/Downloads/Total Entries Year Isles 2018 13 games CSV for On-Ice Data.csv',
-    #                    'NYI', time_format='remaining')
-    orgfile = '/Users/muneebalam/Downloads/Total Entries Year Isles 2018 13 games CSV for On-Ice Data.csv'
-    newfile = '/Users/muneebalam/Downloads/Total Entries Year Isles 2018 13 games CSV for On-Ice Data_on-ice.csv'
-
-    orgdf = pd.read_csv(orgfile)
-    newdf = pd.read_csv(newfile)

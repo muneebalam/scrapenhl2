@@ -129,6 +129,7 @@ def read_final_games(games, season):
                 # If you scrape soon after a game the json only has like the first period for example.
                 # If I don't have the full game, use html
                 if len(parse_toi.get_parsed_toi(season, game)) < 3600:
+                    print('Not enough rows in json for {0:d} {1:d}; reading from html'.format(int(season), int(game)))
                     scrape_toi.scrape_game_toi_from_html(season, game, True)
                     parse_toi.parse_game_toi_from_html(season, game, True)
         except urllib.error.HTTPError as he:

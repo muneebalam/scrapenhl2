@@ -303,7 +303,7 @@ def savefilehelper(**kwargs):
     Saves current matplotlib figure, or saves to file, or displays
 
     :param kwargs: searches for 'save_file'. If not found or None, displays figure. If 'fig', returns figure.
-    If a filepath, saves.
+        If a filepath, saves.
 
     :return: nothing, or a figure
     """

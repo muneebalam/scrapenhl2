@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>Welcome to scrapenhl2’s documentation! &#8212; scrapenhl2 0.3.8 documentation</title>
+    <title>Welcome to scrapenhl2’s documentation! &#8212; scrapenhl2 0.3.9 documentation</title>
     
     <link rel="stylesheet" href="_static/nature.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -14,7 +14,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    './',
-        VERSION:     '0.3.8',
+        VERSION:     '0.3.9',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true,
@@ -41,7 +41,7 @@
         <li class="right" >
           <a href="scrape.html" title="Scrape"
              accesskey="N">next</a> |</li>
-        <li class="nav-item nav-item-0"><a href="#">scrapenhl2 0.3.8 documentation</a> &#187;</li> 
+        <li class="nav-item nav-item-0"><a href="#">scrapenhl2 0.3.9 documentation</a> &#187;</li> 
       </ul>
     </div>  
 
@@ -50,16 +50,12 @@
         <div class="bodywrapper">
           <div class="body" role="main">
             
-  <p>sphinx-quickstart on Sun Oct  1 17:47:07 2017.
-You can adapt this file completely to your liking, but it should at least
-contain the root <cite>toctree</cite> directive.</p>
-<div class="section" id="welcome-to-scrapenhl2-s-documentation">
+  <div class="section" id="welcome-to-scrapenhl2-s-documentation">
 <h1>Welcome to scrapenhl2&#8217;s documentation!<a class="headerlink" href="#welcome-to-scrapenhl2-s-documentation" title="Permalink to this headline">¶</a></h1>
 <div class="section" id="table-of-contents">
 <h2>Table of Contents<a class="headerlink" href="#table-of-contents" title="Permalink to this headline">¶</a></h2>
 <div class="toctree-wrapper compound">
-<ul class="current">
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Home</a></li>
+<ul>
 <li class="toctree-l1"><a class="reference internal" href="scrape.html">Scraping</a></li>
 <li class="toctree-l1"><a class="reference internal" href="manipulate.html">Manipulating</a></li>
 <li class="toctree-l1"><a class="reference internal" href="plot.html">Plotting</a></li>
@@ -110,29 +106,34 @@ launches in your browser. Open up terminal or command line and run:</p>
 <p><em>Note that because this is in pre-alpha/alpha, syntax and use may be buggy and subject to change.</em></p>
 <p>On startup, when you have an internet connection and some games have gone final since you last used the package,
 open up your python environment and update:</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">scrapenhl2</span> <span class="k">import</span> <span class="o">*</span>
-<span class="n">autoupdate</span><span class="p">()</span>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">scrapenhl2.scrape</span> <span class="k">import</span> <span class="n">autoupdate</span>
+<span class="n">autoupdate</span><span class="o">.</span><span class="n">autoupdate</span><span class="p">()</span>
 </pre></div>
 </div>
 <p>Autoupdate should update you regularly on its progress; be patient.</p>
 <p>To get a game H2H, use:</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">season</span> <span class="o">=</span> <span class="mi">2016</span>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">scrapenhl2.plot</span> <span class="k">import</span> <span class="n">game_h2h</span>
+<span class="n">season</span> <span class="o">=</span> <span class="mi">2016</span>
 <span class="n">game</span> <span class="o">=</span> <span class="mi">30136</span>
-<span class="n">game_h2h</span><span class="p">(</span><span class="n">season</span><span class="p">,</span> <span class="n">game</span><span class="p">)</span>
+<span class="n">game_h2h</span><span class="o">.</span><span class="n">game_h2h</span><span class="p">(</span><span class="n">season</span><span class="p">,</span> <span class="n">game</span><span class="p">)</span>
 </pre></div>
 </div>
 <img alt="_images/WSH-TOR_G6.png" src="_images/WSH-TOR_G6.png" />
 <p>To get a game timeline, use:</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">game_h2h</span><span class="p">(</span><span class="n">season</span><span class="p">,</span> <span class="n">game</span><span class="p">)</span>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">scrapenhl2.plot</span> <span class="k">import</span> <span class="n">game_timeline</span>
+<span class="n">season</span> <span class="o">=</span> <span class="mi">2016</span>
+<span class="n">game</span> <span class="o">=</span> <span class="mi">30136</span>
+<span class="n">game_timeline</span><span class="o">.</span><span class="n">game_timeline</span><span class="p">(</span><span class="n">season</span><span class="p">,</span> <span class="n">game</span><span class="p">)</span>
 </pre></div>
 </div>
 <img alt="_images/WSH-TOR_G6_timeline.png" src="_images/WSH-TOR_G6_timeline.png" />
 <p>To get a player rolling CF% graph, use:</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">player</span> <span class="o">=</span> <span class="s1">&#39;Ovechkin&#39;</span>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">scrapenhl2.plot</span> <span class="k">import</span> <span class="n">rolling_cf_gf</span>
+<span class="n">player</span> <span class="o">=</span> <span class="s1">&#39;Ovechkin&#39;</span>
 <span class="n">rolling_games</span> <span class="o">=</span> <span class="mi">25</span>
 <span class="n">start_year</span> <span class="o">=</span> <span class="mi">2015</span>
 <span class="n">end_year</span> <span class="o">=</span> <span class="mi">2017</span>
-<span class="n">rolling_player_cf</span><span class="p">(</span><span class="n">player</span><span class="p">,</span> <span class="n">rolling_games</span><span class="p">,</span> <span class="n">start_year</span><span class="p">,</span> <span class="n">end_year</span><span class="p">)</span>
+<span class="n">rolling_cf_gf</span><span class="o">.</span><span class="n">rolling_player_cf</span><span class="p">(</span><span class="n">player</span><span class="p">,</span> <span class="n">rolling_games</span><span class="p">,</span> <span class="n">start_year</span><span class="p">,</span> <span class="n">end_year</span><span class="p">)</span>
 </pre></div>
 </div>
 <img alt="_images/Ovechkin_rolling_cf.png" src="_images/Ovechkin_rolling_cf.png" />
@@ -142,7 +143,8 @@ open up your python environment and update:</p>
 </div>
 <p>But this package is targeted for script use, so I recommend familiarizing yourself with python.
 (This is not intended to be a replacement for a site like Corsica.)</p>
-<p>When the docs are up, you should look through them. Also always feel free to contact me with questions or suggestions.</p>
+<p>Look through the documentation at <a class="reference external" href="http://scrapenhl2.readthedocs.io/en/latest/">Read the Docs</a>.
+Also always feel free to contact me with questions or suggestions.</p>
 </div>
 <div class="section" id="contact">
 <h2>Contact<a class="headerlink" href="#contact" title="Permalink to this headline">¶</a></h2>
@@ -165,7 +167,8 @@ Also consider that small regular donations are sometimes better than one large d
 </div>
 <div class="section" id="change-log">
 <h2>Change log<a class="headerlink" href="#change-log" title="Permalink to this headline">¶</a></h2>
-<p>10/28/17: Major refactoring in scrapenhl2/scrape/</p>
+<p>11/5/17: Bug fixes and method to add on-ice players to file. More refactoring.</p>
+<p>10/28/17: Major refactoring. Docs up and running.</p>
 <p>10/21/17: Added basic front end. Committed early versions of 2017 logs.</p>
 <p>10/16/17: Added initial versions of game timelines, player rolling corsi, and game H2H graphs.</p>
 <p>10/10/17: Bug fixes on scraping and team logs. Started methods to aggregate 5v5 game-by-game data for players.</p>
@@ -250,7 +253,7 @@ Also consider that small regular donations are sometimes better than one large d
         <li class="right" >
           <a href="scrape.html" title="Scrape"
              >next</a> |</li>
-        <li class="nav-item nav-item-0"><a href="#">scrapenhl2 0.3.8 documentation</a> &#187;</li> 
+        <li class="nav-item nav-item-0"><a href="#">scrapenhl2 0.3.9 documentation</a> &#187;</li> 
       </ul>
     </div>
     <div class="footer" role="contentinfo">

@@ -136,6 +136,8 @@ If you do make a donation, make me happy `and leave a record here <https://goo.g
 Change log
 ----------
 
+11/5/17: Bug fixes and method to add on-ice players to file. More refactoring.
+
 10/28/17: Major refactoring. Docs up and running.
 
 10/21/17: Added basic front end. Committed early versions of 2017 logs.
