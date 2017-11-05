@@ -185,28 +185,16 @@ def make_5v5_rolling_gp(df, **kwargs):
         df.loc[:, 'Row'] = df.Row.cumsum()
 
         # Get df and roll
-        to_exclude = {'Game', 'Season', 'Team'}
+        to_exclude = {'Game', 'Season', 'Team', 'Row'}
         numeric_df = df.select_dtypes(include=[np.number])
         numeric_df.drop(to_exclude, axis=1, inplace=True, errors='ignore')
-
-        if 'ignore_missing' in kwargs and kwargs['ignore_missing'] is True:
-            # Just do defaults
-            rollingdf = numeric_df.groupby('PlayerID').rolling(roll_len).sum().drop('PlayerID', axis=1).reset_index()
-            rollingdf.loc[:, 'Row'] = 1
-            rollingdf.loc[:, 'Row'] = rollingdf.Row.cumsum()
-        else:
-            # TODO in 5v5 player logs add missing games
-            # Record played games
-            numeric_df.loc[:, 'Row'] = 1
-            numeric_df.loc[:, 'Row'] = numeric_df.Row.cumsum()
-            games_played = numeric_df.dropna().Row
-            numeric_df.drop('Row', axis=1, inplace=True)
-
-            # Calculate rolling
-            rollingdf = numeric_df.dropna().rolling(roll_len, min_periods=1).sum().assign(Row=games_played)
+        rollingdf = numeric_df.groupby('PlayerID').rolling(roll_len, min_periods=1).sum() \
+            .drop('PlayerID', axis=1).reset_index().drop({'PlayerID', 'level_1'}, axis=1) \
+            .assign(Row=df.Row.values)
 
         # Rename columns
-        columnnames = {col: '{0:d}-game {1:s}'.format(roll_len, col) for col in numeric_df.columns}
+        columnnames = {col: '{0:d}-game {1:s}'.format(roll_len, col) for col in numeric_df.columns
+                       if not col == 'PlayerID'}
         rollingdf = rollingdf.rename(columns=columnnames)
 
         # Add back to original

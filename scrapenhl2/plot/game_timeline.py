@@ -34,8 +34,8 @@ def game_timeline(season, game, save_file=None):
 
     :param season: int, the season
     :param game: int, the game
-    :param save_file: str, specify a valid filepath to save to file. If None, merely shows on screen. Specify 'fig'
-    to return the figure
+    :param save_file: str, specify a valid filepath to save to file. If None, merely shows on screen.
+        Specify 'fig' to return the figure
 
     :return: nothing, or the figure
     """
