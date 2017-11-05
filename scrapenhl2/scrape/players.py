@@ -372,7 +372,7 @@ def player_as_str(playerid, filterdf=None):
         return player_as_str(realid)
     elif helpers.check_number(playerid):
         player = int(playerid)
-        df = filterdf.query('ID == {0:d}'.format(playerid))
+        df = filterdf.query('ID == {0:.0f}'.format(playerid))
         if len(df) == 0:
             print('Could not find name for {0:d}'.format(playerid))
             return None

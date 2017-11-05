@@ -111,12 +111,63 @@ def get_and_filter_5v5_log(**kwargs):
     df = get_5v5_df_start_end(**kwargs)
     df = filter_5v5_for_player(df, **kwargs)
     df = filter_5v5_for_team(df, **kwargs)
-    df = make_5v5_rolling(df, **kwargs)
+    df = make_5v5_rolling_gp(df, **kwargs)
+    df = make_5v5_rolling_days(df, **kwargs)
 
     return df
 
 
-def make_5v5_rolling(df, **kwargs):
+def make_5v5_rolling_days(df, **kwargs):
+    """
+    Takes rolling sums based on roll_len_days kwarg. E.g. 30 for a ~monthly rolling sum.
+
+    :param df: dataframe
+    :param kwargs: the relevant one is roll_len_days, int
+
+    :return: dataframe with extra columns
+    """
+    if 'roll_len_days' in kwargs:
+        roll_len = kwargs['roll_len_days']
+
+        # Join to schedules to get game dates
+        df2 = schedules.attach_game_dates_to_dateframe(df)
+
+        # Join to a dataframe full of days
+        # TODO use grouper to speed this up
+        daysdf = pd.DataFrame({'Date': [df2.Date.min(), df2.Date.max()]}) \
+            .assign(JoinKey=1) \
+            .set_index('Date') \
+            .asfreq('1D').reset_index() \
+            .assign(JoinKey=1)
+        playersdf = df2[['PlayerID']].drop_duplicates() \
+            .assign(JoinKey=1) \
+            .merge(daysdf, how='inner', on='JoinKey') \
+            .drop('JoinKey', axis=1)
+        playersdf.loc[:, 'Date'] = playersdf.Date.dt.strftime('%Y-%m-%d')
+        fulldf = playersdf.merge(df2, how='left', on=['PlayerID', 'Date'])
+
+        to_exclude = {'Game', 'Season', 'Team'}  # Don't want to sum these, even though they're numeric
+        numeric_df = df.select_dtypes(include=[np.number])
+        numeric_df.drop(to_exclude, axis=1, inplace=True, errors='ignore')
+
+        rolling_df = fulldf[numeric_df.columns] \
+            .groupby('PlayerID').rolling(roll_len, min_periods=1).sum() \
+            .drop('PlayerID', axis=1) \
+            .reset_index()
+
+        assert len(rolling_df) == len(fulldf)
+
+        # Rename columns
+        columnnames = {col: '{0:d}-day {1:s}'.format(roll_len, col) for col in numeric_df.columns}
+        rolling_df = rolling_df.rename(columns=columnnames)
+
+        finaldf = pd.concat([fulldf, rolling_df], axis=1).dropna(subset={'Game'}).drop('Date', axis=1)
+        return finaldf
+
+    return df
+
+
+def make_5v5_rolling_gp(df, **kwargs):
     """
     Takes rolling sums of numeric columns and concatenates onto the dataframe.
     Will exclude season, game, player, and team.
@@ -134,13 +185,13 @@ def make_5v5_rolling(df, **kwargs):
         df.loc[:, 'Row'] = df.Row.cumsum()
 
         # Get df and roll
-        to_exclude = {'Game', 'PlayerID', 'Season', 'Team'}
+        to_exclude = {'Game', 'Season', 'Team'}
         numeric_df = df.select_dtypes(include=[np.number])
         numeric_df.drop(to_exclude, axis=1, inplace=True, errors='ignore')
 
         if 'ignore_missing' in kwargs and kwargs['ignore_missing'] is True:
             # Just do defaults
-            rollingdf = numeric_df.rolling(roll_len).sum()
+            rollingdf = numeric_df.groupby('PlayerID').rolling(roll_len).sum().drop('PlayerID', axis=1).reset_index()
             rollingdf.loc[:, 'Row'] = 1
             rollingdf.loc[:, 'Row'] = rollingdf.Row.cumsum()
         else:
@@ -156,7 +207,7 @@ def make_5v5_rolling(df, **kwargs):
 
         # Rename columns
         columnnames = {col: '{0:d}-game {1:s}'.format(roll_len, col) for col in numeric_df.columns}
-        rollingdf.rename(columns=columnnames, inplace=True)
+        rollingdf = rollingdf.rename(columns=columnnames)
 
         # Add back to original
         df2 = df.merge(rollingdf, how='left', on='Row').drop('Row', axis=1)
@@ -282,5 +333,6 @@ def savefilehelper(**kwargs):
 if __name__ == '__main__':
     from scrapenhl2.plot import game_timeline as gt
     from scrapenhl2.plot import game_h2h as gh
-    gt.live_timeline('WSH', 'NYI', True)
-    gh.live_h2h('WSH', 'NYI', False)
+    from scrapenhl2.scrape import autoupdate
+    #gt.game_timeline(2017, 20201, '/Users/muneebalam/Desktop/gt.png')
+    gh.game_h2h(2017, 20201, '/Users/muneebalam/Desktop/gh.png')

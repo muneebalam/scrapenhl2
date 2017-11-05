@@ -175,7 +175,7 @@ def _get_contiguous_times(times, tolerance=2):
                 cont_times[-1][-1] = times[i]
             else:
                 cont_times.append([times[i], times[i]])
-    cont_times = ((s, e) for s, e in cont_times if e - s >= tolerance)
+    cont_times = tuple((s, e) for s, e in cont_times if e - s >= tolerance)
     return cont_times
 
 

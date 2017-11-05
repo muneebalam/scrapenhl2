@@ -8,7 +8,7 @@ from scrapenhl2.scrape import schedules, parse_toi, autoupdate, team_info, teams
 from scrapenhl2.scrape import general_helpers as helpers
 
 def add_players_to_file(filename, focus_team, season=None, gamecol='Game', periodcol='Period', timecol='Time',
-                        time_format='Elapsed', update_data=False):
+                        time_format='Elapsed', update_data=False, player_output='names'):
     """
     Adds names of on-ice players to the end of each line. You cannot necessarily trust results when times coincide
     with faceoff or stoppage times.
@@ -24,7 +24,7 @@ def add_players_to_file(filename, focus_team, season=None, gamecol='Game', perio
 
     df = _read_tracking_file(filename)
     df = _add_times_to_file(df, periodcol, timecol, time_format)
-    df = _add_onice_players_to_df(df, focus_team, season, gamecol)
+    df = _add_onice_players_to_df(df, focus_team, season, gamecol, player_output)
     _write_tracking_file(df, filename)
 
 
@@ -42,7 +42,7 @@ def _write_tracking_file(df, original_filename):
     df.to_csv(new_filename, index=False)
 
 
-def _add_onice_players_to_df(df, focus_team, season, gamecol):
+def _add_onice_players_to_df(df, focus_team, season, gamecol, player_output):
     """
     Uses the _Secs column in df, the season, and the gamecol to join onto on-ice players.
 
@@ -50,6 +50,7 @@ def _add_onice_players_to_df(df, focus_team, season, gamecol):
     :param focus_team: str or int, team to focus on. Its players will be listed in first in sheet.
     :param season: int, the season
     :param gamecol: str, the column with game IDs
+    :param player_output: str, use 'names' or 'nums'. Currently only 'names' is supported.
 
     :return: dataframe with team and opponent players
     """
@@ -61,9 +62,11 @@ def _add_onice_players_to_df(df, focus_team, season, gamecol):
     toi = toi[['Game', '_Secs', 'Team1', 'Team2', 'Team3', 'Team4', 'Team5',
                'Opp1', 'Opp2', 'Opp3', 'Opp4', 'Opp5']]
 
-    # Now convert to names
+    # Now convert to names or numbers
     for col in toi.columns[-10:]:
         toi.loc[:, col] = players.playerlst_as_str(toi[col])
+        if player_output == 'nums':
+            pass  # TODO
 
     # Rename columns
     toi = toi.rename(columns={col: '{0:s}{1:s}'.format(focus_team, col[-1])
@@ -156,10 +159,3 @@ def _read_tracking_file(fname):
         return pd.read_excel(fname)
     else:
         print('Did not recognize extension for', fname)
-
-
-if __name__ == '__main__':
-    #add_players_to_file('/Users/muneebalam/Downloads/Total Entries Year Isles 2018 13 games CSV for On-Ice Data.csv',
-    #                    'NYI', time_format='remaining')
-    add_players_to_file('/Users/muneebalam/Downloads/Zone Entries.csv',
-                        'PHI', time_format='remaining')

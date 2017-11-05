@@ -6,7 +6,7 @@ It adds labels for lines on the lines themselves.
 from math import atan2,degrees
 import numpy as np
 
-#Label line with line2D label data
+# Label line with line2D label data
 def labelLine(line, x, label=None, align=True, **kwargs):
 
     ax = line.get_axes()
@@ -17,32 +17,32 @@ def labelLine(line, x, label=None, align=True, **kwargs):
         print('x label location is outside data range!')
         return
 
-    #Find corresponding y co-ordinate and angle of the line
+    # Find corresponding y co-ordinate and angle of the line
     ip = 1
     for i in range(len(xdata)):
         if x < xdata[i]:
             ip = i
             break
 
-    y = ydata[ip-1] + (ydata[ip]-ydata[ip-1])*(x-xdata[ip-1])/(xdata[ip]-xdata[ip-1])
+    y = ydata[ip - 1] + (ydata[ip] - ydata[ip - 1]) * (x - xdata[ip - 1]) / (xdata[ip] - xdata[ip - 1])
 
     if not label:
         label = line.get_label()
 
     if align:
-        #Compute the slope
-        dx = xdata[ip] - xdata[ip-1]
-        dy = ydata[ip] - ydata[ip-1]
-        ang = degrees(atan2(dy,dx))
+        # Compute the slope
+        dx = xdata[ip] - xdata[ip - 1]
+        dy = ydata[ip] - ydata[ip - 1]
+        ang = degrees(atan2(dy, dx))
 
-        #Transform to screen co-ordinates
-        pt = np.array([x,y]).reshape((1,2))
-        trans_angle = ax.transData.transform_angles(np.array((ang,)),pt)[0]
+        # Transform to screen co-ordinates
+        pt = np.array([x, y]).reshape((1, 2))
+        trans_angle = ax.transData.transform_angles(np.array((ang,)), pt)[0]
 
     else:
         trans_angle = 0
 
-    #Set a bunch of keyword arguments
+    # Set a bunch of keyword arguments
     if 'color' not in kwargs:
         kwargs['color'] = line.get_color()
 
@@ -53,7 +53,7 @@ def labelLine(line, x, label=None, align=True, **kwargs):
         kwargs['va'] = 'center'
 
     if 'backgroundcolor' not in kwargs:
-        kwargs['backgroundcolor'] = ax.get_axis_bgcolor()
+        kwargs['backgroundcolor'] = ax.get_facecolor()
 
     if 'clip_on' not in kwargs:
         kwargs['clip_on'] = True
@@ -70,16 +70,16 @@ def labelLines(lines, align=True, xvals=None, **kwargs):
     labLines = []
     labels = []
 
-    #Take only the lines which have labels other than the default ones
+    # Take only the lines which have labels other than the default ones
     for line in lines:
         label = line.get_label()
-        if "_line" not in label:
+        if "_line" not in label and '_nolegend' not in label:
             labLines.append(line)
             labels.append(label)
 
     if xvals is None:
         xmin, xmax = ax.get_xlim()
-        xvals = np.linspace(xmin,xmax,len(labLines)+2)[1:-1]
+        xvals = np.linspace(xmin, xmax, len(labLines)+2)[1:-1]
 
-    for line, x, label in zip(labLines,xvals,labels):
+    for line, x, label in zip(labLines, xvals, labels):
         labelLine(line, x, label, align, **kwargs)

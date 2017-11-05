@@ -405,6 +405,23 @@ def _fill_in_schedule_from_pbp(df, season):
     return df
 
 
+def attach_game_dates_to_dateframe(df):
+    """
+    Takes dataframe with Season and Game columns and adds a Date column (for that game)
+
+    :param df: dataframe
+
+    :return: dataframe with one more column
+    """
+    dflst = []
+    for season in df.Season.unique():
+        temp = df.query("Season == {0:d}".format(int(season))) \
+            .merge(get_season_schedule(season)[['Game', 'Date']], how='left', on='Game')
+        dflst.append(temp)
+    df2 = pd.concat(dflst)
+    return df2
+
+
 _CURRENT_SEASON = None
 _SCHEDULES = None
 schedule_setup()

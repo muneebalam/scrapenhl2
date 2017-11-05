@@ -148,7 +148,7 @@ def check_number_last_first_format(name):
 
     :return: bool
     """
-    if re.match('^\d{1,2}\s*[A-Z]+\s*[A-Z]+', name) is None:
+    if re.match('^\d{1,2}\s*[A-Z]+\s*[A-Z]+', name.replace("'", '')) is None:  # added in apostrophe case for O'Brien
         return False
     return True
 
@@ -311,6 +311,28 @@ def period_contribution(x):
         return 3600 if x == 'OT' else 3900  # OT or SO
 
 
+def get_lastname(pname):
+    """
+    Splits name on first space and returns second part.
+
+    :param pname: str, player name
+
+    :return: str, player last name
+    """
+    return pname.split(' ', 1)[1]
+
+
+def get_initials(pname):
+    """
+    Splits name on spaces and returns first letter from each part.
+
+    :param pname: str, player name
+
+    :return: str, player initials
+    """
+    return ''.join([part[0] for part in pname.split(' ')])
+
+
 def try_url_n_times(url, timeout=5, n=5):
     """
     A helper method that tries to access given url up to five times, returning the page.
@@ -334,5 +356,5 @@ def try_url_n_times(url, timeout=5, n=5):
             print('HTTP error with', url, httpe, httpe.args)
         except Exception as e:  # timeout
             tries += 1
-            print('Could not access {0:s}; try {1:d} of {2:d}'.format(url, tries, trylim))
+            print('Could not access {0:s}; try {1:d} of {2:d}'.format(url, tries, n))
     return page

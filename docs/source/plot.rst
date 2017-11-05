@@ -33,6 +33,10 @@ More methods being added regularly.
 Methods
 --------
 
+~~~~~~
+Games
+~~~~~~
+
 Game H2H
 ~~~~~~~~~~~
 .. automodule:: scrapenhl2.plot.game_h2h
@@ -43,12 +47,43 @@ Corsi timeline
 .. automodule:: scrapenhl2.plot.game_timeline
    :members:
 
+~~~~~~
+Teams
+~~~~~~
+
+Coming soon...
+
+~~~~~~~~~~~~
+Individuals
+~~~~~~~~~~~~
+
 Player rolling CF
 ~~~~~~~~~~~~~~~~~~
 .. automodule:: scrapenhl2.plot.rolling_cf
    :members:
 
+Player rolling GF
+~~~~~~~~~~~~~~~~~~
+.. automodule:: scrapenhl2.plot.rolling_cf
+   :members:
+
+Player rolling boxcars
+~~~~~~~~~~~~~~~~~~~~~~
+.. automodule:: scrapenhl2.plot.rolling_cf
+   :members:
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+Individuals (comparison)
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Usage
+~~~~~~
+.. automodule:: scrapenhl2.plt.usage
+   :members:
+
+~~~~~~~~~~~~~~~
 Helper methods
 ~~~~~~~~~~~~~~~
 .. automodule:: scrapenhl2.plot.visualization_helper
    :members:
+
