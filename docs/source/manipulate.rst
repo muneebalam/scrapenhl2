@@ -16,7 +16,6 @@ Add on-ice players to a file::
 
 See documentation below for more information and additional arguments to add_players_to_file.
 
-
 Methods
 --------
 

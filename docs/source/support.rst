@@ -7,7 +7,7 @@ Feel free to contact me with questions or suggestions.
 
 Docs
 ----
-`Read the Docs<http://scrapenhl2.readthedocs.io/en/latest/>`_
+`Read the Docs <http://scrapenhl2.readthedocs.io/en/latest/>`_
 
 Github
 -------

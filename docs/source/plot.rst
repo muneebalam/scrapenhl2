@@ -30,12 +30,8 @@ Save the timeline of a memorable game to file::
 
 More methods being added regularly.
 
-Methods
---------
-
-~~~~~~
-Games
-~~~~~~
+Methods (games)
+-----------------
 
 Game H2H
 ~~~~~~~~~~~
@@ -47,15 +43,13 @@ Corsi timeline
 .. automodule:: scrapenhl2.plot.game_timeline
    :members:
 
-~~~~~~
-Teams
-~~~~~~
+Methods (teams)
+----------------
 
 Coming soon...
 
-~~~~~~~~~~~~
-Individuals
-~~~~~~~~~~~~
+Methods (individuals)
+----------------------
 
 Player rolling CF and GF
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -67,18 +61,17 @@ Player rolling boxcars
 .. automodule:: scrapenhl2.plot.rolling_boxcars
    :members:
 
-~~~~~~~~~~~~~~~~~~~~~~~~~~
-Individuals (comparison)
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+Methods (individual comparisons)
+---------------------------------
 
 Usage
 ~~~~~~
 .. automodule:: scrapenhl2.plot.usage
    :members:
 
-~~~~~~~~~~~~~~~
 Helper methods
-~~~~~~~~~~~~~~~
+---------------
+
 .. automodule:: scrapenhl2.plot.visualization_helper
    :members:
 
