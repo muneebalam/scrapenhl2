@@ -14,13 +14,24 @@ def add_players_to_file(filename, focus_team, season=None, gamecol='Game', perio
     with faceoff or stoppage times.
 
     :param filename: str, the file to read. Will save output as this filename but ending in "on-ice.csv"
+    :param focus_team: str or int, e.g. 'WSH' or 'WPG'
+    :param season: int. For 2007-08, use 2007. Defaults to current season.
+    :param gamecol: str. The column holding game IDs (e.g. 20001). By default, looks for column called "Game"
+    :param periodcol: str. The column holding period number/name (1, 2, 3, 4 or OT, etc). By default: "Period"
+    :param timecol: str. The column holding time in period in M:SS format.
+    :param time_format: str, how to interpret timecol. Use 'elapsed' or 'remaining'.
+    E.g. the start of a period is 0:00 with elapsed and 20:00 in remaining.
+    :param update_data: bool. If True, will autoupdate() data for given season. If not, will not update game data.
+    Use when file includes data from games not already scraped.
+    :param player_output: str, use 'names' or 'nums'. Currently only supports 'names'
 
     :return: nothing
     """
-    if update_data:
-        autoupdate.autoupdate()
+
     if season is None:
         season = schedules.get_current_season()
+    if update_data:
+        autoupdate.autoupdate()
 
     df = _read_tracking_file(filename)
     df = _add_times_to_file(df, periodcol, timecol, time_format)
@@ -35,7 +46,7 @@ def _write_tracking_file(df, original_filename):
     :param df: dataframe
     :param original_filename: str
 
-    :return: nothing. df written to original_filename ending in "on-ice.csv
+    :return: nothing. df written to original_filename ending in "_on-ice.csv
     """
 
     new_filename = original_filename[:original_filename.rfind('.')] + '_on-ice.csv'

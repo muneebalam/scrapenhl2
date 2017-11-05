@@ -1123,9 +1123,11 @@ def _convert_to_all_combos(df, fillval=0, *args):
     This method takes a dataframe and makes sure all possible combinations of given arguments are present.
     For example, if you want df to have all combos of P1 and P2, it will create a dataframe with all possible combos,
     left join existing dataframe onto that, and return that df. Uses fillval to fill *all* non-key columns.
+
     :param df: the pandas dataframe
     :param fillval: obj, the value with which to fill. Default fill is 0
     :param args: str, column names, or tuples of combinations of column names
+    
     :return: df with all combos of columns specified
     """
     args = set(args)
@@ -1161,10 +1163,12 @@ def _convert_to_all_combos(df, fillval=0, *args):
 def get_player_toi(season, game, pos=None, homeroad='H'):
     """
     Returns a df listing 5v5 ice time for each player for specified team.
+
     :param season: int, the game
     :param game: int, the season
     :param pos: specify 'L', 'C', 'R', 'D' or None for all
     :param homeroad: str, 'H' for home or 'R' for road
+
     :return: pandas df with columns Player, Secs
     """
 
@@ -1193,10 +1197,13 @@ def get_player_toi(season, game, pos=None, homeroad='H'):
 
 def get_line_combos(season, game, homeroad='H'):
     """
-    Returns a df listing the 5v5 line combinations used in this game for specified team, and time they each played together
+    Returns a df listing the 5v5 line combinations used in this game for specified team,
+    and time they each played together
+
     :param season: int, the game
     :param game: int, the season
     :param homeroad: str, 'H' for home or 'R' for road
+
     :return: pandas dataframe with columns P1, P2, P3, Secs. May contain duplicates
     """
 
@@ -1223,9 +1230,11 @@ def get_line_combos(season, game, homeroad='H'):
 def get_pairings(season, game, homeroad='H'):
     """
     Returns a df listing the 5v5 pairs used in this game for specified team, and time they each played together
+
     :param season: int, the game
     :param game: int, the season
     :param homeroad: str, 'H' for home or 'R' for road
+
     :return: pandas dataframe with columns P1, P2, Secs. May contain duplicates
     """
 
@@ -1250,8 +1259,10 @@ def get_pairings(season, game, homeroad='H'):
 def get_game_h2h_toi(season, game):
     """
     This method gets H2H TOI at 5v5 for the given game.
+
     :param season: int, the season
     :param game: int, the game
+
     :return: a df with [P1, P1Team, P2, P2Team, TOI]. Entries will be duplicated (one with given P as P1, another as P2)
     """
     # TODO add strength arg
@@ -1287,12 +1298,11 @@ def get_game_h2h_toi(season, game):
 def filter_for_event_types(pbp, eventtype):
     """
     Filters given dataframe for event type(s) specified only.
-    :param pbp: dataframe
-        Need a column titled Event
-    :param eventtype: str or iterable of str
-        e.g. Goal, Shot, etc
-    :return: dataframe
-        Filtered
+
+    :param pbp: dataframe. Need a column titled Event
+    :param eventtype: str or iterable of str, e.g. Goal, Shot, etc
+
+    :return: dataframe, filtered
     """
     if isinstance(eventtype, str):
         return pbp[pbp.Event == eventtype]
@@ -1304,10 +1314,10 @@ def filter_for_event_types(pbp, eventtype):
 def filter_for_goals(pbp):
     """
     Filters given dataframe for goals only.
-    :param pbp: dataframe
-        Need a column titled Event
-    :return: dataframe
-        Only rows where Event == 'Goal'
+
+    :param pbp: dataframe. Need a column titled Event
+
+    :return: dataframe. Only rows where Event == 'Goal'
     """
     return filter_for_event_types(pbp, 'Goal')
 
@@ -1315,10 +1325,10 @@ def filter_for_goals(pbp):
 def filter_for_sog(pbp):
     """
     Filters given dataframe for SOG only.
-    :param pbp: dataframe
-        Need a column titled Event
-    :return: dataframe
-        Only rows where Event == 'Goal' or Event == 'Shot'
+
+    :param pbp: dataframe. Need a column titled Event
+
+    :return: dataframe. Only rows where Event == 'Goal' or Event == 'Shot'
     """
     return filter_for_event_types(pbp, {'Goal', 'Shot'})
 
@@ -1326,10 +1336,10 @@ def filter_for_sog(pbp):
 def filter_for_fenwick(pbp):
     """
     Filters given dataframe for SOG only.
-    :param pbp: dataframe
-        Need a column titled Event
-    :return: dataframe
-        Only rows where Event == 'Goal' or Event == 'Shot'
+
+    :param pbp: dataframe. Need a column titled Event
+
+    :return: dataframe. Only rows where Event == 'Goal' or Event == 'Shot'
     """
     return filter_for_event_types(pbp, {'Goal', 'Shot', 'Missed Shot'})
 
@@ -1337,8 +1347,9 @@ def filter_for_fenwick(pbp):
 def filter_for_five_on_five(df):
     """
     Filters given dataframe for 5v5 rows
-    :param df: dataframe
-        Columns HomeStrength + RoadStrength or TeamStrength + OppStrength
+
+    :param df: dataframe, columns HomeStrength + RoadStrength or TeamStrength + OppStrength
+
     :return: dataframe
     """
     colnames = set(df.columns)
@@ -1354,7 +1365,9 @@ def filter_for_five_on_five(df):
 def filter_for_corsi(pbp):
     """
     Filters given dataframe for goal, shot, miss, and block events
+
     :param pbp: a dataframe with column Event
+
     :return: pbp, filtered for corsi events
     """
 
@@ -1364,8 +1377,10 @@ def filter_for_corsi(pbp):
 def get_game_h2h_corsi(season, game):
     """
     This method gets H2H Corsi at 5v5 for the given game.
+
     :param season: int, the season
     :param game: int, the game
+
     :return: a df with [P1, P1Team, P2, P2Team, CF, CA, C+/-]. Entries will be duplicated, as with get_game_h2h_toi.
     """
     # TODO add strength arg
@@ -1411,7 +1426,9 @@ def get_game_h2h_corsi(season, game):
 def time_to_mss(sectime):
     """
     Converts a number of seconds to m:ss format
+
     :param sectime: int, a number of seconds
+
     :return: str, sectime in m:ss
     """
     n_min = int(sectime / 60)
@@ -1427,10 +1444,12 @@ def time_to_mss(sectime):
 def period_time_to_elapsed(df, period_colname='Period', time_colname='Time', time_format='elapsed'):
     """
     Adds a column to df called Elapsed.
+
     :param df: pandas dataframe
     :param periodcol: str, column containing period (ints)
     :param time_colname: str, column containing time in m:ss format.
     :param time_format: str, 'elapsed' or 'remaining'. Latter not suitable for regular season.
+
     :return: dataframe with extra column noting seconds elapsed in game
     """
 
@@ -1450,6 +1469,7 @@ def period_time_to_elapsed(df, period_colname='Period', time_colname='Time', tim
 def add_on_ice_players_to_file(filename, *args, **kwargs):
     """
     A method to add on-ice players to each row.
+
     :param filename: str, path to file. Can read csv or xlsx (first sheet only)
     :param period_colname: str, name of column containing period (ints)
     :param time_colname: str, name of column containing time in m:ss
@@ -1458,6 +1478,7 @@ def add_on_ice_players_to_file(filename, *args, **kwargs):
     This is because TOI is recorded in a non-overlapping way. At the time of the faceoff, the on-ice players listed
     are the players still on from the previous time. To get new players coming onto the ice, if this arg is True,
     will add 1 to times before joining.
+
     :return: nothing
     """
     # TODO handle date specification instead of season-game
@@ -1479,6 +1500,7 @@ def add_on_ice_players_to_df(df, season_colname=None, game_colname='Game', perio
                              time_colname='Time', time_format='elapsed', faceoff_indicator=False):
     """
     A method to add on-ice players to each row.
+
     :param df: a dataframe
     :param season_colname: str, name of column containing season. Defaults to assuming all are current season
     :param game_colname: str, name of column containing game
@@ -1489,6 +1511,7 @@ def add_on_ice_players_to_df(df, season_colname=None, game_colname='Game', perio
     This is because TOI is recorded in a non-overlapping way. At the time of the faceoff, the on-ice players listed
     are the players still on from the previous time. To get new players coming onto the ice, if this arg is True,
     will join to players on ice one second after.
+
     :return: nothing
     """
 
@@ -1517,8 +1540,10 @@ def player_columns_to_name(df, columns=None):
     """
     Takes a dataframe and transforms specified columns of player IDs into names.
     If no columns provided, searches for defaults: H1, H2, H3, H4, H5, H6, HG (and same seven with R)
+
     :param df: A dataframe
     :param columns: a list of strings, or None
+
     :return: df, dataframe with same column names, but columns now names instead of IDs
     """
 
@@ -1540,5 +1565,5 @@ def player_columns_to_name(df, columns=None):
 
 
 if __name__ == '__main__':
-    for season in range(2015, 2016):
+    for season in range(2016, 2018):
         get_5v5_player_log(season, True)
