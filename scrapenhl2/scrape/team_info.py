@@ -76,6 +76,8 @@ def get_team_info_from_url(teamid):
 
     teamid = int(teamid)
     page = helpers.try_url_n_times(get_team_info_url(teamid)).decode('latin-1')
+    if page is None:
+        return None, None, None
     teaminfo = json.loads(page)
 
     tid = teaminfo['teams'][0]['id']
@@ -150,6 +152,8 @@ def generate_team_ids_file(teamids=None):
             # ed.print_and_log('Done with ID # {0:d}: {1:s}'.format(tid, tname))
         except urllib.error.HTTPError:
             pass
+        except Exception as e:
+            print(e, e.args)
 
     teaminfo = pd.DataFrame({'ID': ids, 'Abbreviation': abbrevs, 'Name': names})
     write_team_info_file(teaminfo)
