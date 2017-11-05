@@ -16,12 +16,14 @@ Github
 Contact
 --------
 `Twitter
-<http://www.twitter.com/muneebalamcu>`_.
+<http://www.twitter.com/muneebalamcu>`_, or
+`create an issue on GitHub <https://github.com/muneebalam/scrapenhl2/issues>`_.
 
 Collaboration
 -------------
 
-I'm happy to partner with you in development efforts--just shoot me a message.
+I'm happy to partner with you in development efforts--just shoot me a message, or just get started by resolving a
+GitHub issue or suggested enhancement.
 Please also let me know if you'd like to alpha- or beta-test my code.
 
 Donations
