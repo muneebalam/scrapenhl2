@@ -353,9 +353,10 @@ def try_url_n_times(url, timeout=5, n=5):
                 page = reader.read()
             break
         except urllib.error.HTTPError as httpe:
-            print('HTTP error with', url, httpe, httpe.args)
-            if '404' in httpe.args:
+            if '404' in str(httpe):
                 break
+            else:
+                print('HTTP error with', url, httpe, httpe.args)
         except Exception as e:  # timeout
             tries += 1
             print('Could not access {0:s}; try {1:d} of {2:d}'.format(url, tries, n))

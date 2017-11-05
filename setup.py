@@ -19,7 +19,7 @@ setuptools.setup(
     license="MIT",
     keywords="nhl",
     url="https://github.com/muneebalam/scrapenhl2",
-    packages=['scrapenhl2', 'docs', 'tests', 'scrape', 'manipulate', 'plot'],
+    packages=setuptools.find_packages(),
     install_requires=['numpy',  # used by pandas
                       'scipy',  # not currently used, but may be used for distribution fitting
                       'matplotlib',  # graphing

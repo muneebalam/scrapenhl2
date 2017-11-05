@@ -75,10 +75,10 @@ def get_team_info_from_url(teamid):
     """
 
     teamid = int(teamid)
-    page = helpers.try_url_n_times(get_team_info_url(teamid)).decode('latin-1')
+    page = helpers.try_url_n_times(get_team_info_url(teamid))
     if page is None:
         return None, None, None
-    teaminfo = json.loads(page)
+    teaminfo = json.loads(page.decode('latin-1'))
 
     tid = teaminfo['teams'][0]['id']
     tabbrev = teaminfo['teams'][0]['abbreviation']
@@ -144,7 +144,8 @@ def generate_team_ids_file(teamids=None):
     for i in teamids:
         try:
             tid, tabbrev, tname = get_team_info_from_url(i)
-
+            if tid is None:
+                continue
             ids.append(tid)
             abbrevs.append(tabbrev)
             names.append(tname)
