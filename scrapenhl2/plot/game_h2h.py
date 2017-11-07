@@ -11,13 +11,14 @@ from scrapenhl2.scrape import schedules, team_info, players
 from scrapenhl2.plot import visualization_helper
 
 
-def live_h2h(team1, team2, update=True):
+def live_h2h(team1, team2, update=True, save_file=None):
     """
     A convenience method that updates data then displays h2h for most recent game between specified tams.
 
     :param team1: str or int, team
     :param team2: str or int, other team
     :param update: bool, should data be updated first?
+    :param save_file: str, specify a valid filepath to save to file. If None, merely shows on screen.
 
     :return: nothing
     """
@@ -26,7 +27,7 @@ def live_h2h(team1, team2, update=True):
         autoupdate.autoupdate()
     from scrapenhl2.scrape import games
     game = games.most_recent_game_id(team1, team2)
-    game_h2h(2017, game)
+    return game_h2h(2017, game, save_file)
 
 
 def game_h2h(season, game, save_file=None):
@@ -47,7 +48,7 @@ def game_h2h(season, game, save_file=None):
 
     # TODO create chart and filter out RH, HH, and RR
     # TODO link players by ID. When I link by name have issue with Mike Green for example
-    _game_h2h_chart(season, game, h2hcorsi, h2htoi, playerorder_h, playerorder_r, numf_h, numf_r, save_file)
+    return _game_h2h_chart(season, game, h2hcorsi, h2htoi, playerorder_h, playerorder_r, numf_h, numf_r, save_file)
     plt.close()
 
 

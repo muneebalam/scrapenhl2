@@ -11,7 +11,7 @@ def read(fname):
     return open(os.path.join(os.path.dirname(__file__), fname)).read()
 
 setuptools.setup(
-    name = "scrapenhl2",
+    name="scrapenhl2",
     version="0.3.9",
     author="Muneeb Alam",
     author_email="muneeb.alam@gmail.com",
