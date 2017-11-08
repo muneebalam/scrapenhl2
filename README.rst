@@ -107,7 +107,8 @@ There is also a very bare-bones app that appears in your browser. To launch the 
 But this package is targeted for script use, so I recommend familiarizing yourself with python.
 (This is not intended to be a replacement for a site like Corsica.)
 
-Look through the documentation at `Read the Docs <http://scrapenhl2.readthedocs.io/en/latest/>`_.
+Look through the documentation at `Read the Docs <http://scrapenhl2.readthedocs.io/en/latest/>`_ and the
+`examples on Github <https://github.com/muneebalam/scrapenhl2/tree/master/examples>`_.
 Also always feel free to contact me with questions or suggestions.
 
 Contact
