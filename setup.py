@@ -12,7 +12,7 @@ def read(fname):
 
 setuptools.setup(
     name="scrapenhl2",
-    version="0.3.9",
+    version="0.4.00",
     author="Muneeb Alam",
     author_email="muneeb.alam@gmail.com",
     description=("scrapenhl2 is a python package for scraping and manipulating NHL data pulled from the NHL website."),
