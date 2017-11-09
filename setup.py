@@ -35,6 +35,7 @@ setuptools.setup(
                       'beautifulsoup4==4.5.3',  # for html parsing
                       'html-table-extractor',  # for html parsing
                       'plotly',  # for interactive charts
+                      'tables',
                       'dash',
                       'dash-renderer',
                       'dash-html-components',
