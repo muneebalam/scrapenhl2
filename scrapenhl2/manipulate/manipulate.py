@@ -803,10 +803,10 @@ def get_5v5_player_game_shift_startend(season, team):
 
     # Add locations
     directions = get_directions_for_xy_for_season(season, team)
-    foshifts = _infer_zones_for_faceoffs(foshifts, directions, 'StartX', 'StartY', 'StartTime') \
+    foshifts = infer_zones_for_faceoffs(foshifts, directions, 'StartX', 'StartY', 'StartTime') \
         .rename(columns={'FacLoc': 'Start'})
     foshifts.loc[:, 'Start'] = foshifts.Start.fillna('S-OtF')
-    foshifts = _infer_zones_for_faceoffs(foshifts, directions, 'EndX', 'EndY', 'EndTime') \
+    foshifts = infer_zones_for_faceoffs(foshifts, directions, 'EndX', 'EndY', 'EndTime') \
         .rename(columns={'FacLoc': 'End'})
     foshifts.loc[:, 'End'] = foshifts.End.fillna('E-OtF')
 
@@ -906,7 +906,7 @@ def get_directions_for_xy_for_game(season, game):
     return periods
 
 
-def _infer_zones_for_faceoffs(df, directions, xcol='X', ycol='Y', timecol='Time'):
+def infer_zones_for_faceoffs(df, directions, xcol='X', ycol='Y', timecol='Time'):
     """
     Inferring zones for faceoffs from XY is hard--this method takes are of that.
 
@@ -927,8 +927,8 @@ def _infer_zones_for_faceoffs(df, directions, xcol='X', ycol='Y', timecol='Time'
 
     :param df: dataframe with columns Game, specified xcol, and specified ycol
     :param directions: dataframe with columns Game, Period, and Direction ('left' or 'right')
-    :param xcol: str, the column containing X coordinates
-    :param ycol: str, the column containing Y coordinates
+    :param xcol: str, the column containing X coordinates in df
+    :param ycol: str, the column containing Y coordinates in df
     :param timecol: str, the column containing the time in seconds.
 
     :return: dataframe with extra column FacLoc

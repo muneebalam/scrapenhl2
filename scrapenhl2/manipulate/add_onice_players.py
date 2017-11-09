@@ -37,7 +37,7 @@ def add_players_to_file(filename, focus_team, season=None, gamecol='Game', perio
         autoupdate.autoupdate()
 
     df = _read_tracking_file(filename)
-    df = _add_times_to_file(df, periodcol, timecol, time_format)
+    df = add_times_to_file(df, periodcol, timecol, time_format)
     df = _add_onice_players_to_df(df, focus_team, season, gamecol, player_output)
     _write_tracking_file(df, filename)
 
@@ -107,7 +107,7 @@ def _opp_cols_to_back(df):
     return df[[neworder]]
 
 
-def _add_times_to_file(df, periodcol, timecol, time_format):
+def add_times_to_file(df, periodcol, timecol, time_format):
     """
     Uses specified periodcol, timecol, and time_format col to calculate _Secs, time elapsed in game.
 
@@ -173,4 +173,8 @@ def _read_tracking_file(fname):
         return pd.read_excel(fname)
     else:
         print('Did not recognize extension for', fname)
+
+if __name__ == '__main__':
+    file = '/Users/muneebalam/Downloads/STL and COL.csv'
+    add_players_to_file(file, 'PHI', 2017, time_format='remaining')
 
