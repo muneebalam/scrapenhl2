@@ -209,7 +209,7 @@ def scrape_toi_setup():
     :return:
     """
     for season in range(2005, schedules.get_current_season() + 1):
-        organization.check_create_folder(organization.get_season_raw_pbp_folder(season))
+        organization.check_create_folder(organization.get_season_raw_toi_folder(season))
 
 
 scrape_toi_setup()
