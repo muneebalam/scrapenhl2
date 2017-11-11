@@ -13,35 +13,56 @@ import scrapenhl2.plot.game_h2h as game_h2h
 import scrapenhl2.plot.game_timeline as game_timeline
 
 def get_images_url():
+    """Returns /static/"""
     return '/static/'
+
+
 def get_game_images_url():
+    """Returns /static/game/"""
     return '{0:s}{1:s}'.format(get_images_url(), 'game/')
+
+
 def get_game_image_url(season, game, charttype):
+    """Returns /static/game/2017/20001/H2H.png for example"""
     return '{0:s}{1:d}/{2:d}/{3:s}.png'.format(get_game_images_url(), season, game, charttype)
 
+
 def get_player_images_url():
+    """Returns /static/player/"""
     return '{0:s}{1:s}'.format(get_images_url(), 'player/')
+
+
 def get_team_images_url():
+    """Returns /static/team/"""
     return '{0:s}{1:s}'.format(get_images_url(), 'team/')
 
+
+def get_images_folder():
+    """Returns scrapenhl2/plot/app/_static/"""
+    return os.path.join(organization.get_base_dir(), 'plot', 'app', '_static')
+
+
 def clean_images_folder():
+    """Removes all files in scrapenhl2/plot/app/_static/"""
     filelist = [os.path.join(get_images_folder(), file) for file in os.listdir(get_images_folder())]
     for file in filelist:
         os.unlink(file)
 
-def get_images_folder():
-    return os.path.join(organization.get_base_dir(), 'plot', 'app', '_static')
+
 def get_game_image_filename(season, game, charttype):
+    """Returns e.g. scrapenhl2/plot/app/_static/2017-20001-H2H.png"""
     return os.path.join(get_images_folder(), '{0:d}-{1:d}-{2:s}.png'.format(season, game, charttype))
 
 
 def generate_table(dataframe):
+    """Transforms a pandas dataframe into an HTML table"""
     return html.Table(
         # Header
         [html.Tr([html.Th(col) for col in dataframe.columns])] +
 
         # Body
         [html.Tr([html.Td(dataframe.iloc[i][col]) for col in dataframe.columns]) for i in range(len(dataframe))])
+
 
 def reduced_schedule_dataframe(season):
     sch = schedules.get_season_schedule(season).drop({'Season', 'PBPStatus', 'TOIStatus'}, axis=1)
@@ -113,6 +134,6 @@ def serve_game_image(season, game, charttype):
     fname = fname[fname.rfind('/') + 1:]
     return flask.send_from_directory(get_images_folder(), fname)
 
-if __name__ == '__main__':
+def runapp():
     print('Go to http://127.0.0.1:8050/')
     app.run_server(debug=True)
