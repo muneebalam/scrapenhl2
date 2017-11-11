@@ -44,7 +44,9 @@ Launch using::
 
 It will print a link in your terminal--follow it. The page looks something like this:
 
+.. image:: _static/game_page_screenshot.png
 
+The dropdowns also allow you to search--just start typing.
 
 Methods (games)
 -----------------
