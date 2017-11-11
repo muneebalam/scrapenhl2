@@ -28,7 +28,6 @@ Save the timeline of a memorable game to file::
 
    game_timeline(2016, 30136, save_file='/Users/muneebalam/Desktop/WSH_TOR_G6.png')
 
-
 More methods being added regularly.
 
 App
@@ -40,8 +39,12 @@ Launch using::
 
    import scrapenhl2.plot.app as app
    app.browse_game_charts()
+   # app.browse_player_charts()
+   # app.browse_team_charts()
 
-It will print a link in your terminal--follow it.
+It will print a link in your terminal--follow it. The page looks something like this:
+
+
 
 Methods (games)
 -----------------
