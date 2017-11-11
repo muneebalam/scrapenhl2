@@ -321,5 +321,5 @@ def savefilehelper(**kwargs):
 if __name__ == '__main__':
     from scrapenhl2.plot import game_timeline as gt
     from scrapenhl2.plot import game_h2h as gh
-    gt.live_timeline('WSH', 'BUF')
-    gh.live_h2h('WSH', 'BUF', False)
+    gt.live_timeline('WSH', 'PIT')
+    gh.live_h2h('WSH', 'PIT', False)
