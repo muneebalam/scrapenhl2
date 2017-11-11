@@ -1,3 +1,9 @@
+"""
+This file contains the information needed to create the game pages in the app.
+
+The page has a dropdown for the season, dropdown for the game, a radio button to select chart type,
+and a button to update.
+"""
 import os
 
 import dash
@@ -65,6 +71,7 @@ def generate_table(dataframe):
 
 
 def reduced_schedule_dataframe(season):
+    """Returns schedule[Date, Game, Road, Home, Status]"""
     sch = schedules.get_season_schedule(season).drop({'Season', 'PBPStatus', 'TOIStatus'}, axis=1)
     sch.loc[:, 'Home'] = sch.Home.apply(lambda x: team_info.team_as_str(x))
     sch.loc[:, 'Road'] = sch.Road.apply(lambda x: team_info.team_as_str(x))
@@ -72,17 +79,20 @@ def reduced_schedule_dataframe(season):
     return sch
 
 def get_season_dropdown_options():
+    """Use for options in season dropdown"""
     options = [{'label': '{0:d}-{1:s}'.format(yr, str(yr + 1)[2:]),
                 'value': yr} for yr in range(2010, schedules.get_current_season()+1)]
     return options
 
 def get_game_dropdown_options_for_season(season):
+    """Use for options in game dropdown"""
     sch = reduced_schedule_dataframe(season)
     options = [{'label': '{0:s}: {1:d} {2:s}@{3:s} ({4:s})'.format(date, game, road, home, status),
                 'value': game} for index, date, game, road, home, status in sch.itertuples()]
     return options
 
 def get_game_graph_types():
+    """Update this with more chart types for single games"""
     options = [{'label': 'Head-to-head', 'value': 'H2H'},
                {'label': 'Game timeline', 'value': 'TL'}]
     return options
