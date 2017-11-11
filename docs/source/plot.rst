@@ -28,7 +28,20 @@ Save the timeline of a memorable game to file::
 
    game_timeline(2016, 30136, save_file='/Users/muneebalam/Desktop/WSH_TOR_G6.png')
 
+
 More methods being added regularly.
+
+App
+----
+
+This package contains a lightweight app for browsing charts and doing some data manipulations.
+
+Launch using::
+
+   import scrapenhl2.plot.app as app
+   app.browse_game_charts()
+
+It will print a link in your terminal--follow it.
 
 Methods (games)
 -----------------

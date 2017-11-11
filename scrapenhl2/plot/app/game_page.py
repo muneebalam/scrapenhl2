@@ -144,6 +144,7 @@ def serve_game_image(season, game, charttype):
     fname = fname[fname.rfind('/') + 1:]
     return flask.send_from_directory(get_images_folder(), fname)
 
-def runapp():
+
+def browse_game_charts():
     print('Go to http://127.0.0.1:8050/')
     app.run_server(debug=True)
