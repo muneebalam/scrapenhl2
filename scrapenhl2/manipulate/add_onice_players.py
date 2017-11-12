@@ -115,7 +115,7 @@ def add_times_to_file(df, periodcol, timecol, time_format):
     :param periodcol: str, the column that holds period name/number (1, 2, 3, 4 or OT, etc)
     :param timecol: str, the column that holds time in m:ss format
     :param time_format: use 'elapsed' (preferred) or 'remaining'. This refers to timecol: e.g. 120 secs elapsed in
-    the 2nd period might be listed as 2:00 in timecol, or as 18:00.
+        the 2nd period might be listed as 2:00 in timecol, or as 18:00.
 
     :return: dataframe with extra column _Secs, time elapsed in game.
     """

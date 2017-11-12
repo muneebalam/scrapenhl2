@@ -304,7 +304,7 @@ def generate_season_schedule_file(season, force_overwrite=True):
     :param season: int, the season
 
     :param force_overwrite: bool. If True, generates entire file from scratch.
-    If False, only redoes when not Final previously.
+        If False, only redoes when not Final previously.
 
     :return: Nothing
     """

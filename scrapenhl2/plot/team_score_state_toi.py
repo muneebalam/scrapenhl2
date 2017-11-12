@@ -12,11 +12,15 @@ import scrapenhl2.plot.visualization_helper as vhelper
 
 def score_state_graph(season):
     """
+    Generates a horizontal stacked bar graph showing how much 5v5 TOI each team has played in each score state
+    for given season.
 
-    :param kwargs:
+    :param season: int, the season
 
     :return:
     """
+    #TODO make kwargs match other methods: startseason, startdate, etc
+
     state_toi = manip.team_5v5_score_state_summary_by_game(season) \
         .drop('Game', axis=1) \
         .groupby(['Team', 'ScoreState'], as_index=False).sum()
@@ -87,6 +91,7 @@ def _order_for_score_state_graph(toidf):
 
 def _score_state_graph_bar_positions(toidf):
     """
+    Figures out where bars should start and stop so that the y-axis bisects the "tied" bar.
 
     :param toidf:
 
@@ -126,14 +131,12 @@ def _score_state_graph_bar_positions(toidf):
 
     return df.merge(_order_for_score_state_graph(toidf), how='left', on='Team').sort_values('Y')
 
+
 def get_score_state_graph_title(season):
     """
 
-    :param kwargs:
+    :param season: int, the season
 
     :return:
     """
     return 'Team 5v5 TOI by score state in {0:d}-{1:s}'.format(season, str(season + 1)[2:])
-
-
-score_state_graph(2017)

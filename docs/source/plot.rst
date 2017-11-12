@@ -64,7 +64,10 @@ Corsi timeline
 Methods (teams)
 ----------------
 
-Coming soon...
+Team TOI by score state
+~~~~~~~~~~~~~~~~~~~~~~~~
+.. automodule:: scrapenhl2.plot.team_score_state_toi
+   :members:
 
 Methods (individuals)
 ----------------------
