@@ -33,16 +33,6 @@ def get_game_image_url(season, game, charttype):
     return '{0:s}{1:d}/{2:d}/{3:s}.png'.format(get_game_images_url(), season, game, charttype)
 
 
-def get_player_images_url():
-    """Returns /static/player/"""
-    return '{0:s}{1:s}'.format(get_images_url(), 'player/')
-
-
-def get_team_images_url():
-    """Returns /static/team/"""
-    return '{0:s}{1:s}'.format(get_images_url(), 'team/')
-
-
 def get_images_folder():
     """Returns scrapenhl2/plot/app/_static/"""
     return os.path.join(organization.get_base_dir(), 'plot', 'app', '_static')
