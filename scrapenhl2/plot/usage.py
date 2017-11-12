@@ -12,6 +12,70 @@ from scrapenhl2.scrape import general_helpers as helpers
 from scrapenhl2.plot import visualization_helper as vhelper
 from scrapenhl2.plot import label_lines
 
+def parallel_coords_team_comparison(**kwargs):
+    """
+
+    :param kwargs:
+
+    :return: nothing, or figure
+    """
+    if 'startdate' not in kwargs and 'enddate' not in kwargs and \
+                    'startseason' not in kwargs and 'endseason' not in kwargs:
+        kwargs['last_n_days'] = 30
+
+    qocqot = vhelper.get_and_filter_5v5_log(**kwargs)
+    qocqot = qocqot[['PlayerID', 'TOION', 'TOIOFF',
+                     'FCompSum', 'FCompN', 'DCompSum', 'DCompN',
+                     'FTeamSum', 'FTeamN', 'DTeamSum', 'DTeamN', 'Team']] \
+        .groupby(['PlayerID', 'Team']).sum().reset_index()
+    qocqot.loc[:, 'FQoC'] = qocqot.FCompSum / qocqot.FCompN
+    qocqot.loc[:, 'FQoT'] = qocqot.FTeamSum / qocqot.FTeamN
+    qocqot.loc[:, 'DQoC'] = qocqot.DCompSum / qocqot.DCompN
+    qocqot.loc[:, 'DQoT'] = qocqot.DTeamSum / qocqot.DTeamN
+    qocqot.loc[:, 'TOI60'] = qocqot.TOION / (qocqot.TOION + qocqot.TOIOFF)
+    qocqot = qocqot.dropna().sort_values('TOI60', ascending=False)  # In case I have zeroes
+
+    qocqot.loc[:, 'PlayerName'] = qocqot.PlayerID.apply(lambda x: helpers.get_lastname(players.player_as_str(x)))
+    qocqot.loc[:, 'PlayerInitials'] = qocqot.PlayerID.apply(lambda x: helpers.get_lastname(players.player_as_str(x)))
+    qocqot.loc[:, 'Position'] = qocqot.PlayerID.apply(lambda x: players.get_player_position(x))
+    qocqot.drop({'FCompSum', 'FCompN', 'DCompSum', 'DCompN', 'FTeamSum', 'FTeamN', 'DTeamSum', 'DTeamN',
+                 'PlayerID'}, axis=1, inplace=True)
+
+    # Reorder columns for the parallel coordinates plot
+    qocqot = qocqot[['FQoT', 'FQoC', 'DQoC', 'DQoT', 'TOION', 'TOIOFF', 'TOI60', 'PlayerName', 'PlayerInitials',
+                     'Position']] \
+        .sort_values('TOION', ascending=False) \
+        .drop({'TOION', 'TOION', 'TOIOFF', 'TOI60'}, axis=1)
+
+    fig, axes = plt.subplots(2, 2, sharex=True, sharey=True, figsize=[11, 7])
+
+    forwards = qocqot.query('Position != "D"')
+    centers = forwards.query('Position == "C"').drop('Position', axis=1).iloc[:6, :]
+    wingers = forwards.query('Position != "C"').drop('Position', axis=1).iloc[:6, :]
+    forwards.drop('Position', axis=1, inplace=True)
+    _parallel_coords(forwards, centers, 'PlayerInitials', 'PlayerName', axes.flatten()[0])
+    _parallel_coords(forwards, wingers, 'PlayerInitials', 'PlayerName', axes.flatten()[1])
+
+    alldefense = qocqot.query('Position == "D"').drop('Position', axis=1)
+    defense = alldefense.iloc[:6, :]
+    _parallel_coords(alldefense, defense, 'PlayerInitials', 'PlayerName', axes.flatten()[2])
+
+    other_players = pd.concat([qocqot.drop('Position', axis=1), centers, wingers, defense]) \
+        .drop_duplicates(keep=False).iloc[:6, :]
+    _parallel_coords(pd.concat([forwards, defense]), other_players, 'PlayerInitials', 'PlayerName', axes.flatten()[3])
+
+    fig.text(0.5, 0.04, 'Statistic (based on TOI/60)', ha='center')
+    fig.text(0.04, 0.5, 'Minutes', va='center', rotation='vertical')
+    axes.flatten()[0].set_title('Top centers')
+    axes.flatten()[1].set_title('Top wingers')
+    axes.flatten()[2].set_title('Top defense')
+    axes.flatten()[3].set_title('Others')
+
+    fig.suptitle(_parallel_usage_chart_title(**kwargs))
+
+    return vhelper.savefilehelper(**kwargs)
+
+
 def parallel_usage_chart(**kwargs):
     """
 

@@ -1495,6 +1495,32 @@ def player_columns_to_name(df, columns=None):
     return newdf
 
 
+def team_5v5_score_state_summary_by_game(season):
+    """
+    Uses the team TOI log to group by team and game and score state for this season. 5v5 only.
+
+    :param season: int, the season
+
+    :return: dataframe, grouped by team, strength, and game
+    """
+    dflst = []
+    for team in schedules.get_teams_in_season(season):
+        try:
+            toi = teams.get_team_toi(season, team)
+        except Exception as e:
+            continue
+        toi = filter_for_five_on_five(toi).assign(Team=team)
+        toi = toi[['Game', 'Team', 'Time', 'TeamScore', 'OppScore']] \
+            .assign(ScoreState=toi.TeamScore - toi.OppScore) \
+            .drop_duplicates() \
+            .drop({'Time', 'TeamScore', 'OppScore'}, axis=1) \
+            .assign(Secs=1) \
+            .groupby(['Game', 'Team', 'ScoreState'], as_index=False) \
+            .count()
+        dflst.append(toi)
+    df = pd.concat(dflst)
+    return df
+
+
 if __name__ == '__main__':
-    for season in range(2016, 2018):
-        get_5v5_player_log(season, True)
+    team_5v5_score_state_summary_by_game(2017)

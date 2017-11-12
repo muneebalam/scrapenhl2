@@ -98,3 +98,4 @@ ENV/
 
 # Rope project settings
 .ropeproject
+/scrapenhl2/plot/app/testing.ipynb
