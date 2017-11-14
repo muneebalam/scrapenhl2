@@ -100,14 +100,11 @@ To get a player rolling CF% graph, use::
 
 .. image:: _static/Ovechkin_rolling_cf.png
 
-There is also a very bare-bones app that appears in your browser. To launch the app to help you navigate use::
-
-    run_app()
-
-But this package is targeted for script use, so I recommend familiarizing yourself with python.
+This package is targeted for script use, so I recommend familiarizing yourself with python.
 (This is not intended to be a replacement for a site like Corsica.)
 
-Look through the documentation at `Read the Docs <http://scrapenhl2.readthedocs.io/en/latest/>`_.
+Look through the documentation at `Read the Docs <http://scrapenhl2.readthedocs.io/en/latest/>`_ and the
+`examples on Github <https://github.com/muneebalam/scrapenhl2/tree/master/examples>`_.
 Also always feel free to contact me with questions or suggestions.
 
 Contact
@@ -118,7 +115,7 @@ Contact
 Collaboration
 -------------
 
-I'm happy to partner with you in development efforts--just shoot me a message.
+I'm happy to partner with you in development efforts--just shoot me a message or submit a pull request.
 Please also let me know if you'd like to alpha- or beta-test my code.
 
 Donations
@@ -135,6 +132,8 @@ If you do make a donation, make me happy `and leave a record here <https://goo.g
 
 Change log
 ----------
+
+11/10/17: Switched from Flask to Dash, bug fixes.
 
 11/5/17: Bug fixes and method to add on-ice players to file. More refactoring.
 
@@ -153,7 +152,4 @@ Change log
 Major outstanding to-dos
 ------------------------
 
-* Front end with Flask
-* Add more graph methods
-* Add more data search methods
 * Bring in old play by play and shifts from HTML

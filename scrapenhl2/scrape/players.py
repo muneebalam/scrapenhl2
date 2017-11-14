@@ -95,7 +95,8 @@ def check_default_player_id(playername):
                                        'Erik Karlsson': 8474578,
                                        'Mike Hoffman': 8474884,
                                        'Tyler Johnson': 8474870,
-                                       'Josh Anderson': 8476981}, playername)
+                                       'Josh Anderson': 8476981,
+                                       'Sebastian Aho': 8478427}, playername)
 
 
 def player_setup():
@@ -263,18 +264,21 @@ def get_player_position(player):
 
 
 @functools.lru_cache(maxsize=128, typed=False)
-def player_as_id(playername, filterdf=None):
+def player_as_id(playername, filterdf=None, dob=None):
     """
     A helper method. If player entered is int, returns that. If player is str, returns integer id of that player.
 
     :param playername: int, or str, the player whose names you want to retrieve
     :param filterdf: a dataframe of players to choose from. Defaults to all.
+    :param dob: yyyy-mm-dd, use to help when multiple players have the same name
 
     :return: int, the player ID
     """
     if filterdf is None:
         filterdf = get_player_ids_file()
     pids = filterdf
+    if dob is not None:
+        pids = pids.query('DOB == "{0:s}"'.format(dob))
     if helpers.check_number(playername):
         return int(playername)
     elif isinstance(playername, str):

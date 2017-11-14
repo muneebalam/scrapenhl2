@@ -803,10 +803,10 @@ def get_5v5_player_game_shift_startend(season, team):
 
     # Add locations
     directions = get_directions_for_xy_for_season(season, team)
-    foshifts = _infer_zones_for_faceoffs(foshifts, directions, 'StartX', 'StartY', 'StartTime') \
+    foshifts = infer_zones_for_faceoffs(foshifts, directions, 'StartX', 'StartY', 'StartTime') \
         .rename(columns={'FacLoc': 'Start'})
     foshifts.loc[:, 'Start'] = foshifts.Start.fillna('S-OtF')
-    foshifts = _infer_zones_for_faceoffs(foshifts, directions, 'EndX', 'EndY', 'EndTime') \
+    foshifts = infer_zones_for_faceoffs(foshifts, directions, 'EndX', 'EndY', 'EndTime') \
         .rename(columns={'FacLoc': 'End'})
     foshifts.loc[:, 'End'] = foshifts.End.fillna('E-OtF')
 
@@ -906,7 +906,7 @@ def get_directions_for_xy_for_game(season, game):
     return periods
 
 
-def _infer_zones_for_faceoffs(df, directions, xcol='X', ycol='Y', timecol='Time'):
+def infer_zones_for_faceoffs(df, directions, xcol='X', ycol='Y', timecol='Time', focus_team=None, season=None):
     """
     Inferring zones for faceoffs from XY is hard--this method takes are of that.
 
@@ -927,9 +927,12 @@ def _infer_zones_for_faceoffs(df, directions, xcol='X', ycol='Y', timecol='Time'
 
     :param df: dataframe with columns Game, specified xcol, and specified ycol
     :param directions: dataframe with columns Game, Period, and Direction ('left' or 'right')
-    :param xcol: str, the column containing X coordinates
-    :param ycol: str, the column containing Y coordinates
+    :param xcol: str, the column containing X coordinates in df
+    :param ycol: str, the column containing Y coordinates in df
     :param timecol: str, the column containing the time in seconds.
+    :param focus_team: int, str, or None. Directions are stored with home perspective. So specify focus team and will
+        flip when focus_team is on the road. If None, does not do the extra home/road flip. Necessitates Season column
+        in df.
 
     :return: dataframe with extra column FacLoc
     """
@@ -943,22 +946,46 @@ def _infer_zones_for_faceoffs(df, directions, xcol='X', ycol='Y', timecol='Time'
     # Join
     df2 = df.merge(directions.rename(columns={'Period': "_Period"}), how='left', on=['Game', '_Period'])
 
-    # Flip
+    # Flip for direction
     df2.loc[:, '_Mult'] = df2.Direction.apply(lambda x: 1 if x == 'right' else -1)
-    df2.loc[:, '_X'] = df2[xcol] * df2['_Mult']
-    df2.loc[:, '_Y'] = df2[ycol] * df2['_Mult']
+    df2.loc[:, '_Mult3'] = 1
 
-    df2.loc[(df2[xcol] == 69) & (df2[ycol] == 22), 'FacLoc'] = 'OL'
-    df2.loc[(df2[xcol] == 69) & (df2[ycol] == -22), 'FacLoc'] = 'OR'
-    df2.loc[(df2[xcol] == -69) & (df2[ycol] == 22), 'FacLoc'] = 'DL'
-    df2.loc[(df2[xcol] == -69) & (df2[ycol] == -22), 'FacLoc'] = 'DR'
+    # Flip for home/road
+    if focus_team is not None:
+        focus_team = team_info.team_as_id(focus_team)
 
-    df2.loc[(df2[xcol] == 20) & (df2[ycol] == 22), 'FacLoc'] = 'NOL'
-    df2.loc[(df2[xcol] == 20) & (df2[ycol] == -22), 'FacLoc'] = 'NOR'
-    df2.loc[(df2[xcol] == -20) & (df2[ycol] == 22), 'FacLoc'] = 'NDL'
-    df2.loc[(df2[xcol] == -20) & (df2[ycol] == -22), 'FacLoc'] = 'NDR'
+        season_dfs = []
+        if 'Season' not in df2.columns:
+            print('Need to have a Season column when invoking infer_zones_for_faceoffs with a focus_team')
 
-    df2.drop(['_X', '_Y', '_Period', '_Mult', 'Direction'], axis=1, inplace=True)
+        for season in df2.Season.value_counts().index:
+            temp = df2.query('Season == {0:d}'.format(int(season)))
+            team_sch = schedules.get_team_schedule(season, focus_team)
+            team_sch = team_sch[['Game', 'Home', 'Road']] \
+                .melt(id_vars='Game', var_name='_HR', value_name='Team') \
+                .query('Team == {0:d}'.format(int(focus_team))) \
+                .drop('Team', axis=1)
+            team_sch.loc[:, '_Mult2'] = team_sch['_HR'].apply(lambda x: 1 if x == 'Home' else -1)
+            team_sch = team_sch[['Game', '_Mult2']]
+
+            df2 = df2.merge(team_sch, how='left', on='Game')
+            df2.loc[:, '_Mult3'] = df2['_Mult'] * df2['_Mult2']
+            df2 = df2.drop(['_Mult', '_Mult2'], axis=1)
+
+    df2.loc[:, '_X'] = df2[xcol] * df2['_Mult3']
+    df2.loc[:, '_Y'] = df2[ycol] * df2['_Mult3']
+
+    df2.loc[(df2['_X'] == 69) & (df2['_Y'] == 22), 'FacLoc'] = 'OL'
+    df2.loc[(df2['_X'] == 69) & (df2['_Y'] == -22), 'FacLoc'] = 'OR'
+    df2.loc[(df2['_X'] == -69) & (df2['_Y'] == 22), 'FacLoc'] = 'DL'
+    df2.loc[(df2['_X'] == -69) & (df2['_Y'] == -22), 'FacLoc'] = 'DR'
+
+    df2.loc[(df2['_X'] == 20) & (df2['_Y'] == 22), 'FacLoc'] = 'NOL'
+    df2.loc[(df2['_X'] == 20) & (df2['_Y'] == -22), 'FacLoc'] = 'NOR'
+    df2.loc[(df2['_X'] == -20) & (df2['_Y'] == 22), 'FacLoc'] = 'NDL'
+    df2.loc[(df2['_X'] == -20) & (df2['_Y'] == -22), 'FacLoc'] = 'NDR'
+
+    df2.drop(['_X', '_Y', '_Period', '_Mult3', 'Direction'], axis=1, inplace=True)
 
     return df2
 
@@ -1468,6 +1495,32 @@ def player_columns_to_name(df, columns=None):
     return newdf
 
 
+def team_5v5_score_state_summary_by_game(season):
+    """
+    Uses the team TOI log to group by team and game and score state for this season. 5v5 only.
+
+    :param season: int, the season
+
+    :return: dataframe, grouped by team, strength, and game
+    """
+    dflst = []
+    for team in schedules.get_teams_in_season(season):
+        try:
+            toi = teams.get_team_toi(season, team)
+        except Exception as e:
+            continue
+        toi = filter_for_five_on_five(toi).assign(Team=team)
+        toi = toi[['Game', 'Team', 'Time', 'TeamScore', 'OppScore']] \
+            .assign(ScoreState=toi.TeamScore - toi.OppScore) \
+            .drop_duplicates() \
+            .drop({'Time', 'TeamScore', 'OppScore'}, axis=1) \
+            .assign(Secs=1) \
+            .groupby(['Game', 'Team', 'ScoreState'], as_index=False) \
+            .count()
+        dflst.append(toi)
+    df = pd.concat(dflst)
+    return df
+
+
 if __name__ == '__main__':
-    for season in range(2016, 2018):
-        get_5v5_player_log(season, True)
+    team_5v5_score_state_summary_by_game(2017)

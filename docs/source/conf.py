@@ -62,7 +62,7 @@ author = 'Muneeb Alam'
 # built documents.
 #
 # The short X.Y version.
-version = '0.3.9'
+version = '0.4.00'
 # The full version, including alpha/beta/rc tags.
 release = version
 

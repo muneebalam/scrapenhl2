@@ -30,6 +30,24 @@ Save the timeline of a memorable game to file::
 
 More methods being added regularly.
 
+App
+----
+
+This package contains a lightweight app for browsing charts and doing some data manipulations.
+
+Launch using::
+
+   import scrapenhl2.plot.app as app
+   app.browse_game_charts()
+   # app.browse_player_charts()
+   # app.browse_team_charts()
+
+It will print a link in your terminal--follow it. The page looks something like this:
+
+.. image:: _static/game_page_screenshot.png
+
+The dropdowns also allow you to search--just start typing.
+
 Methods (games)
 -----------------
 
@@ -46,7 +64,10 @@ Corsi timeline
 Methods (teams)
 ----------------
 
-Coming soon...
+Team TOI by score state
+~~~~~~~~~~~~~~~~~~~~~~~~
+.. automodule:: scrapenhl2.plot.team_score_state_toi
+   :members:
 
 Methods (individuals)
 ----------------------

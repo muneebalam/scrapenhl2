@@ -100,7 +100,12 @@ def get_and_filter_5v5_log(**kwargs):
     - endseason: int, the season to end with (inclusive). Defaults to current
     - enddate: str, yyyy-mm-dd. Defaults to June 21 of endseason + 1
     - roll_len: int, calculates rolling sums over this variable.
+    - roll_len_days: int, calculates rolling sum over this time window
     - player: int or str, player ID or name
+    - min_toi: float, minimum TOI for a player for inclusion in minutes.
+    - max_toi: float, maximum TOI for a player for inclusion in minutes.
+    - min_toi60: float, minimum TOI60 for a player for inclusion in minutes.
+    - max_toi60: float, maximum TOI60 for a player for inclusion in minutes.
 
     :param kwargs: e.g. startseason, endseason.
 
@@ -113,6 +118,7 @@ def get_and_filter_5v5_log(**kwargs):
     df = filter_5v5_for_team(df, **kwargs)
     df = make_5v5_rolling_gp(df, **kwargs)
     df = make_5v5_rolling_days(df, **kwargs)
+    df = filter_5v5_for_toi(df, **kwargs)
 
     return df
 
@@ -201,6 +207,35 @@ def make_5v5_rolling_gp(df, **kwargs):
         df2 = df.merge(rollingdf, how='left', on='Row').drop('Row', axis=1)
         return df2
     return df
+
+
+def filter_5v5_for_toi(df, **kwargs):
+    """
+    This method filters the given dataframe for minimum or max TOI or TOI60.
+
+    This method groups at the player level. So if a player hits the minimum total but not for one or more teams
+    they played for over the the relevant time period, they will be included.
+
+    :param df: dataframe
+
+    :param kwargs: relevant ones are min_toi, max_toi, min_toi60, and max_toi60
+
+    :return: dataframe, filtered for specified players
+    """
+    toitotals = df[['PlayerID', 'TOION', 'TOIOFF']].groupby('PlayerID').sum().reset_index()
+    toitotals.loc[:, 'TOI60'] = toitotals.TOION / (toitotals.TOION + toitotals.TOIOFF)
+
+    if 'min_toi' in kwargs:
+        toitotals = toitotals.query('TOION >= {0:f}'.format(kwargs['min_toi'] / 60))  # TOION is in hrs; min_toi in mins
+    if 'max_toi' in kwargs:
+        toitotals = toitotals.query('TOION <= {0:f}'.format(kwargs['max_toi'] / 60))
+    if 'min_toi60' in kwargs:
+        toitotals = toitotals.query('TOI60 >= {0:f}'.format(kwargs['min_toi60']))
+    if 'max_toi60' in kwargs:
+        toitotals = toitotals.query('TOI60 <= {0:f}'.format(kwargs['max_toi60']))
+
+    df2 = df.merge(toitotals[['PlayerID']], how='inner', on='PlayerID')
+    return df2
 
 
 def filter_5v5_for_team(df, **kwargs):
@@ -319,8 +354,9 @@ def savefilehelper(**kwargs):
 
 
 if __name__ == '__main__':
+    #import scrapenhl2.plot.app.game_page as game_page
+    #game_page.browse_game_charts()
     from scrapenhl2.plot import game_timeline as gt
     from scrapenhl2.plot import game_h2h as gh
-    from scrapenhl2.scrape import autoupdate
-    #gt.game_timeline(2017, 20201, '/Users/muneebalam/Desktop/gt.png')
-    gh.game_h2h(2017, 20201, '/Users/muneebalam/Desktop/gh.png')
+    gt.live_timeline('OTT', 'COL')
+    #gh.live_h2h('WSH', 'PIT', False)

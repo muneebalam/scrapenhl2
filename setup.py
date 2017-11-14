@@ -11,8 +11,8 @@ def read(fname):
     return open(os.path.join(os.path.dirname(__file__), fname)).read()
 
 setuptools.setup(
-    name = "scrapenhl2",
-    version="0.3.9",
+    name="scrapenhl2",
+    version="0.4.00",
     author="Muneeb Alam",
     author_email="muneeb.alam@gmail.com",
     description=("scrapenhl2 is a python package for scraping and manipulating NHL data pulled from the NHL website."),
@@ -35,7 +35,7 @@ setuptools.setup(
                       'beautifulsoup4==4.5.3',  # for html parsing
                       'html-table-extractor',  # for html parsing
                       'plotly',  # for interactive charts
-                      'tables',
+                      #'tables',
                       'dash',
                       'dash-renderer',
                       'dash-html-components',

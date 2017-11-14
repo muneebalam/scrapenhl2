@@ -53,7 +53,7 @@ def _rolling_player_f(player, gfcf, **kwargs):
     kwargs['player'] = player
     fa = vhelper.get_and_filter_5v5_log(**kwargs)
 
-    df = pd.concat([fa[['Season', 'Game']], calculate_f_rates(fa, gfcf)], axis=1)
+    df = pd.concat([fa[['Season', 'Game']], _calculate_f_rates(fa, gfcf)], axis=1)
     col_dict = {col[col.index(' ') + 1:]: col for col in df.columns if '%' in col}
 
     plt.clf()
@@ -78,7 +78,7 @@ def _rolling_player_f(player, gfcf, **kwargs):
     ticks = list(np.arange(0.3, 0.71, 0.05))
     plt.yticks(ticks, ['{0:.0f}%'.format(100 * tick) for tick in ticks])
 
-    vhelper.savefilehelper(**kwargs)
+    return vhelper.savefilehelper(**kwargs)
 
 
 def _calculate_f_rates(df, gfcf):
@@ -92,7 +92,7 @@ def _calculate_f_rates(df, gfcf):
     """
 
     # Select columns
-    fa = df.filter(regex='\d{2}-game')
+    fa = df.filter(regex='\d+-game')
     cols_wanted = {gfcf + x for x in {'FON', 'FOFF', 'AON', 'AOFF'}}
     fa = fa.select(lambda colname: colname[colname.index(' ') + 1:] in cols_wanted, axis=1)
 
@@ -126,3 +126,4 @@ def _get_rolling_f_title(gfcf, **kwargs):
     title = 'Rolling {0:d}-game rolling {1:s}F% for {2:s}'.format(kwargs['roll_len'], gfcf,
                                                                   players.player_as_str(kwargs['player']))
     title += '\n{0:s} to {1:s}'.format(*(str(x) for x in vhelper.get_startdate_enddate_from_kwargs(**kwargs)))
+    return title

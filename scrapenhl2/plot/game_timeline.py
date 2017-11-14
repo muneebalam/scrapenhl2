@@ -10,13 +10,14 @@ from scrapenhl2.plot import visualization_helper
 from scrapenhl2.scrape import parse_pbp, parse_toi, schedules, team_info
 
 
-def live_timeline(team1, team2, update=True):
+def live_timeline(team1, team2, update=True, save_file=None):
     """
     A convenience method that updates data then displays timeline for most recent game between specified tams.
 
     :param team1: str or int, team
     :param team2: str or int, other team
     :param update: bool, should data be updated first?
+    :param save_file: str, specify a valid filepath to save to file. If None, merely shows on screen.
 
     :return: nothing
     """
@@ -25,7 +26,7 @@ def live_timeline(team1, team2, update=True):
         autoupdate.autoupdate()
     from scrapenhl2.scrape import games
     game = games.most_recent_game_id(team1, team2)
-    game_timeline(2017, game)
+    return game_timeline(2017, game)
 
 
 def game_timeline(season, game, save_file=None):
