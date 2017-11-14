@@ -9,12 +9,13 @@ import os.path
 import pickle
 import re
 import time
-import urllib.request
-import urllib.error
+import requests
 
 import numpy as np
 import pandas as pd
 from fuzzywuzzy import fuzz
+
+__SESSION__ = None
 
 
 def print_and_log(message, level='info', print_and_log=True):
@@ -344,20 +345,26 @@ def try_url_n_times(url, timeout=5, n=5):
     :return: bytes
     """
 
+    global __SESSION__
+    if __SESSION__ is None:
+        __SESSION__ = requests.Session()
+
+
     page = None
-    tries = 0
-    while tries < n:
-        tries += 1
+    for tries in range(n):
         try:
-            with urllib.request.urlopen(url, timeout=5) as reader:
-                page = reader.read()
+            resp = __SESSION__.get(url, timeout=5)
+            page = resp.text
             break
-        except urllib.error.HTTPError as httpe:
+        except requests.HTTPError as httpe:
             if '404' in str(httpe):
                 break
             else:
                 print('HTTP error with', url, httpe, httpe.args)
+        except requests.exceptions.ReadTimeout as rt:
+            print(rt)
+            print('Failed on {} try on url {}'.format(tries, url))
         except Exception as e:  # timeout
-            tries += 1
+            print(e)
             print('Could not access {0:s}; try {1:d} of {2:d}'.format(url, tries, n))
     return page

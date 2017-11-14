@@ -395,7 +395,7 @@ def get_player_info_from_url(playerid):
 
     :return: dict with player ID, name, handedness, position, etc
     """
-    page = helpers.try_url_n_times(get_player_url(playerid)).decode('latin-1')
+    page = helpers.try_url_n_times(get_player_url(playerid))
     data = json.loads(page)
 
     info = {}
