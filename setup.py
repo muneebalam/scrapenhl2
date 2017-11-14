@@ -39,7 +39,8 @@ setuptools.setup(
                       'dash',
                       'dash-renderer',
                       'dash-html-components',
-                      'dash-core-components'
+                      'dash-core-components',
+                      'requests'  # Urllib for humans
                       ],
     long_description=read('README.rst'),
     classifiers=[

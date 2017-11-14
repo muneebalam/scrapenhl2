@@ -82,7 +82,7 @@ def save_raw_html_pbp(page, season, game):
     """
     filename = get_game_pbplog_filename(season, game)
     w = open(filename, 'w')
-    w.write(page.decode('latin-1'))
+    w.write(page)
     w.close()
 
 
@@ -96,7 +96,7 @@ def save_raw_pbp(page, season, game):
 
     :return: nothing
     """
-    page2 = zlib.compress(page, level=9)
+    page2 = zlib.compress(page.encode('latin-1'), level=9)
     filename = get_game_raw_pbp_filename(season, game)
     w = open(filename, 'wb')
     w.write(page2)

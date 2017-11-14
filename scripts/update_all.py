@@ -10,7 +10,7 @@ if __name__ == '__main__':
     parser.add_argument("-s", "--season", type=int, default=None)
     arguments = parser.parse_args()
 
-    if 2017 < arguments.season < 2010:
+    if arguments.season is not None and 2017 < arguments.season < 2005:
         print("Invalid season")
 
     autoupdate.autoupdate(season=arguments.season)

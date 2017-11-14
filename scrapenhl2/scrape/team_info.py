@@ -5,8 +5,7 @@ This module contains methods related to the team info files.
 import functools
 import json
 import os.path
-import urllib.error
-import urllib.request
+import requests
 
 import feather
 import pandas as pd
@@ -78,7 +77,7 @@ def get_team_info_from_url(teamid):
     page = helpers.try_url_n_times(get_team_info_url(teamid))
     if page is None:
         return None, None, None
-    teaminfo = json.loads(page.decode('latin-1'))
+    teaminfo = json.loads(page)
 
     tid = teaminfo['teams'][0]['id']
     tabbrev = teaminfo['teams'][0]['abbreviation']
@@ -151,7 +150,7 @@ def generate_team_ids_file(teamids=None):
             names.append(tname)
 
             # ed.print_and_log('Done with ID # {0:d}: {1:s}'.format(tid, tname))
-        except urllib.error.HTTPError:
+        except requests.exceptions.HTTPError:
             pass
         except Exception as e:
             print(e, e.args)
