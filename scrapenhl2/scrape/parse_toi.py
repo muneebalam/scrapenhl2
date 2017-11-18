@@ -289,7 +289,7 @@ def _finish_toidf_manipulations(df, season, game):
     tempdf = tempdf.merge(pids[['ID', 'Pos']], how='left', left_on='PlayerID', right_on='ID')
 
     # toi = pd.DataFrame({'Time': [i for i in range(0, max(df.End) + 1)]})
-    toi = pd.DataFrame({'Time': [i for i in range(0, max(df.End))]})
+    toi = pd.DataFrame({'Time': [i for i in range(0, int(round(max(df.End))))]})
 
     # Originally used a hacky way to fill in times between shift start and end: increment tempdf by one, filter, join
     # Faster to work with base structures

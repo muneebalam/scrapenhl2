@@ -110,6 +110,21 @@ def _create_pbp_df_json(pbp, gameinfo):
         p2role[i] = helpers.try_to_access_dict(pbp, i, 'players', 1, 'playerType', default_return='')
 
         note[i] = helpers.try_to_access_dict(pbp, i, 'result', 'description', default_return='')
+        if event[i] == 'Goal':
+            # Two changes to make
+            # First, make the recipient of this goal the opposing goalie
+            # Second, replace player names with player IDs in the description of this goal (scorer and assists)
+            p2[i] = None
+            p2role[i] = None
+            for j in range(len(pbp[i]['players'])):
+                pid = helpers.try_to_access_dict(pbp, i, 'players', j, 'player', 'id', default_return=None)
+                pname = helpers.try_to_access_dict(pbp, i, 'players', j, 'player', 'fullName', default_return=None)
+                prole = helpers.try_to_access_dict(pbp, i, 'players', j, 'playerType', default_return='')
+                if prole == 'Goalie':
+                    p2[i] = pid
+                    p2role[i] = prole
+                elif pid is not None:
+                    note[i] = note[i].replace(pname, str(int(pid)))
 
     # Switch blocked shots from being an event for player who blocked, to player who took shot that was blocked
     # That means switching team attribution and actor/recipient.

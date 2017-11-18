@@ -591,23 +591,22 @@ def get_5v5_player_game_boxcars(season, team):
         .rename(columns={'Actor': 'PlayerID', 'Count': 'iG'})
 
     # iA1--use Recipient column
-    primaries = count_by_keys(goals, 'Game', 'Recipient') \
-        .rename(columns={'Recipient': 'PlayerID', 'Count': 'iA1'})
+    # Actually no, on unassisted goals this will be the goalie
+    # Parse from the note
+    primaries = goals[['Game', 'Note']]
+    primaries.loc[:, 'PlayerID'] = primaries.Note.str.extract('.*assists:\s*(\d+)\s\(\d+\).*')
+    primaries = count_by_keys(primaries, 'Game', 'PlayerID') \
+        .rename(columns={'Count': 'iA1'})
 
     # iA1
     secondaries = goals[['Game', 'Note']]
     # Extract using regex: ...assists: [stuff] (num), [stuff] (num)
     # The first "stuff" is A1, second is A2. Nums are number of assists to date in season
-    secondaries.loc[:, 'Player'] = secondaries.Note.str.extract('assists: .*\(\d+\),\s(.*)\s\(\d+\)')
-    secondaries = count_by_keys(secondaries, 'Game', 'Player') \
+    # Note that this has now changed from first version: extracting IDs from here
+    # e.g. [scorer ID] (1), assists: [A1 ID] (1), [A2 ID] (1)
+    secondaries.loc[:, 'PlayerID'] = secondaries.Note.str.extract('.*assists:\s*\d+\s\(\d+\),\s(\d+)\s\(\d+\)')
+    secondaries = count_by_keys(secondaries, 'Game', 'PlayerID') \
         .rename(columns={'Count': 'iA2'})
-    # I also need to change these to player IDs. Use iCF for help.
-    # Assume single team won't have 2 players with same name in same season
-    playerlst = icf[['PlayerID']] \
-        .merge(players.get_player_ids_file().rename(columns={'ID': 'PlayerID'}),
-               how='left', on='PlayerID')
-    secondaries.loc[:, 'PlayerID'] = players.playerlst_as_id(secondaries.Player, True, playerlst)
-    secondaries = secondaries[['Game', 'PlayerID', 'iA2']]
 
     boxcars = ig.merge(primaries, how='outer', on=['Game', 'PlayerID']) \
         .merge(secondaries, how='outer', on=['Game', 'PlayerID']) \
@@ -1106,7 +1105,7 @@ def merge_onto_all_team_games_and_zero_fill(df, season, team):
     A method that gets all team games from this season and left joins df onto it on game, then zero fills NAs.
     Makes sure you didn't miss any games and get NAs later.
 
-    :param df: dataframe
+    :param df: dataframe with columns Game and PlayerID or Player
     :param season: int, the season
     :param team: int or str, the team
 
@@ -1114,10 +1113,18 @@ def merge_onto_all_team_games_and_zero_fill(df, season, team):
     """
     # Join onto schedule in case there were 0-0 games at 5v5
     sch = schedules.get_team_schedule(season, team)
-    df = schedules.get_team_schedule(season, team)[['Game']].merge(df, how='left', on='Game')
-    for col in df.columns:
-        df.loc[:, col] = df[col].fillna(0)
-    return df
+    df2 = sch[['Game']].merge(df, how='left', on='Game')
+    if 'Player' in df2.columns:
+        df2 = _convert_to_all_combos(df2, 0, 'Game', 'Player')
+    elif 'PlayerID' in df2.columns:
+        df2 = _convert_to_all_combos(df2, 0, 'Game', 'PlayerID')
+
+    # Sometimes the left join above introduces rows with player NaN. Remove those rows.
+    df2 = df2.dropna()
+
+    for col in df2.columns:
+        df2.loc[:, col] = df2[col].fillna(0)
+    return df2
 
 
 def get_5v5_player_game_cfca(season, team):
