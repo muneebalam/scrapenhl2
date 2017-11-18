@@ -264,18 +264,21 @@ def get_player_position(player):
 
 
 @functools.lru_cache(maxsize=128, typed=False)
-def player_as_id(playername, filterdf=None, dob=None):
+def player_as_id(playername, filterids=None, dob=None):
     """
     A helper method. If player entered is int, returns that. If player is str, returns integer id of that player.
 
     :param playername: int, or str, the player whose names you want to retrieve
-    :param filterdf: a dataframe of players to choose from. Defaults to all.
+    :param filterids: a tuple of players to choose from. Needs to be tuple else caching won't work.
     :param dob: yyyy-mm-dd, use to help when multiple players have the same name
 
     :return: int, the player ID
     """
-    if filterdf is None:
-        filterdf = get_player_ids_file()
+    filterdf = get_player_ids_file()
+    if filterids is None:
+        pass
+    else:
+        filterdf = filterdf.merge(pd.DataFrame({'ID': filterids}), how='inner', on='ID')
     pids = filterdf
     if dob is not None:
         pids = pids.query('DOB == "{0:s}"'.format(dob))
@@ -290,12 +293,13 @@ def player_as_id(playername, filterdf=None, dob=None):
             if len(df) == 0:
                 # ed.print_and_log('Could not find exact substring match; trying fuzzy matching')
                 name = helpers.fuzzy_match_player(playername, pids.Name)
-                # return player_as_id(name, filterdf)  # gives error that dataframe is not mutable, can't be hashed...
-                return player_as_id(name)
+                return player_as_id(name, tuple(filterdf.ID.values))
+                # return player_as_id(name)
             elif len(df) == 1:
                 return df.ID.iloc[0]
             else:
                 print('Multiple results when searching for {0:s}; returning first result'.format(playername))
+                print('You can specify a tuple of acceptable IDs to scrapenhl2.scrape.players.player_as_id')
                 print(df.to_string())
                 return df.ID.iloc[0]
         elif len(df) == 1:
@@ -304,10 +308,12 @@ def player_as_id(playername, filterdf=None, dob=None):
             default = check_default_player_id(playername)
             if default is None:
                 print('Multiple results when searching for {0:s}; returning first result'.format(playername))
+                print('You can specify a tuple of acceptable IDs to scrapenhl2.scrape.players.player_as_id')
                 print(df.to_string())
                 return df.ID.iloc[0]
             else:
                 print('Multiple results when searching for {0:s}; returning default'.format(playername))
+                print('You can specify a tuple of acceptable IDs to scrapenhl2.scrape.players.player_as_id')
                 print(df.to_string())
                 return default
     else:
