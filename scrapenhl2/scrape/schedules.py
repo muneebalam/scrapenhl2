@@ -60,18 +60,35 @@ def get_season_schedule(season):
     return _SCHEDULES[season]
 
 
-def get_team_schedule(season, team):
+def get_team_schedule(season=None, team=None, startdate=None, enddate=None):
     """
-    Gets the schedule for given team in given season.
+    Gets the schedule for given team in given season. Or if startdate and enddate are specified, searches between
+    those dates.
 
     :param season: int, the season
     :param team: int or str, the team
+    :param startdate: str, YYYY-MM-DD
+    :param enddate: str, YYYY-MM-DD
 
     :return: dataframe
     """
-    df = get_season_schedule(season)
-    tid = team_info.team_as_id(team)
-    return df[(df.Home == tid) | (df.Road == tid)]
+    if startdate is not None and enddate is not None:
+        dflst = []
+        startseason = helpers.infer_season_from_date(startdate)
+        endseason = helpers.infer_season_from_date(enddate)
+        for season in range(startseason, endseason + 1):
+            df = get_team_schedule(season, team)
+            if season == startseason:
+                df = df.query('Date >= {0:s}'.format(startdate))
+            if season == endseason:
+                df = df.query('Date <= {0:s}'.format(enddate))
+            dflst.append(df)
+        df = pd.concat(dflst)
+        return df
+    else:
+        df = get_season_schedule(season)
+        tid = team_info.team_as_id(team)
+        return df[(df.Home == tid) | (df.Road == tid)]
 
 
 def get_team_games(season, team):
