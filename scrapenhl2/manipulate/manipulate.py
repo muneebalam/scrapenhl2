@@ -395,8 +395,10 @@ def get_5v5_player_game_toi(season, team):
     fives_long = merge_onto_all_team_games_and_zero_fill(fives_long, season, team)
 
     # Now, by player. First at a game level to get TOIOFF
-    toi_by_player = fives_long.groupby(['Player', 'Game']).count() \
-        .reset_index() \
+    # Need to drop rows with Time = 1 because merge_onto_all_team_games will introduce rows where the player missed
+    # games, so they'll have count Time = 1.
+    toi_by_player = fives_long.groupby(['Player', 'Game'], as_index=False).count() \
+        .query('Time > 1') \
         .rename(columns={'Time': 'TOION'}) \
         .merge(time_by_game, how='left', on='Game')
     toi_by_player.loc[:, 'TOION'] = toi_by_player.TOION / 3600
@@ -1008,6 +1010,8 @@ def generate_5v5_player_log(season):
             goals = get_5v5_player_game_boxcars(season, team)  # G, A1, A2, SOG, iCF
             cfca = get_5v5_player_game_cfca(season, team)  # CFON, CAON, CFOFF, CAOFF
             gfga = get_5v5_player_game_gfga(season, team)  # GFON, GAON, GFOFF, GAOFF
+            if team == 15:
+                print(team)
             toi = get_5v5_player_game_toi(season, team)  # TOION and TOIOFF
             toicomp = get_5v5_player_game_toicomp(season, team)  # FQoC, F QoT, D QoC, D QoT, and respective Ns
             shifts = get_5v5_player_game_shift_startend(season, team)  # OZ, NZ, DZ, OTF-O, OTF-D, OTF-N
@@ -1115,9 +1119,9 @@ def merge_onto_all_team_games_and_zero_fill(df, season, team):
     sch = schedules.get_team_schedule(season, team)
     df2 = sch[['Game']].merge(df, how='left', on='Game')
     if 'Player' in df2.columns:
-        df2 = _convert_to_all_combos(df2, 0, 'Game', 'Player')
+        df2 = convert_to_all_combos(df2, 0, 'Game', 'Player')
     elif 'PlayerID' in df2.columns:
-        df2 = _convert_to_all_combos(df2, 0, 'Game', 'PlayerID')
+        df2 = convert_to_all_combos(df2, 0, 'Game', 'PlayerID')
 
     # Sometimes the left join above introduces rows with player NaN. Remove those rows.
     df2 = df2.dropna()
@@ -1151,7 +1155,7 @@ def get_5v5_player_game_gfga(season, team):
     return _get_5v5_player_game_fa(season, team, 'G')
 
 
-def _convert_to_all_combos(df, fillval=0, *args):
+def convert_to_all_combos(df, fillval=0, *args):
     """
     This method takes a dataframe and makes sure all possible combinations of given arguments are present.
     For example, if you want df to have all combos of P1 and P2, it will create a dataframe with all possible combos,
@@ -1322,7 +1326,7 @@ def get_game_h2h_toi(season, game):
 
     # One last to-do: make sure I have all possible pairs of players covered
 
-    allpairs = _convert_to_all_combos(pairs, 0, ('PlayerID1', 'Team1'), ('PlayerID2', 'Team2'))
+    allpairs = convert_to_all_combos(pairs, 0, ('PlayerID1', 'Team1'), ('PlayerID2', 'Team2'))
 
     allpairs.loc[:, 'Min'] = allpairs.Secs / 60
     return allpairs
@@ -1452,7 +1456,7 @@ def get_game_h2h_corsi(season, game):
         .drop('Time', axis=1) \
         .groupby(['PlayerID1', 'PlayerID2', 'Team1', 'Team2']).sum().reset_index()
     pairs.loc[pairs.Team1 == 'R', 'HomeCorsi'] = pairs.loc[pairs.Team1 == 'R', 'HomeCorsi'] * -1
-    allpairs = _convert_to_all_combos(pairs, 0, ('PlayerID1', 'Team1'), ('PlayerID2', 'Team2'))
+    allpairs = convert_to_all_combos(pairs, 0, ('PlayerID1', 'Team1'), ('PlayerID2', 'Team2'))
     return allpairs
 
 
