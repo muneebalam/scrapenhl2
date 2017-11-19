@@ -32,6 +32,7 @@ def team_lineup_cf_graph(team, **kwargs):
             allplayers += kwargs[key]
     else:
         # TODO Find most common lines
+        # Edit get_line_combos etc from manip, and the method to get player order from game_h2h, to work at team level
         pass
 
     # Get data
@@ -64,6 +65,13 @@ def team_lineup_cf_graph(team, **kwargs):
         ax.fill_between(x, y1, y2, where=y2 > y1, alpha=0.5)
         ax.plot(x, y1)
         ax.plot(x, y2, ls='--')
+        ax.plot(x, [0.5 for _ in range(len(x))], color='k')
+
+    for i, ax in enumerate(axes):
+        for direction in ['right', 'top', 'bottom', 'left']:
+            ax.spines[direction].set_visible(False)
+        ax.xaxis.set_ticks_position('none')
+        ax.yaxis.set_ticks_position('none')
 
     # Set title and axis labels
     axes[0].set_ylim(0.35, 0.65)
@@ -73,8 +81,15 @@ def team_lineup_cf_graph(team, **kwargs):
 
     plt.annotate('Game', xy=(0.5, 0.05), ha='center', va='top', xycoords='figure fraction')
 
+    fig.suptitle(_team_lineup_cf_graph_title(**kwargs), fontsize=16, y=0.95)
+
     # Return
     return vhelper.savefilehelper(**kwargs)
+
+
+def _team_lineup_cf_graph_title(**kwargs):
+    return ', '.join(vhelper.generic_5v5_log_graph_title('Lineup CF%', **kwargs))
+
 
 
 if __name__ == '__main__':

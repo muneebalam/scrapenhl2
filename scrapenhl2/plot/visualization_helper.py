@@ -7,9 +7,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import datetime
 
-from scrapenhl2.scrape import schedules
-from scrapenhl2.scrape import players
-from scrapenhl2.scrape import team_info
+from scrapenhl2.scrape import schedules, players, team_info
 from scrapenhl2.manipulate import manipulate as manip
 from scrapenhl2.scrape import general_helpers as helper
 
@@ -109,6 +107,8 @@ def get_and_filter_5v5_log(**kwargs):
     - max_toi60: float, maximum TOI60 for a player for inclusion in minutes.
     - team: int or str, filter data for this team only
     - add_missing_games: bool. If True will add in missing rows for missing games. Must also specify team.
+
+    Developer's note: when adding support for new kwargs, also add support in _generic_graph_title
 
     :param kwargs: e.g. startseason, endseason.
 
@@ -391,6 +391,56 @@ def savefilehelper(**kwargs):
         return plt.gcf()
     else:
         plt.savefig(save_file)
+
+
+def generic_5v5_log_graph_title(figtype, **kwargs):
+    """
+    Generates a figure title incorporating parameters from kwargs:
+
+    [Fig type] for [player, or multiple players, or team]
+    [date range]
+    [rolling window, if applicable]
+    [TOI range, if applicable]
+    [TOI60 range, if applicable]
+
+    Methods for individual graphs can take this list and arrange as necessary.
+
+    :param figtype: str brief description, e.g. Rolling CF% or Lineup CF%
+    :param kwargs: See get_and_filter_5v5_log
+
+    :return: list of strings
+    """
+
+    titlestr = []
+    line1help = ''
+    if 'player' in kwargs:
+        line1help = ' for {0:s}'.format(players.player_as_str(kwargs['team']))
+    elif 'team' in kwargs:
+        line1help = ' for {0:s}'.format(team_info.team_as_str(kwargs['team']))
+    elif 'players' in kwargs:
+        line1help = ' for multiple players'
+    titlestr.append('{0:s}{1:s}'.format(figtype, line1help))
+    titlestr.append('{0:s} to {1:s}'.format(*get_startdate_enddate_from_kwargs(**kwargs)))
+    if 'roll_len' in kwargs:
+        titlestr.append('{0:d}-game moving window'.format(kwargs['roll_len']))
+    elif 'roll_len' in kwargs:
+        titlestr.append('{0:d}-day moving window'.format(kwargs['roll_len_days']))
+
+    if 'min_toi' in kwargs and 'max_toi' in kwargs:
+        titlestr.append('TOI range: {0:.1f}-{1:.1f} min'.format(kwargs['min_toi'], kwargs['max_toi']))
+    elif 'min_toi' in kwargs:
+        titlestr.append('TOI range: {0:.1f}+ min'.format(kwargs['min_toi']))
+    elif 'min_toi' in kwargs:
+        titlestr.append('TOI range: <= {0:.1f} min'.format(kwargs['max_toi']))
+
+    if 'min_toi60' in kwargs and 'max_toi60' in kwargs:
+        titlestr.append('TOI60 range: {0:.1f}-{1:.1f} min'.format(kwargs['min_toi60'], kwargs['max_toi60']))
+    elif 'min_toi60' in kwargs:
+        titlestr.append('TOI60 range: {0:.1f}+ min'.format(kwargs['min_toi60']))
+    elif 'min_toi60' in kwargs:
+        titlestr.append('TOI60 range: <= {0:.1f} min'.format(kwargs['max_toi60']))
+
+    return titlestr
 
 
 if __name__ == '__main__':
