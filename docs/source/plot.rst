@@ -53,11 +53,19 @@ Methods (games)
 
 Game H2H
 ~~~~~~~~~~~
+.. image:: _static/WSH-TOR_G6.png
+   :width: 400 px
+   :align: left
+
 .. automodule:: scrapenhl2.plot.game_h2h
    :members:
 
 Corsi timeline
 ~~~~~~~~~~~~~~~
+.. image:: _static/WSH-TOR_G6_timeline.png
+   :width: 400 px
+   :align: left
+
 .. automodule:: scrapenhl2.plot.game_timeline
    :members:
 
@@ -69,11 +77,20 @@ Team TOI by score state
 .. automodule:: scrapenhl2.plot.team_score_state_toi
    :members:
 
+Team lineup CF%
+~~~~~~~~~~~~~~~~
+.. automodule:: scrapenhl2.plot.team_lineup_cf
+   :members:
+
 Methods (individuals)
 ----------------------
 
 Player rolling CF and GF
 ~~~~~~~~~~~~~~~~~~~~~~~~~
+.. image:: _static/Ovechkin_rolling_cf.png
+   :width: 400 px
+   :align: left
+
 .. automodule:: scrapenhl2.plot.rolling_cf_gf
    :members:
 
@@ -94,5 +111,8 @@ Helper methods
 ---------------
 
 .. automodule:: scrapenhl2.plot.visualization_helper
+   :members:
+
+.. automodule:: scrapenhl2.plot.label_lines
    :members:
 
