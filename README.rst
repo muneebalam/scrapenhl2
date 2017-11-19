@@ -103,7 +103,7 @@ To get a player rolling CF% graph, use::
 This package is targeted for script use, so I recommend familiarizing yourself with python.
 (This is not intended to be a replacement for a site like Corsica.)
 
-Look through the documentation at `Read the Docs <http://scrapenhl2.readthedocs.io/en/latest/>`_ and the
+Look through the documentation at `Read the Docs <http://scrapenhl2.readthedocs.io/en/master/>`_ and the
 `examples on Github <https://github.com/muneebalam/scrapenhl2/tree/master/examples>`_.
 Also always feel free to contact me with questions or suggestions.
 

@@ -90,6 +90,15 @@ Team lineup CF%
 .. automodule:: scrapenhl2.plot.team_lineup_cf
    :members:
 
+Team shot rates by score
+~~~~~~~~~~~~~~~~~~~~~~~~~
+.. image:: _static/Caps_shot_rates_score_scatter.png
+   :width: 400 px
+   :align: right
+
+.. automodule:: scrapenhl2.plot.team_score_shot_rate
+   :members:
+
 Methods (individuals)
 ----------------------
 

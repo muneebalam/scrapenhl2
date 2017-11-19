@@ -1529,3 +1529,57 @@ def team_5v5_score_state_summary_by_game(season):
         dflst.append(toi)
     df = pd.concat(dflst)
     return df
+
+
+def team_5v5_shot_rates_by_score(season):
+    """
+    Uses the team TOI and PBP logs to group by team and game and score state for this season. 5v5 only.
+
+    :param season: int, the season
+
+    :return: dataframe, grouped by team, strength, and game. Also columns for TOI, CF, and CA
+    """
+
+    dflst = []
+    for team in schedules.get_teams_in_season(season):
+        try:
+            toi = teams.get_team_toi(season, team)
+            pbp = teams.get_team_pbp(season, team)
+        except Exception as e:
+            continue
+        toi = filter_for_five_on_five(toi).assign(Team=team)
+        pbp = filter_for_five_on_five(
+            filter_for_corsi(pbp.merge(toi[['Game', 'Time']],
+                                       how='left', on=['Game', 'Time'])))
+
+        # Have to keep some sort of unique identifier for rows before dropping duplicates
+        # For TOI, it's Time. For PBP, it's Index
+        toi = toi[['Game', 'Team', 'TeamScore', 'OppScore', 'Time']] \
+            .assign(ScoreState=toi.TeamScore - toi.OppScore) \
+            .drop_duplicates() \
+            .drop({'TeamScore', 'OppScore', 'Time'}, axis=1) \
+            .assign(Secs=1) \
+            .groupby(['Game', 'Team', 'ScoreState'], as_index=False) \
+            .count()
+
+        pbp = pbp[['Game', 'Team', 'TeamScore', 'OppScore', 'Index']] \
+            .assign(ScoreState=pbp.TeamScore - pbp.OppScore) \
+            .drop_duplicates() \
+            .drop({'TeamScore', 'OppScore', 'Index'}, axis=1) \
+            .assign(Count=1) \
+            .groupby(['Game', 'Team', 'ScoreState'], as_index=False) \
+            .count()
+
+        # Get Corsi and pivot
+        pbp.loc[:, 'CFCA'] = pbp.Team.apply(lambda x: 'CF' if x == team else 'CA')
+        pbp.loc[:, 'Team'] = team
+        pbp = pbp.pivot_table(index=['Game', 'Team', 'ScoreState'], columns='CFCA', values='Count') \
+            .reset_index() \
+            .fillna(0)
+
+        joined = toi.merge(pbp, how='outer', on=['Game', 'Team', 'ScoreState']).fillna(0)
+
+        dflst.append(joined)
+
+    df = pd.concat(dflst)
+    return df
