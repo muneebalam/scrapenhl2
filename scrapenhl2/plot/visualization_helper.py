@@ -102,10 +102,13 @@ def get_and_filter_5v5_log(**kwargs):
     - roll_len: int, calculates rolling sums over this variable.
     - roll_len_days: int, calculates rolling sum over this time window
     - player: int or str, player ID or name
+    - players: list of int or str, player IDs or names
     - min_toi: float, minimum TOI for a player for inclusion in minutes.
     - max_toi: float, maximum TOI for a player for inclusion in minutes.
     - min_toi60: float, minimum TOI60 for a player for inclusion in minutes.
     - max_toi60: float, maximum TOI60 for a player for inclusion in minutes.
+    - team: int or str, filter data for this team only
+    - add_missing_games: bool. If True will add in missing rows for missing games. Must also specify team.
 
     :param kwargs: e.g. startseason, endseason.
 
@@ -114,12 +117,31 @@ def get_and_filter_5v5_log(**kwargs):
 
     # TODO many of these methods can be moved to manip
     df = get_5v5_df_start_end(**kwargs)
-    df = filter_5v5_for_player(df, **kwargs)
     df = filter_5v5_for_team(df, **kwargs)
+    df = filter_5v5_for_player(df, **kwargs)
     df = make_5v5_rolling_gp(df, **kwargs)
     df = make_5v5_rolling_days(df, **kwargs)
+    df = insert_missing_team_games(df, **kwargs)
     df = filter_5v5_for_toi(df, **kwargs)
 
+    return df
+
+
+def insert_missing_team_games(df, **kwargs):
+    """
+
+    :param df: dataframe, 5v5 player log or part of it
+    :param kwargs: relevant ones are 'team' and 'add_missing_games'
+
+    :return: dataframe with added rows
+    """
+    if 'add_missing_games' in kwargs and 'team' in kwargs and kwargs['add_missing_games'] is True:
+        startdate, enddate = get_startdate_enddate_from_kwargs(**kwargs)
+        df2 = manip.convert_to_all_combos(df, np.NaN, ('Season', 'Game'), 'PlayerID')
+        df2 = schedules.attach_game_dates_to_dateframe(df2).sort_values('Date')
+        # Don't use the team kwarg here but this will obviously be messy if we bring in multiple teams' games
+        # And get_and_filter_5v5_log does filter for team up above
+        return df2
     return df
 
 
@@ -154,7 +176,7 @@ def make_5v5_rolling_days(df, **kwargs):
 
         to_exclude = {'Game', 'Season', 'Team'}  # Don't want to sum these, even though they're numeric
         numeric_df = df.select_dtypes(include=[np.number])
-        numeric_df.drop(to_exclude, axis=1, inplace=True, errors='ignore')
+        numeric_df = numeric_df.drop(to_exclude, axis=1, errors='ignore')
 
         rolling_df = fulldf[numeric_df.columns] \
             .groupby('PlayerID').rolling(roll_len, min_periods=1).sum() \
@@ -186,17 +208,22 @@ def make_5v5_rolling_gp(df, **kwargs):
     if 'roll_len' in kwargs:
         roll_len = kwargs['roll_len']
 
-        # Join key for later
-        df.loc[:, 'Row'] = 1
-        df.loc[:, 'Row'] = df.Row.cumsum()
+        df = schedules.attach_game_dates_to_dateframe(df) \
+            .sort_values(['PlayerID', 'Date']) \
+            .drop('Date', axis=1)  # Need this to be in order, else the groupby-cumsum below won't work right
 
         # Get df and roll
-        to_exclude = {'Game', 'Season', 'Team', 'Row'}
+        to_exclude = {'Game', 'Season', 'Team'}
         numeric_df = df.select_dtypes(include=[np.number])
-        numeric_df.drop(to_exclude, axis=1, inplace=True, errors='ignore')
-        rollingdf = numeric_df.groupby('PlayerID').rolling(roll_len, min_periods=1).sum() \
-            .drop('PlayerID', axis=1).reset_index().drop({'PlayerID', 'level_1'}, axis=1) \
-            .assign(Row=df.Row.values)
+        # Sometimes PlayerID gets converted to obj at some point, so just make sure it gets included
+        # if 'PlayerID' not in numeric_df.columns:
+        #     numeric_df.loc[:, 'PlayerID'] = df.PlayerID
+        numeric_df = numeric_df.drop(to_exclude, axis=1, errors='ignore')
+        rollingdf = numeric_df.groupby('PlayerID') \
+            .rolling(roll_len, min_periods=1).sum() \
+            .drop('PlayerID', axis=1) \
+            .reset_index() \
+            .drop('level_1', axis=1)
 
         # Rename columns
         columnnames = {col: '{0:d}-game {1:s}'.format(roll_len, col) for col in numeric_df.columns
@@ -204,7 +231,12 @@ def make_5v5_rolling_gp(df, **kwargs):
         rollingdf = rollingdf.rename(columns=columnnames)
 
         # Add back to original
-        df2 = df.merge(rollingdf, how='left', on='Row').drop('Row', axis=1)
+        # Order of players can change, so we'll assign row numbers in each player group
+        df.loc[:, '_Row'] = 1
+        df.loc[:, '_Row'] = df[['PlayerID', '_Row']].groupby('PlayerID').cumsum()
+        rollingdf.loc[:, '_Row'] = 1
+        rollingdf.loc[:, '_Row'] = rollingdf[['PlayerID', '_Row']].groupby('PlayerID').cumsum()
+        df2 = df.merge(rollingdf, how='left', on=['PlayerID', '_Row']).drop('_Row', axis=1)
         return df2
     return df
 
@@ -222,7 +254,7 @@ def filter_5v5_for_toi(df, **kwargs):
 
     :return: dataframe, filtered for specified players
     """
-    toitotals = df[['PlayerID', 'TOION', 'TOIOFF']].groupby('PlayerID').sum().reset_index()
+    toitotals = df[['PlayerID', 'TOION', 'TOIOFF']].groupby('PlayerID', as_index=False).sum()
     toitotals.loc[:, 'TOI60'] = toitotals.TOION / (toitotals.TOION + toitotals.TOIOFF)
 
     if 'min_toi' in kwargs:
@@ -271,6 +303,11 @@ def filter_5v5_for_player(df, **kwargs):
         playerid = players.player_as_id(kwargs['player'])
         df2 = df.query("PlayerID == {0:d}".format(playerid))
         return df2
+    if 'players' in kwargs:
+        pids = players.playerlst_as_id(list(set(kwargs['players'])))
+        # When merging float and int cols resulting column is object, so cast to float first
+        df2 = df.merge(pd.DataFrame({'PlayerID': pids}).astype(float), how='inner', on='PlayerID')
+        return df2
     return df
 
 
@@ -284,6 +321,8 @@ def get_enddate_from_kwargs(**kwargs):
         return min('{0:d}-06-21'.format(kwargs['endseason']+1), today)
     elif 'startseason' in kwargs:
         return get_enddate_from_kwargs(endseason=kwargs['startseason'])
+    elif 'season' in kwargs:
+        return get_enddate_from_kwargs(endseason=kwargs['season'])
     elif 'startdate' in kwargs:
         return get_enddate_from_kwargs(endseason=helper.infer_season_from_date(kwargs['startdate']))
     else:
@@ -302,6 +341,8 @@ def get_startdate_enddate_from_kwargs(**kwargs):
         startdate = kwargs['startdate']
     elif 'startseason' in kwargs:
         startdate = '{0:d}-09-15'.format(kwargs['startseason'])
+    elif 'season' in kwargs:
+        startdate = '{0:d}-09-15'.format(kwargs['season'])
     else:
         startdate = '{0:d}-09-15'.format(helper.infer_season_from_date(enddate) - 3)
 
@@ -350,13 +391,11 @@ def savefilehelper(**kwargs):
         return plt.gcf()
     else:
         plt.savefig(save_file)
-    plt.close()
 
 
 if __name__ == '__main__':
-    #import scrapenhl2.plot.app.game_page as game_page
-    #game_page.browse_game_charts()
+    import matplotlib.pyplot as plt
     from scrapenhl2.plot import game_timeline as gt
     from scrapenhl2.plot import game_h2h as gh
-    gt.live_timeline('OTT', 'COL')
-    #gh.live_h2h('WSH', 'PIT', False)
+    gt.live_timeline('WSH', 'MIN', False)
+    gh.live_h2h('WSH', 'MIN', False)

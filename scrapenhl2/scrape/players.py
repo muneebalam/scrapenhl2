@@ -358,23 +358,27 @@ def playerlst_as_id(playerlst, exact=False, filterdf=None):
     elif exact is True:
         return df.merge(filterdf, on='Name', how='left').PlayerID
     else:
-        df.loc[:, 'ID'] = df.Name.apply(lambda x: player_as_id(x, filterdf))
+        df.loc[:, 'ID'] = df.Name.apply(lambda x: player_as_id(x, tuple(filterdf.ID.values)))
         return df.ID
 
 
-# TODO: this caches, so can't use pandas df as an arg
 @functools.lru_cache(maxsize=128, typed=False)
-def player_as_str(playerid, filterdf=None):
+def player_as_str(playerid, filterids=None):
     """
     A helper method. If player is int, returns string name of that player. Else returns standardized name.
 
     :param playerid: int, or str, player whose name you want to retrieve
-    :param filterdf: df, a dataframe of players to choose from. Defaults to all.
+    :param filterids: a tuple of players to choose from. Needs to be tuple else caching won't work.
+        Probably not needed but you can use this method to go from part of the name to full name, in which case
+        it may be helpful.
 
     :return: str, the player name
     """
-    if filterdf is None:
-        filterdf = get_player_ids_file()
+    filterdf = get_player_ids_file()
+    if filterids is None:
+        pass
+    else:
+        filterdf = filterdf.merge(pd.DataFrame({'ID': filterids}), how='inner', on='ID')
     if isinstance(playerid, str):
         # full name
         newfilterdf = filterdf

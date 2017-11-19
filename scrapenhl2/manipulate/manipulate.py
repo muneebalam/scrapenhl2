@@ -1010,8 +1010,6 @@ def generate_5v5_player_log(season):
             goals = get_5v5_player_game_boxcars(season, team)  # G, A1, A2, SOG, iCF
             cfca = get_5v5_player_game_cfca(season, team)  # CFON, CAON, CFOFF, CAOFF
             gfga = get_5v5_player_game_gfga(season, team)  # GFON, GAON, GFOFF, GAOFF
-            if team == 15:
-                print(team)
             toi = get_5v5_player_game_toi(season, team)  # TOION and TOIOFF
             toicomp = get_5v5_player_game_toicomp(season, team)  # FQoC, F QoT, D QoC, D QoT, and respective Ns
             shifts = get_5v5_player_game_shift_startend(season, team)  # OZ, NZ, DZ, OTF-O, OTF-D, OTF-N
@@ -1531,7 +1529,3 @@ def team_5v5_score_state_summary_by_game(season):
         dflst.append(toi)
     df = pd.concat(dflst)
     return df
-
-
-if __name__ == '__main__':
-    team_5v5_score_state_summary_by_game(2017)

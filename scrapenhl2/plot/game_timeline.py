@@ -40,7 +40,6 @@ def game_timeline(season, game, save_file=None):
 
     :return: nothing, or the figure
     """
-    plt.clf()
 
     hname = team_info.team_as_str(schedules.get_home_team(season, game))
     rname = team_info.team_as_str(schedules.get_road_team(season, game))
@@ -111,6 +110,7 @@ def game_timeline(season, game, save_file=None):
     else:
         plt.savefig(save_file)
     plt.close()
+    return None
 
 
 def _get_home_adv_for_timeline(season, game):

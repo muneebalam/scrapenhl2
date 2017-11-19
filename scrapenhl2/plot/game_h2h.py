@@ -40,7 +40,6 @@ def game_h2h(season, game, save_file=None):
 
     :return: nothing
     """
-    plt.clf()
     h2htoi = manip.get_game_h2h_toi(season, game).query('Team1 == "H" & Team2 == "R"')
     h2hcorsi = manip.get_game_h2h_corsi(season, game).query('Team1 == "H" & Team2 == "R"')
     playerorder_h, numf_h = _get_h2h_chart_player_order(season, game, 'H')
@@ -49,7 +48,6 @@ def game_h2h(season, game, save_file=None):
     # TODO create chart and filter out RH, HH, and RR
     # TODO link players by ID. When I link by name have issue with Mike Green for example
     return _game_h2h_chart(season, game, h2hcorsi, h2htoi, playerorder_h, playerorder_r, numf_h, numf_r, save_file)
-    plt.close()
 
 
 def _game_h2h_chart(season, game, corsi, toi, orderh, orderr, numf_h=None, numf_r=None, save_file=None):
@@ -231,6 +229,7 @@ def _game_h2h_chart(season, game, corsi, toi, orderh, orderr, numf_h=None, numf_
         return plt.gcf()
     else:
         plt.savefig(save_file)
+    return None
 
 
 def _get_game_h2h_chart_title(season, game, homecf_diff=None, totaltoi=None):

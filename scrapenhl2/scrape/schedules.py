@@ -77,16 +77,18 @@ def get_team_schedule(season=None, team=None, startdate=None, enddate=None):
         startseason = helpers.infer_season_from_date(startdate)
         endseason = helpers.infer_season_from_date(enddate)
         for season in range(startseason, endseason + 1):
-            df = get_team_schedule(season, team)
+            df = get_team_schedule(season, team) \
+                .query('Status != "Scheduled"') \
+                .assign(Season=season)
             if season == startseason:
-                df = df.query('Date >= {0:s}'.format(startdate))
+                df = df.query('Date >= "{0:s}"'.format(startdate))
             if season == endseason:
-                df = df.query('Date <= {0:s}'.format(enddate))
+                df = df.query('Date <= "{0:s}"'.format(enddate))
             dflst.append(df)
         df = pd.concat(dflst)
         return df
     else:
-        df = get_season_schedule(season)
+        df = get_season_schedule(season).query('Status != "Scheduled"')
         tid = team_info.team_as_id(team)
         return df[(df.Home == tid) | (df.Road == tid)]
 
