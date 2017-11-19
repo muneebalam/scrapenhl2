@@ -55,7 +55,7 @@ Game H2H
 ~~~~~~~~~~~
 .. image:: _static/WSH-TOR_G6.png
    :width: 400 px
-   :align: left
+   :align: right
 
 .. automodule:: scrapenhl2.plot.game_h2h
    :members:
@@ -64,7 +64,7 @@ Corsi timeline
 ~~~~~~~~~~~~~~~
 .. image:: _static/WSH-TOR_G6_timeline.png
    :width: 400 px
-   :align: left
+   :align: right
 
 .. automodule:: scrapenhl2.plot.game_timeline
    :members:
@@ -74,11 +74,19 @@ Methods (teams)
 
 Team TOI by score state
 ~~~~~~~~~~~~~~~~~~~~~~~~
+.. image:: _static/Score_states_2015.png
+   :width: 400 px
+   :align: right
+
 .. automodule:: scrapenhl2.plot.team_score_state_toi
    :members:
 
 Team lineup CF%
 ~~~~~~~~~~~~~~~~
+.. image:: _static/Caps_lineup_cf.png
+   :width: 400 px
+   :align: right
+
 .. automodule:: scrapenhl2.plot.team_lineup_cf
    :members:
 
@@ -89,13 +97,17 @@ Player rolling CF and GF
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 .. image:: _static/Ovechkin_rolling_cf.png
    :width: 400 px
-   :align: left
+   :align: right
 
 .. automodule:: scrapenhl2.plot.rolling_cf_gf
    :members:
 
 Player rolling boxcars
 ~~~~~~~~~~~~~~~~~~~~~~
+.. image:: _static/Oshie_boxcars.png
+   :width: 400 px
+   :align: right
+
 .. automodule:: scrapenhl2.plot.rolling_boxcars
    :members:
 

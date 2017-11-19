@@ -15,6 +15,8 @@ import scrapenhl2.plot.rolling_cf_gf as rolling_cfgf
 
 def team_lineup_cf_graph(team, **kwargs):
     """
+    This method builds a 4x5 matrix of rolling CF% line graphs. The left 4x3 matrix are forward lines and the top-right
+    3x2 are defense pairs.
 
     :param team: str or id, team to build this graph for
     :param kwargs: need to specify the following as iterables of names: l1, l2, l3, l4, p1, p2, p3.
@@ -89,13 +91,3 @@ def team_lineup_cf_graph(team, **kwargs):
 
 def _team_lineup_cf_graph_title(**kwargs):
     return ', '.join(vhelper.generic_5v5_log_graph_title('Lineup CF%', **kwargs))
-
-
-
-if __name__ == '__main__':
-    team_lineup_cf_graph('WSH',
-                         p1=['Dmitry Orlov', 'Niskanen'], p2=['Djoos', 'John Carlson'], p3=['Orpik', 'Bowey'],
-                         l1=['Jakub Vrana', 'Nicklas Backstrom', 'Oshie'],
-                         l2=['Ovechkin', 'Kuznetsov', 'Smith-Pelly'],
-                         l3=['Burakovsky', 'Lars Eller', 'Brett Connolly'],
-                         l4=['Nathan Walker', 'Beagle', 'Tom Wilson'])

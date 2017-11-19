@@ -124,8 +124,3 @@ def calculate_boxcar_rates(df):
 
     return boxcars
 
-
-if __name__ == '__main__':
-    rolling_player_boxcars(player='Nicklas Backstrom')
-    # First few games are blank: why?
-
