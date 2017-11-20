@@ -10,7 +10,64 @@ import scrapenhl2.scrape.team_info as team_info
 import scrapenhl2.manipulate.manipulate as manip
 import scrapenhl2.plot.visualization_helper as vhelper
 
-def team_score_shot_rate_graph(team, startseason, endseason=None, save_file=None):
+def team_score_shot_rate_parallel(team, startseason, endseason=None, save_file=None):
+    """
+
+    :param team:
+    :param startseason:
+    :param endseason:
+    :param save_file:
+    :return:
+    """
+    if endseason is None:
+        endseason = startseason
+
+    df = pd.concat([manip.team_5v5_shot_rates_by_score(season) for season in range(startseason, endseason + 1)])
+
+    df.loc[:, 'ScoreState'] = df.ScoreState.apply(lambda x: max(min(3, x), -3))  # reduce to +/- 3
+    df = df.drop('Game', axis=1) \
+        .groupby(['Team', 'ScoreState'], as_index=False) \
+        .sum()
+    df.loc[:, 'CF%'] = df.CF / (df.CF + df.CA)
+    df = df[['Team', 'ScoreState', 'CF%']] \
+        .sort_values('ScoreState')
+
+    statelabels = {x: 'Lead{0:d}'.format(x) if x >= 1 else 'Trail{0:d}'.format(abs(x)) for x in range(-3, 4)}
+    statelabels[0] = 'Tied'
+    df.loc[:, 'ScoreState'] = df.ScoreState.apply(lambda x: statelabels[x])
+
+    # Go to wide
+    df = df.pivot_table(index='Team', columns='ScoreState', values='CF%').reset_index()
+
+    # Reorder columns
+    df = df[['Team', 'Trail3', 'Trail2', 'Trail1', 'Tied', 'Lead1', 'Lead2', 'Lead3']]
+
+    # Teams to strings
+    df.loc[:, 'Team'] = df.Team.apply(lambda x: team_info.team_as_str(x))
+
+    # filter for own team
+    teamdf = df.query('Team == "{0:s}"'.format(team_info.team_as_str(team)))
+
+    # Make parallel coords
+    vhelper.parallel_coords(df, teamdf, 'Team')
+
+    # Set yticklabels
+    ys = (0.4, 0.5, 0.6)
+    plt.yticks(ys, ['{0:d}%'.format(int(y * 100)) for y in ys])
+    plt.ylim(0.35, 0.65)
+
+    plt.title(_team_score_shot_rate_parallel_title(team, startseason, endseason))
+
+    for direction in ['right', 'top', 'bottom', 'left']:
+        plt.gca().spines[direction].set_visible(False)
+
+    if save_file is None:
+        plt.show()
+    else:
+        plt.savefig(save_file)
+
+
+def team_score_shot_rate_scatter(team, startseason, endseason=None, save_file=None):
     """
 
     :param team: str or int, team
@@ -71,7 +128,7 @@ def team_score_shot_rate_graph(team, startseason, endseason=None, save_file=None
     plt.xlabel('CF60')
     plt.ylabel('CA60')
 
-    plt.title(_team_score_shot_rate_graph_title(team, startseason, endseason))
+    plt.title(_team_score_shot_rate_scatter_title(team, startseason, endseason))
 
     if save_file is None:
         plt.show()
@@ -79,7 +136,7 @@ def team_score_shot_rate_graph(team, startseason, endseason=None, save_file=None
         plt.savefig(save_file)
 
 
-def _team_score_shot_rate_graph_title(team, startseason, endseason):
+def _team_score_shot_rate_scatter_title(team, startseason, endseason):
     """
 
     :param team:
@@ -87,10 +144,24 @@ def _team_score_shot_rate_graph_title(team, startseason, endseason):
     :param endseason:
     :return:
     """
-    return '{0:s} shot rate by score state\n{1:s} to {2:s}'.format(team_info.team_as_str(team),
+    return '{0:s} shot rate by score state, {1:s} to {2:s}'.format(team_info.team_as_str(team),
                                                                    *vhelper.get_startdate_enddate_from_kwargs(
                                                                        startseason=startseason,
                                                                        endseason=endseason))
+
+
+def _team_score_shot_rate_parallel_title(team, startseason, endseason):
+    """
+
+    :param team:
+    :param startseason:
+    :param endseason:
+    :return:
+    """
+    return '{0:s} CF% by score state\n{1:s} to {2:s}'.format(team_info.team_as_str(team),
+                                                             *vhelper.get_startdate_enddate_from_kwargs(
+                                                                 startseason=startseason,
+                                                                 endseason=endseason))
 
 def _calculate_label_rotation(startx, starty, endx, endy):
     """
@@ -107,4 +178,5 @@ def _calculate_label_rotation(startx, starty, endx, endy):
 
 
 if __name__ == '__main__':
-    team_score_shot_rate_graph('WSH', 2015, 2016, '/Users/muneebalam/PycharmProjects/scrapenhl2/docs/source/_static/Caps_shot_rates_score_scatter.png')
+    team_score_shot_rate_parallel('WSH', 2015, 2016,
+                                  save_file='/Users/muneebalam/PycharmProjects/scrapenhl2/docs/source/_static/Caps_shot_score_parallel.png')

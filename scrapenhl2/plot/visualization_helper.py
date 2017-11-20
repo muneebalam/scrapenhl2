@@ -10,6 +10,7 @@ import datetime
 from scrapenhl2.scrape import schedules, players, team_info
 from scrapenhl2.manipulate import manipulate as manip
 from scrapenhl2.scrape import general_helpers as helper
+import scrapenhl2.plot.label_lines as label_lines
 
 
 def format_number_with_plus(stringnum):
@@ -441,6 +442,106 @@ def generic_5v5_log_graph_title(figtype, **kwargs):
         titlestr.append('TOI60 range: <= {0:.1f} min'.format(kwargs['max_toi60']))
 
     return titlestr
+
+
+def parallel_coords(backgrounddf, foregrounddf, groupcol, legendcol=None, axis=None):
+    """
+
+    :param backgrounddf:
+    :param foregrounddf:
+    :param groupcol: For inline labels (e.g. initials)
+    :param legendcol: So you can provide another groupcol for legend (e.g. name)
+    :param axis:
+
+    :return:
+    """
+
+    if axis is None:
+        axis = plt.gca()
+    if legendcol is not None:
+        parallel_coords_background(backgrounddf.drop(legendcol, axis=1), groupcol, axis)
+        parallel_coords_foreground(foregrounddf.drop(legendcol, axis=1), groupcol, axis)
+        axis.legend(loc='upper left', col=2, fontsize=10)
+    if legendcol is None:
+        parallel_coords_background(backgrounddf, groupcol, axis)
+        parallel_coords_foreground(foregrounddf, groupcol, axis)
+
+    label_lines.labelLines(axis.get_lines(), zorder=3, fontsize=16)
+
+    #for line, newlabel in zip(axis.get_lines(), foregrounddf[legendcol]):
+    #    line.set_label(newlabel)
+
+
+def parallel_coords_background(dataframe, groupcol, axis=None):
+    """
+
+    :param dataframe:
+    :param groupcol:
+    :param axis:
+    :param zorder:
+    :param alpha:
+    :param color:
+    :param label:
+    :return:
+    """
+
+    if axis is None:
+        axis = plt.gca()
+
+    cols, df = parallel_coords_xy(dataframe, groupcol)
+    for groupval in df[groupcol].value_counts().index:
+        group = df.query('{0:s} == "{1:s}"'.format(groupcol, str(groupval)))
+        axis.plot(group.X, group.Y, zorder=3, color='lightgray', alpha=0.5, label='_nolegend')
+
+    xtickvals = list(cols.keys())
+    xtickvals = list(range(min(xtickvals), max(xtickvals) + 1))
+    axis.set_xticks(xtickvals)
+    axis.set_xticklabels([cols[x] for x in xtickvals])
+
+
+def parallel_coords_foreground(dataframe, groupcol, axis=None):
+    """
+
+    :param dataframe:
+    :param groupcol:
+    :param axis:
+    :param zorder:
+    :param alpha:
+    :param color:
+    :param label:
+    :return:
+    """
+
+    if axis is None:
+        axis = plt.gca()
+
+    cols, df = parallel_coords_xy(dataframe, groupcol)
+    for groupval in df[groupcol].value_counts().index:
+        group = df.query('{0:s} == "{1:s}"'.format(groupcol, str(groupval)))
+        axis.plot(group.X, group.Y, zorder=2, label=groupval, lw=2)
+
+    # axis.legend(loc='lower right')
+
+
+def parallel_coords_xy(dataframe, groupcol):
+    """
+
+    :param dataframe: data in wide format
+    :param groupcol: column to use as index (e.g. playername)
+
+    :return: column dictionary, dataframe in long format
+    """
+
+    xs = {}
+    rev_xs = {}
+    for col in dataframe.columns:
+        if not col == groupcol:
+            xs[len(xs)] = col
+            rev_xs[col] = len(xs) - 1
+
+    dataframe_long = dataframe.melt(id_vars=groupcol, var_name='variable', value_name='Y')
+    dataframe_long.loc[:, 'X'] = dataframe_long.variable.apply(lambda x: rev_xs[x])
+    return xs, dataframe_long
 
 
 if __name__ == '__main__':

@@ -54,7 +54,7 @@ Methods (games)
 Game H2H
 ~~~~~~~~~~~
 .. image:: _static/WSH-TOR_G6.png
-   :width: 400 px
+   :width: 50%
    :align: right
 
 .. automodule:: scrapenhl2.plot.game_h2h
@@ -63,7 +63,7 @@ Game H2H
 Corsi timeline
 ~~~~~~~~~~~~~~~
 .. image:: _static/WSH-TOR_G6_timeline.png
-   :width: 400 px
+   :width: 50%
    :align: right
 
 .. automodule:: scrapenhl2.plot.game_timeline
@@ -75,7 +75,7 @@ Methods (teams)
 Team TOI by score state
 ~~~~~~~~~~~~~~~~~~~~~~~~
 .. image:: _static/Score_states_2015.png
-   :width: 400 px
+   :width: 50%
    :align: right
 
 .. automodule:: scrapenhl2.plot.team_score_state_toi
@@ -84,7 +84,7 @@ Team TOI by score state
 Team lineup CF%
 ~~~~~~~~~~~~~~~~
 .. image:: _static/Caps_lineup_cf.png
-   :width: 400 px
+   :width: 50%
    :align: right
 
 .. automodule:: scrapenhl2.plot.team_lineup_cf
@@ -92,9 +92,12 @@ Team lineup CF%
 
 Team shot rates by score
 ~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. image:: _static/Caps_shot_score_parallel.png
+   :width: 49%
 .. image:: _static/Caps_shot_rates_score_scatter.png
-   :width: 400 px
-   :align: right
+   :width: 49%
+
 
 .. automodule:: scrapenhl2.plot.team_score_shot_rate
    :members:
@@ -105,7 +108,7 @@ Methods (individuals)
 Player rolling CF and GF
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 .. image:: _static/Ovechkin_rolling_cf.png
-   :width: 400 px
+   :width: 50%
    :align: right
 
 .. automodule:: scrapenhl2.plot.rolling_cf_gf
@@ -114,7 +117,7 @@ Player rolling CF and GF
 Player rolling boxcars
 ~~~~~~~~~~~~~~~~~~~~~~
 .. image:: _static/Oshie_boxcars.png
-   :width: 400 px
+   :width: 50%
    :align: right
 
 .. automodule:: scrapenhl2.plot.rolling_boxcars

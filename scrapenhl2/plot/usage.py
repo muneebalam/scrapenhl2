@@ -53,16 +53,16 @@ def parallel_coords_team_comparison(**kwargs):
     centers = forwards.query('Position == "C"').drop('Position', axis=1).iloc[:6, :]
     wingers = forwards.query('Position != "C"').drop('Position', axis=1).iloc[:6, :]
     forwards.drop('Position', axis=1, inplace=True)
-    _parallel_coords(forwards, centers, 'PlayerInitials', 'PlayerName', axes.flatten()[0])
-    _parallel_coords(forwards, wingers, 'PlayerInitials', 'PlayerName', axes.flatten()[1])
+    vhelper.parallel_coords(forwards, centers, 'PlayerInitials', 'PlayerName', axes.flatten()[0])
+    vhelper.parallel_coords(forwards, wingers, 'PlayerInitials', 'PlayerName', axes.flatten()[1])
 
     alldefense = qocqot.query('Position == "D"').drop('Position', axis=1)
     defense = alldefense.iloc[:6, :]
-    _parallel_coords(alldefense, defense, 'PlayerInitials', 'PlayerName', axes.flatten()[2])
+    vhelper.parallel_coords(alldefense, defense, 'PlayerInitials', 'PlayerName', axes.flatten()[2])
 
     other_players = pd.concat([qocqot.drop('Position', axis=1), centers, wingers, defense]) \
         .drop_duplicates(keep=False).iloc[:6, :]
-    _parallel_coords(pd.concat([forwards, defense]), other_players, 'PlayerInitials', 'PlayerName', axes.flatten()[3])
+    vhelper.parallel_coords(pd.concat([forwards, defense]), other_players, 'PlayerInitials', 'PlayerName', axes.flatten()[3])
 
     fig.text(0.5, 0.04, 'Statistic (based on TOI/60)', ha='center')
     fig.text(0.04, 0.5, 'Minutes', va='center', rotation='vertical')
@@ -117,16 +117,16 @@ def parallel_usage_chart(**kwargs):
     centers = forwards.query('Position == "C"').drop('Position', axis=1).iloc[:6, :]
     wingers = forwards.query('Position != "C"').drop('Position', axis=1).iloc[:6, :]
     forwards.drop('Position', axis=1, inplace=True)
-    _parallel_coords(forwards, centers, 'PlayerInitials', 'PlayerName', axes.flatten()[0])
-    _parallel_coords(forwards, wingers, 'PlayerInitials', 'PlayerName', axes.flatten()[1])
+    vhelper.parallel_coords(forwards, centers, 'PlayerInitials', 'PlayerName', axes.flatten()[0])
+    vhelper.parallel_coords(forwards, wingers, 'PlayerInitials', 'PlayerName', axes.flatten()[1])
 
     alldefense = qocqot.query('Position == "D"').drop('Position', axis=1)
     defense = alldefense.iloc[:6, :]
-    _parallel_coords(alldefense, defense, 'PlayerInitials', 'PlayerName', axes.flatten()[2])
+    vhelper.parallel_coords(alldefense, defense, 'PlayerInitials', 'PlayerName', axes.flatten()[2])
 
     other_players = pd.concat([qocqot.drop('Position', axis=1), centers, wingers, defense]) \
         .drop_duplicates(keep=False).iloc[:6, :]
-    _parallel_coords(pd.concat([forwards, defense]), other_players, 'PlayerInitials', 'PlayerName', axes.flatten()[3])
+    vhelper.parallel_coords(pd.concat([forwards, defense]), other_players, 'PlayerInitials', 'PlayerName', axes.flatten()[3])
 
     fig.text(0.5, 0.04, 'Statistic (based on TOI/60)', ha='center')
     fig.text(0.04, 0.5, 'Minutes', va='center', rotation='vertical')
@@ -196,103 +196,6 @@ def _parallel_usage_chart_title(**kwargs):
     title[-1] += '{0:s} to {1:s}'.format(*vhelper.get_startdate_enddate_from_kwargs(**kwargs))
     return '\n'.join(title)
 
-
-def _parallel_coords(backgrounddf, foregrounddf, groupcol, legendcol=None, axis=None):
-    """
-
-    :param backgrounddf:
-    :param foregrounddf:
-    :param groupcol: For inline labels (e.g. initials)
-    :param legendcol: So you can provide another groupcol for legend (e.g. name)
-    :param axis:
-
-    :return:
-    """
-
-    if axis is None:
-        axis = plt.gca()
-    if legendcol is None:
-        legendcol = groupcol
-
-    _parallel_coords_background(backgrounddf.drop(legendcol, axis=1), groupcol, axis)
-    _parallel_coords_foreground(foregrounddf.drop(legendcol, axis=1), groupcol, axis)
-    label_lines.labelLines(axis.get_lines(), zorder=3, fontsize=16)
-
-    #for line, newlabel in zip(axis.get_lines(), foregrounddf[legendcol]):
-    #    line.set_label(newlabel)
-    axis.legend(loc='upper left', col=2, fontsize=10)
-
-
-def _parallel_coords_background(dataframe, groupcol, axis=None):
-    """
-
-    :param dataframe:
-    :param groupcol:
-    :param axis:
-    :param zorder:
-    :param alpha:
-    :param color:
-    :param label:
-    :return:
-    """
-
-    if axis is None:
-        axis = plt.gca()
-
-    cols, df = _parallel_coords_xy(dataframe, groupcol)
-    for groupval in df[groupcol].value_counts().index:
-        group = df.query('{0:s} == "{1:s}"'.format(groupcol, groupval))
-        axis.plot(group.X, group.Y, zorder=3, color='lightgray', alpha=0.5, label='_nolegend')
-
-    xtickvals = list(cols.keys())
-    xtickvals = list(range(min(xtickvals), max(xtickvals) + 1))
-    axis.set_xticks(xtickvals)
-    axis.set_xticklabels([cols[x] for x in xtickvals])
-
-
-def _parallel_coords_foreground(dataframe, groupcol, axis=None):
-    """
-
-    :param dataframe:
-    :param groupcol:
-    :param axis:
-    :param zorder:
-    :param alpha:
-    :param color:
-    :param label:
-    :return:
-    """
-
-    if axis is None:
-        axis = plt.gca()
-
-    cols, df = _parallel_coords_xy(dataframe, groupcol)
-    for groupval in df[groupcol].value_counts().index:
-        group = df.query('{0:s} == "{1:s}"'.format(groupcol, groupval))
-        axis.plot(group.X, group.Y, zorder=2, label=groupval, lw=2)
-
-    # axis.legend(loc='lower right')
-
-
-def _parallel_coords_xy(dataframe, groupcol):
-    """
-
-    :param dataframe: data in wide format
-    :param groupcol: column to use as index (e.g. playername)
-
-    :return: column dictionary, dataframe in long format
-    """
-
-    xs = {}
-    rev_xs = {}
-    for col in dataframe.columns:
-        if not col == groupcol:
-            xs[len(xs)] = col
-            rev_xs[col] = len(xs) - 1
-
-    dataframe_long = dataframe.melt(id_vars=groupcol, value_name='Y')
-    dataframe_long.loc[:, 'X'] = dataframe_long.variable.apply(lambda x: rev_xs[x])
-    return xs, dataframe_long
 
 if __name__ == '__main__':
     animated_usage_chart(team='WSH', save_file='/Users/muneebalam/Desktop/usage.mp4')
