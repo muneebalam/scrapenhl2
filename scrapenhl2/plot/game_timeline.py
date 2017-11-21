@@ -78,11 +78,11 @@ def game_timeline(season, game, save_file=None):
             else:
                 colors_to_use = darkercolors
             for i, (start, end) in enumerate(pps[team][pptype]):
-                cf_at_time_min = cf[team].loc[cf[team].Time == start // 60].CumCF.iloc[0] - 2
+                cf_at_time_min = cf[team].loc[cf[team].Time == start // 60].CumCF.iloc[0]
                 if end // 60 == cf[team].Time.max():  # might happen for live games
-                    cf_at_time_max = cf[team][cf[team].Time == end // 60].CumCF.iloc[0] + 2
+                    cf_at_time_max = cf[team][cf[team].Time == end // 60].CumCF.iloc[0]
                 else:
-                    cf_at_time_max = cf[team][cf[team].Time == end // 60 + 1].CumCF.iloc[0] + 2
+                    cf_at_time_max = cf[team][cf[team].Time == end // 60 + 1].CumCF.iloc[0]
                 if i == 0:
                     plt.gca().axvspan(start / 60, end / 60, ymin=cf_at_time_min / ymax,
                                       ymax=cf_at_time_max / ymax, alpha=0.5, facecolor=colors_to_use[team],
