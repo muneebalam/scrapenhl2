@@ -914,7 +914,7 @@ def infer_zones_for_faceoffs(df, directions, xcol='X', ycol='Y', timecol='Time',
     Basically, if you are in the first period and X is -69, you're in the offensive zone. But this flips if
     your team ID is smaller than the opp's ID
 
-    This method notes several different zones:
+    This method notes several different zones for faceoffs:
 
     - OL (offensive zone, left)
     - OR (offensive zone, right)
@@ -925,6 +925,12 @@ def infer_zones_for_faceoffs(df, directions, xcol='X', ycol='Y', timecol='Time',
     - DL (defensive zone, left)
     - DR (defensive zone, right)
     - N (center ice)
+
+    Else, it notes three zones:
+
+    - N (neutral)
+    - O (offensive)
+    - D (defensive)
 
     :param df: dataframe with columns Game, specified xcol, and specified ycol
     :param directions: dataframe with columns Game, Period, and Direction ('left' or 'right')
@@ -985,6 +991,11 @@ def infer_zones_for_faceoffs(df, directions, xcol='X', ycol='Y', timecol='Time',
     df2.loc[(df2['_X'] == 20) & (df2['_Y'] == -22), 'FacLoc'] = 'NOR'
     df2.loc[(df2['_X'] == -20) & (df2['_Y'] == 22), 'FacLoc'] = 'NDL'
     df2.loc[(df2['_X'] == -20) & (df2['_Y'] == -22), 'FacLoc'] = 'NDR'
+
+    df2.loc[((df2['_X'] <= 25) & (df2['_X'] >= -25)), 'FacLocFill'] = 'N'
+    df2.loc[df2['_X'] > 25, 'FacLocFill'] = 'O'
+    df2.loc[df2['_X'] < -25, 'FacLocFill'] = 'D'
+    df2.loc[:, 'FacLocFill'] = df2.FacLoc.fillna(df2.FacLocFill)
 
     df2.drop(['_X', '_Y', '_Period', '_Mult3', 'Direction'], axis=1, inplace=True)
 
