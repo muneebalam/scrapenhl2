@@ -586,13 +586,36 @@ def add_cfpct_ref_lines_to_plot(ax, refs=None):
             linewidth = 1
             linestyle = ':'
         ys = get_ca_from_cfpct(np.array(org_xlim), ref/100)
-        print(org_xlim)
-        print(ref)
-        print(ys)
-        ax.plot(org_xlim, ys,
+        ax.plot(org_xlim, ys, zorder=0.5,
                 lw=linewidth, color=color, ls=linestyle)
     ax.set_xlim(*org_xlim)
     ax.set_ylim(*org_ylim)
+
+
+def add_good_bad_fast_slow(margin=0.05):
+    """
+    Adds better, worse, faster, slower, to current matplotlib plot. CF60 should be on the x-axis and CA60 on the y-axis.
+    Also expands figure limits by margin (default 5%).
+
+    :param margin: expand figure limits by margin. Defaults to 5%.
+
+    :return: nothing
+    """
+
+    xmin, xmax = plt.gca().get_xlim()
+    ymin, ymax = plt.gca().get_ylim()
+
+    xdiff = xmax - xmin
+    ydiff = ymax - ymin
+
+    plt.gca().set_xlim(xmin - margin * xdiff, xmax + margin * xdiff)
+    plt.gca().set_ylim(ymin - margin * ydiff, ymax + margin * ydiff)
+
+    bbox_props = dict(boxstyle="round", fc="w", ec="0.5", alpha=0.9)
+    plt.annotate('Faster', xy=(0.95, 0.95), xycoords='axes fraction', bbox=bbox_props, ha='center', va='center')
+    plt.annotate('Slower', xy=(0.05, 0.05), xycoords='axes fraction', bbox=bbox_props, ha='center', va='center')
+    plt.annotate('Better', xy=(0.95, 0.05), xycoords='axes fraction', bbox=bbox_props, ha='center', va='center')
+    plt.annotate('Worse', xy=(0.05, 0.95), xycoords='axes fraction', bbox=bbox_props, ha='center', va='center')
 
 
 if __name__ == '__main__':

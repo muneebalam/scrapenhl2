@@ -32,34 +32,60 @@ def team_dpair_shot_rates_scatter(team, min_pair_toi=50, **kwargs):
 
     for name in xy.Name.unique():
         temp = xy.query('Name == "{0:s}"'.format(name))
+        if players.get_player_handedness(temp.PlayerID.iloc[0]) == 'L':
+            marker = '<'
+        else:
+            marker = '>'
         # TODO alpha or size based on TOI?
-        ax.scatter(temp.X.values, temp.Y.values, label=name, s=200, alpha=0.5)
+        ax.scatter(temp.X.values, temp.Y.values, label=name, s=300, alpha=0.5, marker=marker)
 
     ax.set_xlabel('CF60')
     ax.set_ylabel('CA60')
-    plt.legend(loc=2, fontsize=10, bbox_to_anchor=(1, 1))
+    plt.legend(loc='best', fontsize=10)
     vhelper.add_cfpct_ref_lines_to_plot(ax)
+    vhelper.add_good_bad_fast_slow()
 
     return vhelper.savefilehelper(**kwargs)
 
 
-def _add_xy_names_for_dpair_graph(df, delta=0.25):
+def _add_xy_names_for_dpair_graph(df, delta_small=0.25, delta_large=0.75):
     """
     X is CF60 and Y is CA60. Pushes PlayerID1 a little to the left and PlayerID2 a little to the right in X. Also
     adds player names.
 
     :param df: dataframe with CF60 and CA60. This df will be wide.
-    :param delta: amount to move by, in data coordinates
+    :param delta_small: amount to move by, in data coordinates, for LL and RR pairs
+    :param delta_large: amount to move by, in data coordinates, for LR pairs. Need two deltas because the plot is with
+        triangles and the triangles plot so that the vertex across from the short side, and not the center of the short
+        side, is at the xy specified.
 
     :return: dataframe with X and Y and names added on, melted version of original df
     """
+    df = df.assign(PairIndex=1)
+    df.loc[:, 'PairIndex'] = df.PairIndex.cumsum()
 
-    melted = helper.melt_helper(df[['PlayerID1', 'PlayerID2', 'CF60', 'CA60', 'TOI']],
-                                id_vars=['CF60', 'CA60', 'TOI'], var_name='P1P2', value_name='PlayerID')
+    melted = helper.melt_helper(df[['PlayerID1', 'PlayerID2', 'CF60', 'CA60', 'TOI', 'PairIndex']],
+                                id_vars=['CF60', 'CA60', 'TOI', 'PairIndex'], var_name='P1P2', value_name='PlayerID')
+
+    handedness = players.get_player_ids_file().query('Pos == "D"')[['ID', 'Hand']]
+    deltadf = df[['PlayerID1', 'PlayerID2', 'PairIndex']] \
+        .merge(handedness.rename(columns={'ID': 'PlayerID1', 'Hand': 'Hand1'}), how='left', on='PlayerID1') \
+        .merge(handedness.rename(columns={'ID': 'PlayerID2', 'Hand': 'Hand2'}), how='left', on='PlayerID2')
+    deltadf.loc[((deltadf.Hand1 == 'L') & (deltadf.Hand2 == 'R')), 'DeltaReq'] = delta_large
+    deltadf.loc[:, 'DeltaReq'] = deltadf.DeltaReq.fillna(delta_small)
+    deltadf = deltadf[['PairIndex', 'DeltaReq']]
+
+    melted = melted.merge(deltadf, how='left', on='PairIndex')
 
     melted.loc[:, 'Name'] = melted.PlayerID.apply(lambda x: players.player_as_str(x))
-    melted.loc[melted.P1P2 == 'PlayerID1', 'X'] = melted.loc[melted.P1P2 == 'PlayerID1', 'CF60'] - delta
-    melted.loc[melted.P1P2 == 'PlayerID2', 'X'] = melted.loc[melted.P1P2 == 'PlayerID2', 'CF60'] + delta
+
+    temp1 = melted[melted.P1P2 == 'PlayerID1']
+    temp2 = melted[melted.P1P2 == 'PlayerID2']
+
+    temp1.loc[:, 'X'] = temp1.CF60 - temp1.DeltaReq
+    temp2.loc[:, 'X'] = temp2.CF60 + temp2.DeltaReq
+
+    melted = pd.concat([temp1, temp2])
     melted.loc[:, 'Y'] = melted.CA60
 
     return melted
