@@ -96,7 +96,11 @@ def save_raw_pbp(page, season, game):
 
     :return: nothing
     """
-    page2 = zlib.compress(page.encode('latin-1'), level=9)
+    try:
+        page2 = zlib.compress(page.encode('latin-1'), level=9)
+    except TypeError:
+        # No level kwarg before Python 3.6
+        page2 = zlib.compress(page.encode('latin-1'))
     filename = get_game_raw_pbp_filename(season, game)
     w = open(filename, 'wb')
     w.write(page2)

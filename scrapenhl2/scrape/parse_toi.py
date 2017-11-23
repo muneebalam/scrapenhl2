@@ -124,6 +124,9 @@ def save_parsed_toi(toi, season, game):
 
     :return: nothing
     """
+    if toi is None:
+        print('None for TOI for', season, game)
+        return
     toi.to_hdf(get_game_parsed_toi_filename(season, game),
                key='T{0:d}0{1:d}'.format(season, game),
                mode='w', complib='zlib')
@@ -316,8 +319,13 @@ def _finish_toidf_manipulations(df, season, game):
         newdf.loc[:, col] = newdf[col].fillna(False)
 
     # Go wide to long and then drop unneeded rows
-    newdf = newdf.reset_index().melt(id_vars='Time', value_vars=newdf.columns,
-                                     var_name='PlayerID', value_name='OnIce')
+    try:
+        newdf = newdf.reset_index().melt(id_vars='Time', value_vars=newdf.columns,
+                                         var_name='PlayerID', value_name='OnIce')
+    except AttributeError:
+        # Earlier versions of pandas may only have pd.melt, not pd.DataFrame.melt
+        newdf = pd.melt(newdf.reset_index(), id_vars='Time', value_vars=list(newdf.columns),
+                        var_name='PlayerID', value_name='OnIce')
     newdf = newdf[newdf.OnIce].drop('OnIce', axis=1)
     newdf = newdf.merge(tempdf.drop('Time', axis=1), how='left', on='PlayerID') \
         .query("Time <= End & Time >= Start") \
@@ -413,12 +421,17 @@ def _finish_toidf_manipulations(df, season, game):
 
     # Home
     hdf = tempdf.query('Team == "' + home + '"').sort_values(['Time', 'Duration'], ascending=[True, False])
+    if len(hdf) == 0:
+        # Earlier versions of pandas can have diff behavior
+        hdf = tempdf.query('Team == ' + home).sort_values(['Time', 'Duration'], ascending=[True, False])
     hdf2 = hdf[['Time', 'Duration']].groupby('Time').rank(method='first', ascending=False)
     hdf2 = hdf2.rename(columns={'Duration': 'rank'})
     hdf2.loc[:, 'rank'] = hdf2['rank'].apply(lambda x: int(x))
     hdf.loc[:, 'rank'] = 'H' + hdf2['rank'].astype('str')
 
     rdf = tempdf.query('Team == "' + road + '"').sort_values(['Time', 'Duration'], ascending=[True, False])
+    if len(rdf) == 0:
+        rdf = tempdf.query('Team == ' + road).sort_values(['Time', 'Duration'], ascending=[True, False])
     rdf2 = rdf[['Time', 'Duration']].groupby('Time').rank(method='first', ascending=False)
     rdf2 = rdf2.rename(columns={'Duration': 'rank'})
     rdf2.loc[:, 'rank'] = rdf2['rank'].apply(lambda x: int(x))
