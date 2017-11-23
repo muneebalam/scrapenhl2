@@ -539,9 +539,60 @@ def parallel_coords_xy(dataframe, groupcol):
             xs[len(xs)] = col
             rev_xs[col] = len(xs) - 1
 
-    dataframe_long = dataframe.melt(id_vars=groupcol, var_name='variable', value_name='Y')
+    dataframe_long = helper.melt_helper(dataframe, id_vars=groupcol, var_name='variable', value_name='Y')
     dataframe_long.loc[:, 'X'] = dataframe_long.variable.apply(lambda x: rev_xs[x])
     return xs, dataframe_long
+
+def add_cfpct_ref_lines_to_plot(ax, refs=None):
+    """
+    Adds reference lines to specified axes. For example, it could add 50%, 55%, and 45% CF% lines.
+
+    50% has the largest width and is solid. 40%, 60%, etc will be dashed with medium width. Other numbers will be
+    dotted and have the lowest width.
+
+    :param ax: axes. CF should be on the X axis and CA on the Y axis.
+    :param refs: None, or a list of percentages (e.g. [45, 50, 55]). Defaults to every 5% from 35% to 65%
+
+    :return: nothing
+    """
+
+    org_xlim = ax.get_xlim()
+    org_ylim = ax.get_ylim()
+
+    smaller_min = min(org_xlim[0], org_ylim[0])
+    larger_max = max(org_xlim[1], org_ylim[1])
+
+    if refs is None:
+        refs = list(range(35, 66, 5))
+
+    # Convert these percentages into ratios
+    # i.e. instead of cf / (cf + ca), I want cf/ca
+    # cf / (cf + ca) = ref
+    # cf/ref = cf + ca
+    # ca = cf/ref - cf
+
+    def get_ca_from_cfpct(cf, cfpct):
+        return cf/cfpct - cf
+
+    for ref in refs:
+        color = 'lightgray'
+        if ref == 50:
+            linewidth = 3
+            linestyle = '-'
+        elif ref % 10 == 0:
+            linewidth = 2
+            linestyle = '--'
+        else:
+            linewidth = 1
+            linestyle = ':'
+        ys = get_ca_from_cfpct(np.array(org_xlim), ref/100)
+        print(org_xlim)
+        print(ref)
+        print(ys)
+        ax.plot(org_xlim, ys,
+                lw=linewidth, color=color, ls=linestyle)
+    ax.set_xlim(*org_xlim)
+    ax.set_ylim(*org_ylim)
 
 
 if __name__ == '__main__':

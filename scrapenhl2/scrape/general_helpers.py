@@ -368,3 +368,19 @@ def try_url_n_times(url, timeout=5, n=5):
             print(e)
             print('Could not access {0:s}; try {1:d} of {2:d}'.format(url, tries, n))
     return page
+
+def melt_helper(df, **kwargs):
+    """
+    Earlier versions of pandas do not support pd.DataFrame.melt. This helps to bridge the gap.
+    It first tries df.melt, and if that doesn't work, it uses pd.melt.
+
+    :param df: dataframe
+    :param kwargs: arguments to pd.melt or pd.DataFrame.melt.
+
+    :return: melted dataframe
+    """
+
+    try:
+        return df.melt(**kwargs)
+    except AttributeError:
+        return pd.melt(df, **kwargs)

@@ -319,12 +319,7 @@ def _finish_toidf_manipulations(df, season, game):
         newdf.loc[:, col] = newdf[col].fillna(False)
 
     # Go wide to long and then drop unneeded rows
-    try:
-        newdf = newdf.reset_index().melt(id_vars='Time', value_vars=newdf.columns,
-                                         var_name='PlayerID', value_name='OnIce')
-    except AttributeError:
-        # Earlier versions of pandas may only have pd.melt, not pd.DataFrame.melt
-        newdf = pd.melt(newdf.reset_index(), id_vars='Time', value_vars=list(newdf.columns),
+    helpers.melt_helper(newdf.reset_index(), id_vars='Time', value_vars=newdf.columns,
                         var_name='PlayerID', value_name='OnIce')
     newdf = newdf[newdf.OnIce].drop('OnIce', axis=1)
     newdf = newdf.merge(tempdf.drop('Time', axis=1), how='left', on='PlayerID') \

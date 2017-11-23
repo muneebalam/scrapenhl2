@@ -63,7 +63,7 @@ def get_season_schedule(season):
 def get_team_schedule(season=None, team=None, startdate=None, enddate=None):
     """
     Gets the schedule for given team in given season. Or if startdate and enddate are specified, searches between
-    those dates.
+    those dates. If season and startdate (and/or enddate) are specified, searches that season between those dates.
 
     :param season: int, the season
     :param team: int or str, the team
@@ -72,6 +72,15 @@ def get_team_schedule(season=None, team=None, startdate=None, enddate=None):
 
     :return: dataframe
     """
+    # TODO handle case when only team and startdate, or only team and enddate, are given
+    if season is not None:
+        df = get_season_schedule(season).query('Status != "Scheduled"')
+        if startdate is not None:
+            df = df.query('Date >= "{0:s}"'.format(startdate))
+        if enddate is not None:
+            df = df.query('Date <= "{0:s}"'.format(enddate))
+        tid = team_info.team_as_id(team)
+        return df[(df.Home == tid) | (df.Road == tid)]
     if startdate is not None and enddate is not None:
         dflst = []
         startseason = helpers.infer_season_from_date(startdate)
@@ -87,22 +96,22 @@ def get_team_schedule(season=None, team=None, startdate=None, enddate=None):
             dflst.append(df)
         df = pd.concat(dflst)
         return df
-    else:
-        df = get_season_schedule(season).query('Status != "Scheduled"')
-        tid = team_info.team_as_id(team)
-        return df[(df.Home == tid) | (df.Road == tid)]
 
 
-def get_team_games(season, team):
+def get_team_games(season=None, team=None, startdate=None, enddate=None):
     """
     Returns list of games played by team in season.
 
+    Just calls get_team_schedule with the provided arguments, returning the series of games from that dataframe.
+
     :param season: int, the season
     :param team: int or str, the team
+    :param startdate: str or None
+    :param enddate: str or None
 
     :return: series of games
     """
-    return get_team_schedule(season, team).Game
+    return get_team_schedule(season, team, startdate, enddate).Game
 
 
 def _get_season_schedule(season):
