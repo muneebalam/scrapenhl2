@@ -1302,43 +1302,51 @@ def get_pairings(season, game, homeroad='H'):
     return counts
 
 
-def get_game_h2h_toi(season, game):
+def get_game_h2h_toi(season, games):
     """
     This method gets H2H TOI at 5v5 for the given game.
 
     :param season: int, the season
-    :param game: int, the game
+    :param games: int, the game, or list of int, the games
 
     :return: a df with [P1, P1Team, P2, P2Team, TOI]. Entries will be duplicated (one with given P as P1, another as P2)
     """
     # TODO add strength arg
-    toi = parse_toi.get_parsed_toi(season, game)
-    fives = toi[(toi.HomeStrength == "5") & (toi.RoadStrength == "5")]
-    home = fives[['Time', 'H1', 'H2', 'H3', 'H4', 'H5']] \
-        .melt(id_vars='Time', var_name='P', value_name='PlayerID') \
-        .drop('P', axis=1) \
-        .assign(Team='H')
-    road = fives[['Time', 'R1', 'R2', 'R3', 'R4', 'R5']] \
-        .melt(id_vars='Time', var_name='P', value_name='PlayerID') \
-        .drop('P', axis=1) \
-        .assign(Team='R')
+    if helpers.check_number(games):
+        games = [games]
+    dflst = []
+    for game in games:
+        toi = parse_toi.get_parsed_toi(season, game)
+        fives = toi[(toi.HomeStrength == "5") & (toi.RoadStrength == "5")]
+        home = fives[['Time', 'H1', 'H2', 'H3', 'H4', 'H5']] \
+            .melt(id_vars='Time', var_name='P', value_name='PlayerID') \
+            .drop('P', axis=1) \
+            .assign(Team='H')
+        road = fives[['Time', 'R1', 'R2', 'R3', 'R4', 'R5']] \
+            .melt(id_vars='Time', var_name='P', value_name='PlayerID') \
+            .drop('P', axis=1) \
+            .assign(Team='R')
 
-    hh = home.merge(home, how='inner', on='Time', suffixes=['1', '2'])
-    hr = home.merge(road, how='inner', on='Time', suffixes=['1', '2'])
-    rh = road.merge(home, how='inner', on='Time', suffixes=['1', '2'])
-    rr = road.merge(road, how='inner', on='Time', suffixes=['1', '2'])
+        hh = home.merge(home, how='inner', on='Time', suffixes=['1', '2'])
+        hr = home.merge(road, how='inner', on='Time', suffixes=['1', '2'])
+        rh = road.merge(home, how='inner', on='Time', suffixes=['1', '2'])
+        rr = road.merge(road, how='inner', on='Time', suffixes=['1', '2'])
 
-    pairs = pd.concat([hh, hr, rh, rr]) \
-        .assign(Secs=1) \
-        .drop('Time', axis=1) \
-        .groupby(['PlayerID1', 'PlayerID2', 'Team1', 'Team2']).count().reset_index()
+        pairs = pd.concat([hh, hr, rh, rr]) \
+            .assign(Secs=1) \
+            .drop('Time', axis=1) \
+            .groupby(['PlayerID1', 'PlayerID2', 'Team1', 'Team2']).count().reset_index()
 
-    # One last to-do: make sure I have all possible pairs of players covered
+        # One last to-do: make sure I have all possible pairs of players covered
 
-    allpairs = convert_to_all_combos(pairs, 0, ('PlayerID1', 'Team1'), ('PlayerID2', 'Team2'))
+        allpairs = convert_to_all_combos(pairs, 0, ('PlayerID1', 'Team1'), ('PlayerID2', 'Team2'))
 
-    allpairs.loc[:, 'Min'] = allpairs.Secs / 60
-    return allpairs
+        allpairs.loc[:, 'Min'] = allpairs.Secs / 60
+        if len(games) > 1:
+            allpairs = allpairs.assign(Game=game)
+        dflst.append(allpairs)
+    return pd.concat(dflst)
+
 
 
 def filter_for_event_types(pbp, eventtype):
@@ -1420,53 +1428,61 @@ def filter_for_corsi(pbp):
     return filter_for_event_types(pbp, {'Goal', 'Shot', 'Missed Shot', 'Blocked Shot'})
 
 
-def get_game_h2h_corsi(season, game):
+def get_game_h2h_corsi(season, games):
     """
-    This method gets H2H Corsi at 5v5 for the given game.
+    This method gets H2H Corsi at 5v5 for the given game(s).
 
     :param season: int, the season
-    :param game: int, the game
+    :param games: int, the game, or list of int, the games
 
     :return: a df with [P1, P1Team, P2, P2Team, CF, CA, C+/-]. Entries will be duplicated, as with get_game_h2h_toi.
     """
     # TODO add strength arg
-    toi = parse_toi.get_parsed_toi(season, game)
-    pbp = parse_pbp.get_parsed_pbp(season, game)
-    # toi.to_csv('/Users/muneebalam/Desktop/toi.csv')
-    # pbp.to_csv('/Users/muneebalam/Desktop/pbp.csv')
-    # pbp.loc[:, 'Event'] = pbp.Event.apply(lambda x: ss.convert_event(x))
-    pbp = pbp[['Time', 'Event', 'Team']] \
-        .merge(toi[['Time', 'R1', 'R2', 'R3', 'R4', 'R5', 'H1', 'H2', 'H3', 'H4', 'H5',
-                    'HomeStrength', 'RoadStrength']], how='inner', on='Time')
-    corsi = filter_for_five_on_five(filter_for_corsi(pbp)).drop(['HomeStrength', 'RoadStrength'], axis=1)
+    if helpers.check_number(games):
+        games = [games]
 
-    hometeam = schedules.get_home_team(season, game)
-    # Add HomeCorsi which will be 1 or -1. Need to separate out blocks because they're credited to defending team
-    # Never mind, switched block attribution at time of parsing, so we're good now
-    corsi.loc[:, 'HomeCorsi'] = corsi.Team.apply(lambda x: 1 if x == hometeam else -1)
+    dflst = []
+    for game in games:
+        toi = parse_toi.get_parsed_toi(season, game)
+        pbp = parse_pbp.get_parsed_pbp(season, game)
+        # toi.to_csv('/Users/muneebalam/Desktop/toi.csv')
+        # pbp.to_csv('/Users/muneebalam/Desktop/pbp.csv')
+        # pbp.loc[:, 'Event'] = pbp.Event.apply(lambda x: ss.convert_event(x))
+        pbp = pbp[['Time', 'Event', 'Team']] \
+            .merge(toi[['Time', 'R1', 'R2', 'R3', 'R4', 'R5', 'H1', 'H2', 'H3', 'H4', 'H5',
+                        'HomeStrength', 'RoadStrength']], how='inner', on='Time')
+        corsi = filter_for_five_on_five(filter_for_corsi(pbp)).drop(['HomeStrength', 'RoadStrength'], axis=1)
 
-    corsipm = corsi[['Time', 'HomeCorsi']]
+        hometeam = schedules.get_home_team(season, game)
+        # Add HomeCorsi which will be 1 or -1. Need to separate out blocks because they're credited to defending team
+        # Never mind, switched block attribution at time of parsing, so we're good now
+        corsi.loc[:, 'HomeCorsi'] = corsi.Team.apply(lambda x: 1 if x == hometeam else -1)
 
-    home = corsi[['Time', 'H1', 'H2', 'H3', 'H4', 'H5']] \
-        .melt(id_vars='Time', var_name='P', value_name='PlayerID') \
-        .drop('P', axis=1) \
-        .drop_duplicates()
-    road = corsi[['Time', 'R1', 'R2', 'R3', 'R4', 'R5']] \
-        .melt(id_vars='Time', var_name='P', value_name='PlayerID') \
-        .drop('P', axis=1)
+        corsipm = corsi[['Time', 'HomeCorsi']]
 
-    hh = home.merge(home.drop_duplicates(), how='inner', on='Time', suffixes=['1', '2']).assign(Team1='H', Team2='H')
-    hr = home.merge(road.drop_duplicates(), how='inner', on='Time', suffixes=['1', '2']).assign(Team1='H', Team2='R')
-    rh = road.merge(home.drop_duplicates(), how='inner', on='Time', suffixes=['1', '2']).assign(Team1='R', Team2='H')
-    rr = road.merge(road.drop_duplicates(), how='inner', on='Time', suffixes=['1', '2']).assign(Team1='R', Team2='R')
+        home = corsi[['Time', 'H1', 'H2', 'H3', 'H4', 'H5']] \
+            .melt(id_vars='Time', var_name='P', value_name='PlayerID') \
+            .drop('P', axis=1) \
+            .drop_duplicates()
+        road = corsi[['Time', 'R1', 'R2', 'R3', 'R4', 'R5']] \
+            .melt(id_vars='Time', var_name='P', value_name='PlayerID') \
+            .drop('P', axis=1)
 
-    pairs = pd.concat([hh, hr, rh, rr]) \
-        .merge(corsipm, how='inner', on='Time') \
-        .drop('Time', axis=1) \
-        .groupby(['PlayerID1', 'PlayerID2', 'Team1', 'Team2']).sum().reset_index()
-    pairs.loc[pairs.Team1 == 'R', 'HomeCorsi'] = pairs.loc[pairs.Team1 == 'R', 'HomeCorsi'] * -1
-    allpairs = convert_to_all_combos(pairs, 0, ('PlayerID1', 'Team1'), ('PlayerID2', 'Team2'))
-    return allpairs
+        hh = home.merge(home.drop_duplicates(), how='inner', on='Time', suffixes=['1', '2']).assign(Team1='H', Team2='H')
+        hr = home.merge(road.drop_duplicates(), how='inner', on='Time', suffixes=['1', '2']).assign(Team1='H', Team2='R')
+        rh = road.merge(home.drop_duplicates(), how='inner', on='Time', suffixes=['1', '2']).assign(Team1='R', Team2='H')
+        rr = road.merge(road.drop_duplicates(), how='inner', on='Time', suffixes=['1', '2']).assign(Team1='R', Team2='R')
+
+        pairs = pd.concat([hh, hr, rh, rr]) \
+            .merge(corsipm, how='inner', on='Time') \
+            .drop('Time', axis=1) \
+            .groupby(['PlayerID1', 'PlayerID2', 'Team1', 'Team2']).sum().reset_index()
+        pairs.loc[pairs.Team1 == 'R', 'HomeCorsi'] = pairs.loc[pairs.Team1 == 'R', 'HomeCorsi'] * -1
+        allpairs = convert_to_all_combos(pairs, 0, ('PlayerID1', 'Team1'), ('PlayerID2', 'Team2'))
+        if len(games) > 1:
+            allpairs = allpairs.assign(Game=game)
+        dflst.append(allpairs)
+    return pd.concat(dflst)
 
 
 def time_to_mss(sectime):
