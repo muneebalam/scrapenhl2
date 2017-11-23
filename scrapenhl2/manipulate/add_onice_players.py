@@ -175,6 +175,7 @@ def _read_tracking_file(fname):
         print('Did not recognize extension for', fname)
 
 if __name__ == '__main__':
-    file = '/Users/muneebalam/Downloads/STL and COL.csv'
-    add_players_to_file(file, 'PHI', 2017, time_format='remaining')
+    from scrapenhl2.scrape.autoupdate import autoupdate
+    autoupdate()
+    #add_players_to_file('/Users/muneebalam/Downloads/MIN games.csv', 'PHI', time_format='remaining')
 
