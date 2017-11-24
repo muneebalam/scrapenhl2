@@ -595,7 +595,8 @@ def add_cfpct_ref_lines_to_plot(ax, refs=None):
 def add_good_bad_fast_slow(margin=0.05):
     """
     Adds better, worse, faster, slower, to current matplotlib plot. CF60 should be on the x-axis and CA60 on the y-axis.
-    Also expands figure limits by margin (default 5%).
+    Also expands figure limits by margin (default 5%). That means you should use this before using, say,
+    add_cfpct_ref_lines_to_plot.
 
     :param margin: expand figure limits by margin. Defaults to 5%.
 

@@ -6,4 +6,6 @@ __all__ = ['game_h2h',
            'team_score_state_toi',
            'team_lineup_cf',
            'rolling_boxcars',
-           'label_lines']
+           'label_lines',
+           'defense_pairs',
+           'team_score_shot_rate']

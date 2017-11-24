@@ -72,13 +72,19 @@ Corsi timeline
 Methods (teams)
 ----------------
 
-Team TOI by score state
-~~~~~~~~~~~~~~~~~~~~~~~~
+Team TOI by score
+~~~~~~~~~~~~~~~~~
 .. image:: _static/Score_states_2015.png
    :width: 50%
    :align: right
 
 .. automodule:: scrapenhl2.plot.team_score_state_toi
+   :members:
+
+Team shot rate by score
+~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: scrapenhl2.plot.team_score_shot_rate
    :members:
 
 Team lineup CF%
@@ -125,6 +131,12 @@ Player rolling boxcars
 
 Methods (individual comparisons)
 ---------------------------------
+
+Team D-pair shot rates
+~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: scrapenhl2.plot.defense_pairs
+   :members:
 
 Usage
 ~~~~~~
