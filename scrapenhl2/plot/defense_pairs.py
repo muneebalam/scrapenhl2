@@ -20,6 +20,7 @@ def team_dpair_shot_rates_scatter(team, min_pair_toi=50, **kwargs):
     """
 
     kwargs['team'] = team
+
     startdate, enddate = vhelper.get_startdate_enddate_from_kwargs(**kwargs)
     rates = get_dpair_shot_rates(team, startdate, enddate)
 
@@ -37,13 +38,15 @@ def team_dpair_shot_rates_scatter(team, min_pair_toi=50, **kwargs):
         else:
             marker = '>'
         # TODO alpha or size based on TOI?
-        ax.scatter(temp.X.values, temp.Y.values, label=name, s=300, alpha=0.5, marker=marker)
+        ax.scatter(temp.X.values, temp.Y.values, label=name, alpha=0.5, marker=marker, s=200)
 
     ax.set_xlabel('CF60')
     ax.set_ylabel('CA60')
     plt.legend(loc='best', fontsize=10)
-    vhelper.add_cfpct_ref_lines_to_plot(ax)
     vhelper.add_good_bad_fast_slow()
+    vhelper.add_cfpct_ref_lines_to_plot(ax)
+
+    ax.set_title(', '.join(vhelper.generic_5v5_log_graph_title('D pair shot rates', **kwargs)))
 
     return vhelper.savefilehelper(**kwargs)
 
