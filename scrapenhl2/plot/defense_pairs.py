@@ -12,10 +12,12 @@ import scrapenhl2.manipulate.manipulate as manip
 
 def team_dpair_shot_rates_scatter(team, min_pair_toi=50, **kwargs):
     """
+    Creates a scatterplot of team defense pair
 
-    :param team:
+    :param team: int or str, team
     :param min_pair_toi: int, number of minutes for pair to qualify
-    :param kwargs:
+    :param kwargs: Use season- or date-range-related kwargs only.
+
     :return:
     """
 
