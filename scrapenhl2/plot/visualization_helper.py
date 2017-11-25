@@ -27,11 +27,11 @@ def format_number_with_plus(stringnum):
         return '+' + str(stringnum)
 
 
-def hex_to_rgb(value):
+def hex_to_rgb(value, maxval=256):
     """Return (red, green, blue) for the hex color given as #rrggbb."""
     value = value.lstrip('#')
     lv = len(value)
-    return tuple(int(value[i:i + lv // 3], 16) for i in range(0, lv, lv // 3))
+    return tuple(int(value[i:i + lv // 3], 16)/256*maxval for i in range(0, lv, lv // 3))
 
 
 def rgb_to_hex(red, green, blue):

@@ -4,6 +4,7 @@ This module contains methods for creating a scatterplot of team defense pair sho
 
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib.colors as mplc
 
 import scrapenhl2.plot.visualization_helper as vhelper
 from scrapenhl2.scrape import schedules, team_info, teams, players
@@ -12,7 +13,7 @@ import scrapenhl2.manipulate.manipulate as manip
 
 def team_dpair_shot_rates_scatter(team, min_pair_toi=50, **kwargs):
     """
-    Creates a scatterplot of team defense pair
+    Creates a scatterplot of team defense pair shot attempr rates.
 
     :param team: int or str, team
     :param min_pair_toi: int, number of minutes for pair to qualify
@@ -25,22 +26,38 @@ def team_dpair_shot_rates_scatter(team, min_pair_toi=50, **kwargs):
 
     startdate, enddate = vhelper.get_startdate_enddate_from_kwargs(**kwargs)
     rates = get_dpair_shot_rates(team, startdate, enddate)
-
     pairs = drop_duplicate_pairs(rates).query('TOI >= {0:d}'.format(60 * min_pair_toi))
-
     xy = _add_xy_names_for_dpair_graph(pairs)
 
     fig = plt.figure(figsize=[8, 6])
     ax = plt.gca()
 
+    xy = _get_point_sizes_for_dpair_scatter(xy)
+    xy = _get_colors_for_dpair_scatter(xy)
+
+    # First plot players on their own
     for name in xy.Name.unique():
-        temp = xy.query('Name == "{0:s}"'.format(name))
+        # Get first two rows, which are this player adjusted a bit. Take average
+        temp = xy.query('Name == "{0:s}"'.format(name)).sort_values('TOI', ascending=False) \
+            .iloc[:2, :] \
+            .groupby(['Name', 'PlayerID', 'Color'], as_index=False).mean()
         if players.get_player_handedness(temp.PlayerID.iloc[0]) == 'L':
             marker = '<'
         else:
             marker = '>'
-        # TODO alpha or size based on TOI?
-        ax.scatter(temp.X.values, temp.Y.values, label=name, alpha=0.5, marker=marker, s=200)
+        ax.scatter(temp.X.values, temp.Y.values, label=name, marker=marker,
+                   s=temp.Size.values, c=temp.Color.values)
+
+    # Now plot pairs
+    for name in xy.Name.unique():
+        temp = xy.query('Name == "{0:s}"'.format(name)).sort_values('TOI', ascending=False).iloc[2:, :]
+        if len(temp) == 0:
+            continue
+        if players.get_player_handedness(temp.PlayerID.iloc[0]) == 'L':
+            marker = '<'
+        else:
+            marker = '>'
+        ax.scatter(temp.X.values, temp.Y.values, marker=marker, s=temp.Size.values, c=temp.Color.values)
 
     ax.set_xlabel('CF60')
     ax.set_ylabel('CA60')
@@ -51,6 +68,48 @@ def team_dpair_shot_rates_scatter(team, min_pair_toi=50, **kwargs):
     ax.set_title(', '.join(vhelper.generic_5v5_log_graph_title('D pair shot rates', **kwargs)))
 
     return vhelper.savefilehelper(**kwargs)
+
+
+def _get_colors_for_dpair_scatter(df):
+    """
+    A helper method that scales scatterpoint alphas corresponding to TOI column. The largest point gets an alpha of 0.9;
+    others get smaller linearly. Follows current matplotlib color cycle, turning RGB into RGBA.
+
+    :param df: dataframe with TOI column
+
+    :return: df with an extra column Color.
+    """
+
+    largest = df.TOI.max()
+
+    color_cycle = plt.rcParams['axes.prop_cycle'].by_key()['color']
+
+    def get_adjusted_color(base, largesttoi, thistoi):
+        newcolor = mplc.to_rgba(base, alpha=thistoi / largesttoi * 0.9)
+        return newcolor
+
+    dflst = []
+    for i, name in enumerate(df.Name.unique()):
+        color = vhelper.hex_to_rgb(color_cycle[i], maxval=1)
+        temp = df.query('Name == "{0:s}"'.format(name))
+        temp.loc[:, 'Color'] = temp.TOI.apply(lambda x: get_adjusted_color(color, largest, x))
+        dflst.append(temp)
+    return pd.concat(dflst)
+
+
+def _get_point_sizes_for_dpair_scatter(df):
+    """
+    A helper method that scales scatterpoint sizes corresponding to TOI column. The largest point gets a size of 200;
+    others get smaller linearly.
+
+    :param df: dataframe with TOI column
+
+    :return: df with an extra column Size that can be used in matplotlib as the kwarg 's'
+    """
+
+    largest = df.TOI.max()
+    df.loc[:, 'Size'] = df.TOI / largest * 200
+    return df
 
 
 def _add_xy_names_for_dpair_graph(df, delta_small=0.25, delta_large=0.75):
