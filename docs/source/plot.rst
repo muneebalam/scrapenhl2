@@ -52,7 +52,7 @@ Methods (games)
 -----------------
 
 Game H2H
-~~~~~~~~~~~
+~~~~~~~~
 .. image:: _static/WSH-TOR_G6.png
    :width: 50%
    :align: right
@@ -61,7 +61,7 @@ Game H2H
    :members:
 
 Corsi timeline
-~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~
 .. image:: _static/WSH-TOR_G6_timeline.png
    :width: 50%
    :align: right
@@ -70,7 +70,7 @@ Corsi timeline
    :members:
 
 Methods (teams)
-----------------
+---------------
 
 Team TOI by score
 ~~~~~~~~~~~~~~~~~
@@ -81,14 +81,8 @@ Team TOI by score
 .. automodule:: scrapenhl2.plot.team_score_state_toi
    :members:
 
-Team shot rate by score
-~~~~~~~~~~~~~~~~~~~~~~~
-
-.. automodule:: scrapenhl2.plot.team_score_shot_rate
-   :members:
-
 Team lineup CF%
-~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~
 .. image:: _static/Caps_lineup_cf.png
    :width: 50%
    :align: right
@@ -97,7 +91,7 @@ Team lineup CF%
    :members:
 
 Team shot rates by score
-~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. image:: _static/Caps_shot_score_parallel.png
    :width: 49%
@@ -112,7 +106,7 @@ Methods (individuals)
 ----------------------
 
 Player rolling CF and GF
-~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~
 .. image:: _static/Ovechkin_rolling_cf.png
    :width: 50%
    :align: right
@@ -130,21 +124,25 @@ Player rolling boxcars
    :members:
 
 Methods (individual comparisons)
----------------------------------
+--------------------------------
 
 Team D-pair shot rates
-~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~
+
+.. image:: _static/Caps_d_pairs.png
+   :width: 50%
+   :align: right
 
 .. automodule:: scrapenhl2.plot.defense_pairs
    :members:
 
 Usage
-~~~~~~
+~~~~~
 .. automodule:: scrapenhl2.plot.usage
    :members:
 
 Helper methods
----------------
+--------------
 
 .. automodule:: scrapenhl2.plot.visualization_helper
    :members:
