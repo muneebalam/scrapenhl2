@@ -363,7 +363,7 @@ def try_url_n_times(url, timeout=5, n=5):
                 print('HTTP error with', url, httpe, httpe.args)
         except requests.exceptions.ReadTimeout as rt:
             print(rt)
-            print('Failed on {} try on url {}'.format(tries, url))
+            print('Failed on try {} on url {}'.format(tries, url))
         except Exception as e:  # timeout
             print(e)
             print('Could not access {0:s}; try {1:d} of {2:d}'.format(url, tries, n))
