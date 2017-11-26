@@ -222,9 +222,8 @@ def _goal_times_to_scatter_for_timeline(goal_times, cfdf):
     cumgoals = 0
     for i in range(len(goal_times)):
         cumgoals += 1
-        cf_at_time = cfdf[cfdf.Time - 1 <= goal_times[i]]
-        cf_at_time = cf_at_time.sort_values('Time', ascending=False).CumCF.iloc[0]
-        # cf_at_time = cfdf[cfdf.Time == goal_times[i]].CumCF.iloc[0]  # if I use float times need filter etc
+        cf_at_time = cfdf[cfdf.Time == round(goal_times[i])]
+        cf_at_time = cf_at_time.CumCF.max()
         for j in range(cumgoals):
             goal_xs.append(goal_times[i])
             goal_ys.append(cf_at_time + j)
@@ -311,8 +310,6 @@ def _get_cf_for_timeline(season, game, homeroad, granularity='min'):
     df.loc[:, 'CF'] = df.CF.fillna(0)
     df.loc[:, 'CumCF'] = df.CF.cumsum()
 
-    df.drop('CF', axis=1, inplace=True)
-
     # Now let's shift things down. Right now a shot at 30 secs will mean Time = 0 has CumCF = 1.
 
     if granularity == 'min':
@@ -320,8 +317,16 @@ def _get_cf_for_timeline(season, game, homeroad, granularity='min'):
         df = df.groupby('Time').max().reset_index()
 
     # I want it soccer style, so Time = 0 always has CumCF = 0, and that first shot at 30sec will register for Time=1
-    df = pd.concat([pd.DataFrame({'Time': [-1], 'CumCF': [0]}), df])
+    df = pd.concat([pd.DataFrame({'Time': [-1], 'CumCF': [0], 'CF': [0]}), df])
     df.loc[:, 'Time'] = df.Time + 1
+
+    # For every shot, want to plot a point as if that shot hadn't happened, and then one where it did
+    # So every segment of chart has either slope 0 or infinite
+    #shot_mins = df.query('CF > 0')
+    #shot_mins.loc[:, 'CumCF'] = shot_mins.CumCF - shot_mins.CF
+    #df = pd.concat([df, shot_mins]).sort_values(['Time', 'CumCF'])
+
+    df = df.drop('CF', axis=1)
 
     return df
 
