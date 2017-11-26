@@ -617,11 +617,3 @@ def add_good_bad_fast_slow(margin=0.05):
     plt.annotate('Slower', xy=(0.05, 0.05), xycoords='axes fraction', bbox=bbox_props, ha='center', va='center')
     plt.annotate('Better', xy=(0.95, 0.05), xycoords='axes fraction', bbox=bbox_props, ha='center', va='center')
     plt.annotate('Worse', xy=(0.05, 0.95), xycoords='axes fraction', bbox=bbox_props, ha='center', va='center')
-
-
-if __name__ == '__main__':
-    import matplotlib.pyplot as plt
-    from scrapenhl2.plot import game_timeline as gt
-    from scrapenhl2.plot import game_h2h as gh
-    gt.live_timeline('WSH', 'MIN', False)
-    gh.live_h2h('WSH', 'MIN', False)

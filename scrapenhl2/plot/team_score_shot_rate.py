@@ -176,8 +176,3 @@ def _calculate_label_rotation(startx, starty, endx, endy):
     :return: rotation angle.
     """
     return math.degrees(math.atan((endy - starty)/(endx - startx)))
-
-
-if __name__ == '__main__':
-    team_score_shot_rate_parallel('WSH', 2015, 2016,
-                                  save_file='/Users/muneebalam/PycharmProjects/scrapenhl2/docs/source/_static/Caps_shot_score_parallel.png')

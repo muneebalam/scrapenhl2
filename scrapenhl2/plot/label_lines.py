@@ -6,8 +6,8 @@ It adds labels for lines on the lines themselves.
 from math import atan2,degrees
 import numpy as np
 
-# Label line with line2D label data
 def labelLine(line, x, label=None, align=True, **kwargs):
+    """Labels line with line2D label data"""
 
     ax = line.get_axes()
     xdata = line.get_xdata()
@@ -65,6 +65,7 @@ def labelLine(line, x, label=None, align=True, **kwargs):
 
 
 def labelLines(lines, align=True, xvals=None, **kwargs):
+    """Labels lines in a line graph"""
 
     ax = lines[0].get_axes()
     labLines = []
