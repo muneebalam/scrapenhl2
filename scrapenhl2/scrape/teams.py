@@ -106,21 +106,29 @@ def get_team_toi_filename(season, team):
                         "{0:s}.feather".format(team_info.team_as_str(team, abbreviation=True)))
 
 
-def update_team_logs(season, force_overwrite=False):
+def update_team_logs(season, force_overwrite=False, force_games=None):
     """
     This method looks at the schedule for the given season and writes pbp for scraped games to file.
     It also adds the strength at each pbp event to the log.
 
     :param season: int, the season
     :param force_overwrite: bool, whether to generate from scratch
+    :param force_games: None or iterable of games to force_overwrite specifically
 
     :return: nothing
     """
 
     # For each team
 
-    new_games_to_do = schedules.get_season_schedule(season).query('Status == "Final"')
-    new_games_to_do = new_games_to_do[(new_games_to_do.Game >= 20001) & (new_games_to_do.Game <= 30417)]
+    sch = schedules.get_season_schedule(season).query('Status == "Final"')
+    new_games_to_do = sch[(sch.Game >= 20001) & (sch.Game <= 30417)]
+
+    if force_games is not None:
+        new_games_to_do = pd.concat([new_games_to_do,
+                                     sch.merge(pd.DataFrame({'Game': list(force_games)}),
+                                               how='inner', on='Game')]) \
+            .sort_values('Game')
+
     allteams = sorted(list(new_games_to_do.Home.append(new_games_to_do.Road).unique()))
 
     for teami, team in enumerate(allteams):
