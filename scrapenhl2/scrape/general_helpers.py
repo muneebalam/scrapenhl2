@@ -384,3 +384,19 @@ def melt_helper(df, **kwargs):
         return df.melt(**kwargs)
     except AttributeError:
         return pd.melt(df, **kwargs)
+
+
+def anti_join(df1, df2, **kwargs):
+    """
+    Anti-joins two dataframes.
+
+    :param df1: dataframe
+    :param df2: dataframe
+    :param kwargs: keyword arguments as passed to pd.DataFrame.merge (except for 'how'). Specifically, need join keys.
+
+    :return: dataframe
+    """
+
+    return df1.merge(df2, how='left', indicator=True, **kwargs) \
+        .query('_merge != "both"') \
+        .drop('_merge', axis=1)

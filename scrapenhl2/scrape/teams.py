@@ -8,11 +8,7 @@ import feather
 import pandas as pd
 import pyarrow
 
-import scrapenhl2.scrape.organization as organization
-import scrapenhl2.scrape.parse_pbp as parse_pbp
-import scrapenhl2.scrape.parse_toi as parse_toi
-import scrapenhl2.scrape.schedules as schedules
-import scrapenhl2.scrape.team_info as team_info
+from scrapenhl2.scrape import organization, parse_pbp, parse_toi, schedules, team_info, general_helpers as helpers
 
 
 def get_team_pbp(season, team):
@@ -143,6 +139,8 @@ def update_team_logs(season, force_overwrite=False, force_games=None):
             # Read currently existing ones for each team and anti join to schedule to find missing games
             try:
                 pbpdf = get_team_pbp(season, team)
+                if force_games is not None:
+                    pbpdf = helpers.anti_join(pbpdf, pd.DataFrame({'Game': list(force_games)}), on='Game')
                 newgames = newgames.merge(pbpdf[['Game']].drop_duplicates(), how='outer', on='Game', indicator=True)
                 newgames = newgames[newgames._merge == "left_only"].drop('_merge', axis=1)
             except FileNotFoundError:
@@ -152,6 +150,8 @@ def update_team_logs(season, force_overwrite=False, force_games=None):
 
             try:
                 toidf = get_team_toi(season, team)
+                if force_games is not None:
+                    toidf = helpers.anti_join(toidf, pd.DataFrame({'Game': list(force_games)}), on='Game')
             except FileNotFoundError:
                 toidf = None
             except pyarrow.lib.ArrowIOError:  # pyarrow (feather) FileNotFoundError equivalent
