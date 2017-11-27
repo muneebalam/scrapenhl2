@@ -27,11 +27,11 @@ def format_number_with_plus(stringnum):
         return '+' + str(stringnum)
 
 
-def hex_to_rgb(value):
+def hex_to_rgb(value, maxval=256):
     """Return (red, green, blue) for the hex color given as #rrggbb."""
     value = value.lstrip('#')
     lv = len(value)
-    return tuple(int(value[i:i + lv // 3], 16) for i in range(0, lv, lv // 3))
+    return tuple(int(value[i:i + lv // 3], 16)/256*maxval for i in range(0, lv, lv // 3))
 
 
 def rgb_to_hex(red, green, blue):
@@ -539,14 +539,81 @@ def parallel_coords_xy(dataframe, groupcol):
             xs[len(xs)] = col
             rev_xs[col] = len(xs) - 1
 
-    dataframe_long = dataframe.melt(id_vars=groupcol, var_name='variable', value_name='Y')
+    dataframe_long = helper.melt_helper(dataframe, id_vars=groupcol, var_name='variable', value_name='Y')
     dataframe_long.loc[:, 'X'] = dataframe_long.variable.apply(lambda x: rev_xs[x])
     return xs, dataframe_long
 
+def add_cfpct_ref_lines_to_plot(ax, refs=None):
+    """
+    Adds reference lines to specified axes. For example, it could add 50%, 55%, and 45% CF% lines.
 
-if __name__ == '__main__':
-    import matplotlib.pyplot as plt
-    from scrapenhl2.plot import game_timeline as gt
-    from scrapenhl2.plot import game_h2h as gh
-    gt.live_timeline('WSH', 'MIN', False)
-    gh.live_h2h('WSH', 'MIN', False)
+    50% has the largest width and is solid. 40%, 60%, etc will be dashed with medium width. Other numbers will be
+    dotted and have the lowest width.
+
+    :param ax: axes. CF should be on the X axis and CA on the Y axis.
+    :param refs: None, or a list of percentages (e.g. [45, 50, 55]). Defaults to every 5% from 35% to 65%
+
+    :return: nothing
+    """
+
+    org_xlim = ax.get_xlim()
+    org_ylim = ax.get_ylim()
+
+    smaller_min = min(org_xlim[0], org_ylim[0])
+    larger_max = max(org_xlim[1], org_ylim[1])
+
+    if refs is None:
+        refs = list(range(35, 66, 5))
+
+    # Convert these percentages into ratios
+    # i.e. instead of cf / (cf + ca), I want cf/ca
+    # cf / (cf + ca) = ref
+    # cf/ref = cf + ca
+    # ca = cf/ref - cf
+
+    def get_ca_from_cfpct(cf, cfpct):
+        return cf/cfpct - cf
+
+    for ref in refs:
+        color = 'lightgray'
+        if ref == 50:
+            linewidth = 3
+            linestyle = '-'
+        elif ref % 10 == 0:
+            linewidth = 2
+            linestyle = '--'
+        else:
+            linewidth = 1
+            linestyle = ':'
+        ys = get_ca_from_cfpct(np.array(org_xlim), ref/100)
+        ax.plot(org_xlim, ys, zorder=0.5,
+                lw=linewidth, color=color, ls=linestyle)
+    ax.set_xlim(*org_xlim)
+    ax.set_ylim(*org_ylim)
+
+
+def add_good_bad_fast_slow(margin=0.05):
+    """
+    Adds better, worse, faster, slower, to current matplotlib plot. CF60 should be on the x-axis and CA60 on the y-axis.
+    Also expands figure limits by margin (default 5%). That means you should use this before using, say,
+    add_cfpct_ref_lines_to_plot.
+
+    :param margin: expand figure limits by margin. Defaults to 5%.
+
+    :return: nothing
+    """
+
+    xmin, xmax = plt.gca().get_xlim()
+    ymin, ymax = plt.gca().get_ylim()
+
+    xdiff = xmax - xmin
+    ydiff = ymax - ymin
+
+    plt.gca().set_xlim(xmin - margin * xdiff, xmax + margin * xdiff)
+    plt.gca().set_ylim(ymin - margin * ydiff, ymax + margin * ydiff)
+
+    bbox_props = dict(boxstyle="round", fc="w", ec="0.5", alpha=0.9)
+    plt.annotate('Faster', xy=(0.95, 0.95), xycoords='axes fraction', bbox=bbox_props, ha='center', va='center')
+    plt.annotate('Slower', xy=(0.05, 0.05), xycoords='axes fraction', bbox=bbox_props, ha='center', va='center')
+    plt.annotate('Better', xy=(0.95, 0.05), xycoords='axes fraction', bbox=bbox_props, ha='center', va='center')
+    plt.annotate('Worse', xy=(0.05, 0.95), xycoords='axes fraction', bbox=bbox_props, ha='center', va='center')

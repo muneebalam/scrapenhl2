@@ -195,7 +195,3 @@ def _parallel_usage_chart_title(**kwargs):
         title.append('')
     title[-1] += '{0:s} to {1:s}'.format(*vhelper.get_startdate_enddate_from_kwargs(**kwargs))
     return '\n'.join(title)
-
-
-if __name__ == '__main__':
-    animated_usage_chart(team='WSH', save_file='/Users/muneebalam/Desktop/usage.mp4')

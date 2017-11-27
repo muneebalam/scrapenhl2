@@ -161,8 +161,3 @@ def read_inprogress_games(inprogressgames, season):
         parse_pbp.parse_game_pbp(season, game, True)
         parse_toi.parse_game_toi_from_html(season, game, True)
         print('Done with {0:d} {1:d} (in progress)'.format(season, game))
-
-
-if __name__ == '__main__':
-    for season in range(2007, 2010):
-        autoupdate(season)

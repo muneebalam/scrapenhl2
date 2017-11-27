@@ -51,23 +51,23 @@ def game_timeline(season, game, save_file=None):
               rname: plt.rcParams['axes.prop_cycle'].by_key()['color'][1]}
     darkercolors = {team: visualization_helper.make_color_darker(hex=col) for team, col in colors.items()}
 
+    # Create two axes. Use bottom (mins) for labeling but top (secs) for plotting
+    ax = plt.gca()
+    ax2 = ax.twiny()
+
     # Corsi lines
     for team in cf:
-        plt.plot(cf[team].Time, cf[team].CumCF, label=team, color=colors[team])
-
-    # Ticks every 10 min
-    plt.xticks(range(0, cf[hname].Time.max() + 1, 10))
-    plt.xlabel('Time elapsed in game (min)')
+        ax2.plot(cf[team].Time, cf[team].CumCF, label=team, color=colors[team])
 
     # Label goal counts when scored with diamonds
     for team in gs:
         xs, ys = _goal_times_to_scatter_for_timeline(gs[team], cf[team])
-        plt.scatter(xs, ys, edgecolors='k', marker='D', label='{0:s} goal'.format(team), zorder=3, color=colors[team])
+        ax2.scatter(xs, ys, edgecolors='k', marker='D', label='{0:s} goal'.format(team), zorder=3, color=colors[team])
 
     # Bold lines to separate periods
-    _, ymax = plt.ylim()
-    for x in range(0, cf[hname].Time.max(), 20):
-        plt.plot([x, x], [0, ymax], color='k', lw=2)
+    _, ymax = ax2.get_ylim()
+    for x in range(0, cf[hname].Time.max(), 1200):
+        ax2.plot([x, x], [0, ymax], color='k', lw=2)
 
     # PP highlighting
     # Note that axvspan works in relative coords (0 to 1), so need to divide by ymax
@@ -78,25 +78,28 @@ def game_timeline(season, game, save_file=None):
             else:
                 colors_to_use = darkercolors
             for i, (start, end) in enumerate(pps[team][pptype]):
-                cf_at_time_min = cf[team].loc[cf[team].Time == start // 60].CumCF.iloc[0]
-                if end // 60 == cf[team].Time.max():  # might happen for live games
-                    cf_at_time_max = cf[team][cf[team].Time == end // 60].CumCF.iloc[0]
-                else:
-                    cf_at_time_max = cf[team][cf[team].Time == end // 60 + 1].CumCF.iloc[0]
+                cf_at_time_min = cf[team].loc[cf[team].Time == start].CumCF.max()  # in case there are multiple
+                cf_at_time_max = cf[team][cf[team].Time == end].CumCF.max()
                 if i == 0:
-                    plt.gca().axvspan(start / 60, end / 60, ymin=cf_at_time_min / ymax,
-                                      ymax=cf_at_time_max / ymax, alpha=0.5, facecolor=colors_to_use[team],
-                                      label='{0:s} {1:s}'.format(team, pptype))
+                    ax2.axvspan(start, end, ymin=cf_at_time_min / ymax,
+                                ymax=cf_at_time_max / ymax, alpha=0.5, facecolor=colors_to_use[team],
+                                label='{0:s} {1:s}'.format(team, pptype))
                 else:
-                    plt.gca().axvspan(start / 60, end / 60, ymin=cf_at_time_min / ymax,
-                                      ymax=cf_at_time_max / ymax, alpha=0.5, facecolor=colors[team])
-                plt.gca().axvspan(start / 60, end / 60, ymin=0, ymax=0.05, alpha=0.5, facecolor=colors_to_use[team])
+                    ax2.axvspan(start, end, ymin=cf_at_time_min / ymax,
+                                ymax=cf_at_time_max / ymax, alpha=0.5, facecolor=colors[team])
+                ax2.axvspan(start, end, ymin=0, ymax=0.05, alpha=0.5, facecolor=colors_to_use[team])
 
     # Set limits
-    plt.xlim(0, cf[hname].Time.max())
-    plt.ylim(0, ymax)
-    plt.ylabel('Cumulative CF')
+    ax2.set_xlim(0, cf[hname].Time.max())
+    ax2.set_ylim(0, ymax)
+    ax.set_ylabel('Cumulative CF')
     plt.legend(loc=2, framealpha=0.5, fontsize=8)
+
+    # Ticks every 10 min on bottom axis; none on top axis
+    ax.set_xlim(0, cf[hname].Time.max() / 60)
+    ax.set_xticks(range(0, cf[hname].Time.max() // 60 + 1, 10))
+    ax.set_xlabel('Time elapsed in game (min)')
+    ax2.set_xticks([])
 
     # Set title
     plt.title(_get_corsi_timeline_title(season, game))
@@ -222,49 +225,47 @@ def _goal_times_to_scatter_for_timeline(goal_times, cfdf):
     cumgoals = 0
     for i in range(len(goal_times)):
         cumgoals += 1
-        cf_at_time = cfdf[cfdf.Time - 1 <= goal_times[i]]
-        cf_at_time = cf_at_time.sort_values('Time', ascending=False).CumCF.iloc[0]
-        # cf_at_time = cfdf[cfdf.Time == goal_times[i]].CumCF.iloc[0]  # if I use float times need filter etc
+        cf_at_time = cfdf[cfdf.Time == goal_times[i]].CumCF.max()
         for j in range(cumgoals):
             goal_xs.append(goal_times[i])
             goal_ys.append(cf_at_time + j)
     return goal_xs, goal_ys
 
 
-def _get_home_goals_for_timeline(season, game, granularity='min'):
+def _get_home_goals_for_timeline(season, game, granularity='sec'):
     """
     Returns a list of goal times for home team
 
     :param season: int, the season
     :param game: int, the game
-    :param granularity: can respond in minutes, or seconds, elapsed in game
+    :param granularity: can respond in minutes ('min'), or seconds ('sec'), elapsed in game
 
     :return: a list of int, seconds elapsed
     """
     return get_goals_for_timeline(season, game, 'H', granularity)
 
 
-def _get_road_goals_for_timeline(season, game, granularity='min'):
+def _get_road_goals_for_timeline(season, game, granularity='sec'):
     """
     Returns a list of goal times for road team
 
     :param season: int, the season
     :param game: int, the game
-    :param granularity: can respond in minutes, or seconds, elapsed in game
+    :param granularity: can respond in minutes ('min'), or seconds ('sec'), elapsed in game
 
     :return: a list of int, seconds elapsed
     """
     return get_goals_for_timeline(season, game, 'R', granularity)
 
 
-def get_goals_for_timeline(season, game, homeroad, granularity='min'):
+def get_goals_for_timeline(season, game, homeroad, granularity='sec'):
     """
     Returns a list of goal times
 
     :param season: int, the season
     :param game: int, the game
     :param homeroad: str, 'H' for home and 'R' for road
-    :param granularity: can respond in minutes, or seconds, elapsed in game
+    :param granularity: can respond in minutes ('min'), or seconds ('sec'), elapsed in game
 
     :return: a list of int, seconds elapsed
     """
@@ -283,14 +284,14 @@ def get_goals_for_timeline(season, game, homeroad, granularity='min'):
     return list(goals.Time)
 
 
-def _get_cf_for_timeline(season, game, homeroad, granularity='min'):
+def _get_cf_for_timeline(season, game, homeroad, granularity='sec'):
     """
     Returns a dataframe with columns for time and cumulative CF
 
     :param season: int, the season
     :param game: int, the game
     :param homeroad: str, 'H' for home and 'R' for road
-    :param granularity: can respond in minutes, or seconds, elapsed in game
+    :param granularity: can respond in minutes ('min'), or seconds ('sec'), elapsed in game
 
     :return: a dataframe with two columns
     """
@@ -311,8 +312,6 @@ def _get_cf_for_timeline(season, game, homeroad, granularity='min'):
     df.loc[:, 'CF'] = df.CF.fillna(0)
     df.loc[:, 'CumCF'] = df.CF.cumsum()
 
-    df.drop('CF', axis=1, inplace=True)
-
     # Now let's shift things down. Right now a shot at 30 secs will mean Time = 0 has CumCF = 1.
 
     if granularity == 'min':
@@ -320,32 +319,40 @@ def _get_cf_for_timeline(season, game, homeroad, granularity='min'):
         df = df.groupby('Time').max().reset_index()
 
     # I want it soccer style, so Time = 0 always has CumCF = 0, and that first shot at 30sec will register for Time=1
-    df = pd.concat([pd.DataFrame({'Time': [-1], 'CumCF': [0]}), df])
+    df = pd.concat([pd.DataFrame({'Time': [-1], 'CumCF': [0], 'CF': [0]}), df])
     df.loc[:, 'Time'] = df.Time + 1
+
+    # For every shot, want to plot a point as if that shot hadn't happened, and then one where it did
+    # So every segment of chart has either slope 0 or infinite
+    #shot_mins = df.query('CF > 0')
+    #shot_mins.loc[:, 'CumCF'] = shot_mins.CumCF - shot_mins.CF
+    #df = pd.concat([df, shot_mins]).sort_values(['Time', 'CumCF'])
+
+    df = df.drop('CF', axis=1)
 
     return df
 
 
-def _get_home_cf_for_timeline(season, game, granularity='min'):
+def _get_home_cf_for_timeline(season, game, granularity='sec'):
     """
     Returns a dataframe with columns Time and cumulative CF
 
     :param season: int, the season
     :param game: int, the game
-    :param granularity: can respond in minutes, or seconds, elapsed in game
+    :param granularity: can respond in minutes ('min'), or seconds ('sec'), elapsed in game
 
     :return: a two-column dataframe
     """
     return _get_cf_for_timeline(season, game, 'H', granularity)
 
 
-def _get_road_cf_for_timeline(season, game, granularity='min'):
+def _get_road_cf_for_timeline(season, game, granularity='sec'):
     """
     Returns a dataframe with columns Time and cumulative CF
 
     :param season: int, the season
     :param game: int, the game
-    :param granularity: can respond in minutes, or seconds, elapsed in game
+    :param granularity: can respond in minutes ('min'), or seconds ('sec'), elapsed in game
 
     :return: a two-column dataframe
     """

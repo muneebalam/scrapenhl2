@@ -245,6 +245,7 @@ def update_player_log_file(playerids, seasons, games, teams, statuses):
         write_player_log_file(pd.concat([get_player_log_file(), df]))
 
 
+@functools.lru_cache(maxsize=128, typed=False)
 def get_player_position(player):
     """
     Retrieves position of player
@@ -260,6 +261,25 @@ def get_player_position(player):
         return df.Pos.iloc[0]
     else:
         print('Could not find position for', player)
+        return None
+
+
+@functools.lru_cache(maxsize=128, typed=False)
+def get_player_handedness(player):
+    """
+    Retrieves handedness of player
+
+    :param player: str or int, the player name or ID
+
+    :return: str, player hand (L or R)
+    """
+
+    df = get_player_ids_file()
+    df = df[df.ID == player_as_id(player)]
+    if len(df) == 1:
+        return df.Hand.iloc[0]
+    else:
+        print('Could not find hand for', player)
         return None
 
 

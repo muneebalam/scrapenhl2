@@ -363,8 +363,40 @@ def try_url_n_times(url, timeout=5, n=5):
                 print('HTTP error with', url, httpe, httpe.args)
         except requests.exceptions.ReadTimeout as rt:
             print(rt)
-            print('Failed on {} try on url {}'.format(tries, url))
+            print('Failed on try {} on url {}'.format(tries, url))
         except Exception as e:  # timeout
             print(e)
             print('Could not access {0:s}; try {1:d} of {2:d}'.format(url, tries, n))
     return page
+
+def melt_helper(df, **kwargs):
+    """
+    Earlier versions of pandas do not support pd.DataFrame.melt. This helps to bridge the gap.
+    It first tries df.melt, and if that doesn't work, it uses pd.melt.
+
+    :param df: dataframe
+    :param kwargs: arguments to pd.melt or pd.DataFrame.melt.
+
+    :return: melted dataframe
+    """
+
+    try:
+        return df.melt(**kwargs)
+    except AttributeError:
+        return pd.melt(df, **kwargs)
+
+
+def anti_join(df1, df2, **kwargs):
+    """
+    Anti-joins two dataframes.
+
+    :param df1: dataframe
+    :param df2: dataframe
+    :param kwargs: keyword arguments as passed to pd.DataFrame.merge (except for 'how'). Specifically, need join keys.
+
+    :return: dataframe
+    """
+
+    return df1.merge(df2, how='left', indicator=True, **kwargs) \
+        .query('_merge != "both"') \
+        .drop('_merge', axis=1)

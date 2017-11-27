@@ -173,9 +173,3 @@ def _read_tracking_file(fname):
         return pd.read_excel(fname)
     else:
         print('Did not recognize extension for', fname)
-
-if __name__ == '__main__':
-    from scrapenhl2.scrape.autoupdate import autoupdate
-    autoupdate()
-    #add_players_to_file('/Users/muneebalam/Downloads/MIN games.csv', 'PHI', time_format='remaining')
-

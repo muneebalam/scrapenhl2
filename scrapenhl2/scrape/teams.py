@@ -8,11 +8,7 @@ import feather
 import pandas as pd
 import pyarrow
 
-import scrapenhl2.scrape.organization as organization
-import scrapenhl2.scrape.parse_pbp as parse_pbp
-import scrapenhl2.scrape.parse_toi as parse_toi
-import scrapenhl2.scrape.schedules as schedules
-import scrapenhl2.scrape.team_info as team_info
+from scrapenhl2.scrape import organization, parse_pbp, parse_toi, schedules, team_info, general_helpers as helpers
 
 
 def get_team_pbp(season, team):
@@ -106,21 +102,29 @@ def get_team_toi_filename(season, team):
                         "{0:s}.feather".format(team_info.team_as_str(team, abbreviation=True)))
 
 
-def update_team_logs(season, force_overwrite=False):
+def update_team_logs(season, force_overwrite=False, force_games=None):
     """
     This method looks at the schedule for the given season and writes pbp for scraped games to file.
     It also adds the strength at each pbp event to the log.
 
     :param season: int, the season
     :param force_overwrite: bool, whether to generate from scratch
+    :param force_games: None or iterable of games to force_overwrite specifically
 
     :return: nothing
     """
 
     # For each team
 
-    new_games_to_do = schedules.get_season_schedule(season).query('Status == "Final"')
-    new_games_to_do = new_games_to_do[(new_games_to_do.Game >= 20001) & (new_games_to_do.Game <= 30417)]
+    sch = schedules.get_season_schedule(season).query('Status == "Final"')
+    new_games_to_do = sch[(sch.Game >= 20001) & (sch.Game <= 30417)]
+
+    if force_games is not None:
+        new_games_to_do = pd.concat([new_games_to_do,
+                                     sch.merge(pd.DataFrame({'Game': list(force_games)}),
+                                               how='inner', on='Game')]) \
+            .sort_values('Game')
+
     allteams = sorted(list(new_games_to_do.Home.append(new_games_to_do.Road).unique()))
 
     for teami, team in enumerate(allteams):
@@ -135,6 +139,8 @@ def update_team_logs(season, force_overwrite=False):
             # Read currently existing ones for each team and anti join to schedule to find missing games
             try:
                 pbpdf = get_team_pbp(season, team)
+                if force_games is not None:
+                    pbpdf = helpers.anti_join(pbpdf, pd.DataFrame({'Game': list(force_games)}), on='Game')
                 newgames = newgames.merge(pbpdf[['Game']].drop_duplicates(), how='outer', on='Game', indicator=True)
                 newgames = newgames[newgames._merge == "left_only"].drop('_merge', axis=1)
             except FileNotFoundError:
@@ -144,6 +150,8 @@ def update_team_logs(season, force_overwrite=False):
 
             try:
                 toidf = get_team_toi(season, team)
+                if force_games is not None:
+                    toidf = helpers.anti_join(toidf, pd.DataFrame({'Game': list(force_games)}), on='Game')
             except FileNotFoundError:
                 toidf = None
             except pyarrow.lib.ArrowIOError:  # pyarrow (feather) FileNotFoundError equivalent

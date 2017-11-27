@@ -119,11 +119,12 @@ def team_score_shot_rate_scatter(team, startseason, endseason=None, save_file=No
     plt.scatter(medians.CF60.values, medians.CA60.values, s=100, color='w')
     plt.scatter(teamdf.CF60.values, teamdf.CA60.values, s=100, color='w')
 
-    bbox_props = dict(boxstyle="round", fc="w", ec="0.5", alpha=0.9)
-    plt.annotate('Fast', xy=(0.95, 0.95), xycoords='axes fraction', bbox=bbox_props, ha='center', va='center')
-    plt.annotate('Slow', xy=(0.05, 0.05), xycoords='axes fraction', bbox=bbox_props, ha='center', va='center')
-    plt.annotate('Good', xy=(0.95, 0.05), xycoords='axes fraction', bbox=bbox_props, ha='center', va='center')
-    plt.annotate('Bad', xy=(0.05, 0.95), xycoords='axes fraction', bbox=bbox_props, ha='center', va='center')
+    #bbox_props = dict(boxstyle="round", fc="w", ec="0.5", alpha=0.9)
+    #plt.annotate('Fast', xy=(0.95, 0.95), xycoords='axes fraction', bbox=bbox_props, ha='center', va='center')
+    #plt.annotate('Slow', xy=(0.05, 0.05), xycoords='axes fraction', bbox=bbox_props, ha='center', va='center')
+    #plt.annotate('Good', xy=(0.95, 0.05), xycoords='axes fraction', bbox=bbox_props, ha='center', va='center')
+    #plt.annotate('Bad', xy=(0.05, 0.95), xycoords='axes fraction', bbox=bbox_props, ha='center', va='center')
+    vhelper.add_good_bad_fast_slow()
 
     plt.xlabel('CF60')
     plt.ylabel('CA60')
@@ -175,8 +176,3 @@ def _calculate_label_rotation(startx, starty, endx, endy):
     :return: rotation angle.
     """
     return math.degrees(math.atan((endy - starty)/(endx - startx)))
-
-
-if __name__ == '__main__':
-    team_score_shot_rate_parallel('WSH', 2015, 2016,
-                                  save_file='/Users/muneebalam/PycharmProjects/scrapenhl2/docs/source/_static/Caps_shot_score_parallel.png')
