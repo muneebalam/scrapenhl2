@@ -1,0 +1,19 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Sphinx" type="docs" factoryName="Sphinx task">
+    <option name="INTERPRETER_OPTIONS" value="" />
+    <option name="PARENT_ENVS" value="true" />
+    <envs />
+    <option name="SDK_HOME" value="$USER_HOME$/anaconda/bin/python" />
+    <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/scrapenhl2" />
+    <option name="IS_MODULE_SDK" value="false" />
+    <option name="ADD_CONTENT_ROOTS" value="true" />
+    <option name="ADD_SOURCE_ROOTS" value="true" />
+    <module name="scrapenhl2" />
+    <option name="docutils_input_file" value="$PROJECT_DIR$/docs/source/" />
+    <option name="docutils_output_file" value="$PROJECT_DIR$/docs/build/" />
+    <option name="docutils_params" value="" />
+    <option name="docutils_task" value="html" />
+    <option name="docutils_open_in_browser" value="false" />
+    <method />
+  </configuration>
+</component>
