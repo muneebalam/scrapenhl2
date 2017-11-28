@@ -35,12 +35,18 @@ setuptools.setup(
                       'beautifulsoup4==4.5.3',  # for html parsing
                       'html-table-extractor',  # for html parsing
                       'plotly',  # for interactive charts
+                      'tqdm',  # CLI progress bar
                       #'tables',
                       'dash',
                       'dash-renderer',
                       'dash-html-components',
                       'dash-core-components',
-                      'requests'  # Urllib for humans
+                      'sphinx',
+                      'requests',  # Urllib for humans
+                      'arrow',  # Datetime for humans
+                      'pytest',  # Testrunner
+                      'pytest-cov',  # Coverage reports
+                      'pytest-mock',  # Test mocking framework
                       ],
     long_description=read('README.rst'),
     classifiers=[
