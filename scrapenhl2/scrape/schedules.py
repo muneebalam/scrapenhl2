@@ -2,6 +2,7 @@
 This module contains methods related to season schedules.
 """
 
+import arrow
 import datetime
 import functools
 import json
@@ -22,7 +23,7 @@ def _get_current_season():
 
     :return: int, current season
     """
-    date = datetime.datetime.now()
+    date = arrow.now()
     season = date.year - 1
     if date.month >= 9:
         season += 1
