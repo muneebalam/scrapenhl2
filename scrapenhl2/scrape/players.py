@@ -6,6 +6,7 @@ import functools
 import json
 import os.path
 import urllib.request
+from tqdm import tqdm
 
 import feather
 import pandas as pd
@@ -189,7 +190,7 @@ def update_player_ids_file(playerids, force_overwrite=False):
         current_players = current_players.query('_merge == "left_only"').drop('_merge', axis=1)
     if len(to_scrape) == 0:
         return
-    for playerid in to_scrape:
+    for playerid in tqdm(to_scrape, desc="Parsing players in play by play"):
         playerinfo = get_player_info_from_url(playerid)
         ids.append(playerinfo['ID'])
         names.append(playerinfo['Name'])

@@ -13,7 +13,14 @@ fuzzywuzzy
 beautifulsoup4
 html-table-extractor
 plotly
+tqdm
+sphinx
+requests
+arrow
 dash
 dash-renderer
 dash-html-components
 dash-core-components
+pytest
+pytest-cov
+pytest-mock
