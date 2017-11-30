@@ -5,6 +5,7 @@ This module contains methods for automatically scraping and parsing games.
 import os
 import os.path
 import requests
+from tqdm import tqdm
 
 import scrapenhl2.scrape.manipulate_schedules as manipulate_schedules
 import scrapenhl2.scrape.parse_pbp as parse_pbp
@@ -101,7 +102,7 @@ def read_final_games(games, season):
 
     :return:
     """
-    for game in games:
+    for game in tqdm(games, desc="Parsing Games"):
         try:
             scrape_pbp.scrape_game_pbp(season, game, True)
             manipulate_schedules.update_schedule_with_pbp_scrape(season, game)
