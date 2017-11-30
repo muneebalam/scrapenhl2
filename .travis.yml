@@ -1,19 +1,6 @@
 language: python
 python:
   - "3.6"
-install:
-  - pip install numpy
-  - pip install scipy
-  - pip install matplotlib
-  - pip install seaborn
-  - pip install pandas
-  - pip install feather-format
-  - pip install halo
-  - pip install scikit-learn
-  - pip install flask
-  - pip install python-Levenshtein
-  - pip install fuzzywuzzy
-  - pip install beautifulsoup4
-  - pip install html-table-extractor
+install: pip install -r requirements.txt
 
 script: python -m unittest

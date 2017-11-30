@@ -5,6 +5,7 @@ import os.path
 
 import feather
 import pandas as pd
+import numpy as np
 
 from scrapenhl2.scrape import general_helpers as helpers
 from scrapenhl2.scrape import organization, schedules, teams, parse_pbp, parse_toi, players, events, team_info, scrape_pbp
@@ -806,10 +807,10 @@ def get_5v5_player_game_shift_startend(season, team):
     # Add locations
     directions = get_directions_for_xy_for_season(season, team)
     foshifts = infer_zones_for_faceoffs(foshifts, directions, 'StartX', 'StartY', 'StartTime') \
-        .rename(columns={'FacLoc': 'Start'})
+        .rename(columns={'EventLoc': 'Start'})
     foshifts.loc[:, 'Start'] = foshifts.Start.fillna('S-OtF')
     foshifts = infer_zones_for_faceoffs(foshifts, directions, 'EndX', 'EndY', 'EndTime') \
-        .rename(columns={'FacLoc': 'End'})
+        .rename(columns={'EventLoc': 'End'})
     foshifts.loc[:, 'End'] = foshifts.End.fillna('E-OtF')
 
     # Filter out shifts that don't both start and end at 5v5
@@ -908,12 +909,11 @@ def get_directions_for_xy_for_game(season, game):
     return periods
 
 
-def infer_zones_for_faceoffs(df, directions, xcol='X', ycol='Y', timecol='Time', focus_team=None, season=None):
+def infer_zones_for_faceoffs(df, directions, xcol='X', ycol='Y', timecol='Time', focus_team=None, season=None,
+                             faceoffs=True):
     """
-    Inferring zones for faceoffs from XY is hard--this method takes are of that.
-
-    Basically, if you are in the first period and X is -69, you're in the offensive zone. But this flips if
-    your team ID is smaller than the opp's ID
+    Inferring zones for events from XY is hard--this method takes are of that by referencing against the JSON's 
+    notes on which team went which direction in which period.
 
     This method notes several different zones for faceoffs:
 
@@ -927,7 +927,7 @@ def infer_zones_for_faceoffs(df, directions, xcol='X', ycol='Y', timecol='Time',
     - DR (defensive zone, right)
     - N (center ice)
 
-    Else, it notes three zones:
+    This method can also handle non-faceoff events, using three zones
 
     - N (neutral)
     - O (offensive)
@@ -941,12 +941,11 @@ def infer_zones_for_faceoffs(df, directions, xcol='X', ycol='Y', timecol='Time',
     :param focus_team: int, str, or None. Directions are stored with home perspective. So specify focus team and will
         flip when focus_team is on the road. If None, does not do the extra home/road flip. Necessitates Season column
         in df.
+    :param season: int, the season
+    :param faceoffs: bool. If True will use the nine zones above. If False, only the three.
 
-    :return: dataframe with extra column FacLoc
+    :return: dataframe with extra column EventLoc
     """
-
-    # Center ice is easy
-    df.loc[(df[xcol] == 0) & (df[ycol] == 0), 'FacLoc'] = 'N'
 
     # Infer periods
     df.loc[:, '_Period'] = df[timecol].apply(lambda x: x // 1200 + 1)
@@ -982,23 +981,26 @@ def infer_zones_for_faceoffs(df, directions, xcol='X', ycol='Y', timecol='Time',
 
     df2.loc[:, '_X'] = df2[xcol] * df2['_Mult3']
     df2.loc[:, '_Y'] = df2[ycol] * df2['_Mult3']
+    
+    if faceoffs:
+        df2.loc[(df2['_X'] == 69) & (df2['_Y'] == 22), 'EventLoc'] = 'OL'
+        df2.loc[(df2['_X'] == 69) & (df2['_Y'] == -22), 'EventLoc'] = 'OR'
+        df2.loc[(df2['_X'] == -69) & (df2['_Y'] == 22), 'EventLoc'] = 'DL'
+        df2.loc[(df2['_X'] == -69) & (df2['_Y'] == -22), 'EventLoc'] = 'DR'
+    
+        df2.loc[(df2['_X'] == 20) & (df2['_Y'] == 22), 'EventLoc'] = 'NOL'
+        df2.loc[(df2['_X'] == 20) & (df2['_Y'] == -22), 'EventLoc'] = 'NOR'
+        df2.loc[(df2['_X'] == -20) & (df2['_Y'] == 22), 'EventLoc'] = 'NDL'
+        df2.loc[(df2['_X'] == -20) & (df2['_Y'] == -22), 'EventLoc'] = 'NDR'
 
-    df2.loc[(df2['_X'] == 69) & (df2['_Y'] == 22), 'FacLoc'] = 'OL'
-    df2.loc[(df2['_X'] == 69) & (df2['_Y'] == -22), 'FacLoc'] = 'OR'
-    df2.loc[(df2['_X'] == -69) & (df2['_Y'] == 22), 'FacLoc'] = 'DL'
-    df2.loc[(df2['_X'] == -69) & (df2['_Y'] == -22), 'FacLoc'] = 'DR'
+        df2.loc[(df2['_X'] == 0) & (df2['_Y'] == 0), 'EventLoc'] = 'N'
+    else:
+        df2.loc[(df2['_X'] <= 25) & (df2['_X'] >= -25), 'EventLoc'] = 'N'
+        df2.loc[df2['_X'] > 25, 'EventLoc'] = 'O'
+        df2.loc[df2['_X'] < -25, 'EventLoc'] = 'D'
+    df2.loc[pd.isnull(df2['_X']), 'EventLoc'] = 'Zone N/A'  # Null zones for null coordinates, though prob not needed
 
-    df2.loc[(df2['_X'] == 20) & (df2['_Y'] == 22), 'FacLoc'] = 'NOL'
-    df2.loc[(df2['_X'] == 20) & (df2['_Y'] == -22), 'FacLoc'] = 'NOR'
-    df2.loc[(df2['_X'] == -20) & (df2['_Y'] == 22), 'FacLoc'] = 'NDL'
-    df2.loc[(df2['_X'] == -20) & (df2['_Y'] == -22), 'FacLoc'] = 'NDR'
-
-    df2.loc[((df2['_X'] <= 25) & (df2['_X'] >= -25)), 'FacLocFill'] = 'N'
-    df2.loc[df2['_X'] > 25, 'FacLocFill'] = 'O'
-    df2.loc[df2['_X'] < -25, 'FacLocFill'] = 'D'
-    df2.loc[:, 'FacLocFill'] = df2.FacLoc.fillna(df2.FacLocFill)
-
-    df2.drop(['_X', '_Y', '_Period', '_Mult3', 'Direction'], axis=1, inplace=True)
+    df2 = df2.drop(['_X', '_Y', '_Period', '_Mult3', 'Direction'], axis=1, errors='ignore')
 
     return df2
 

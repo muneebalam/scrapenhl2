@@ -125,6 +125,13 @@ def _create_pbp_df_json(pbp, gameinfo):
                     p2role[i] = prole
                 elif pid is not None:
                     note[i] = note[i].replace(pname, str(int(pid)))
+        elif event[i] == 'Penalty':
+            # Get the penalty severity in there
+            note[i] = '({0:s}-{1:d} min) {2:s}'.format(helpers.try_to_access_dict(pbp, i, 'result', 'penaltySeverity',
+                                                                              default_return='N/A'),
+                                                   helpers.try_to_access_dict(pbp, i, 'result', 'penaltyMinutes',
+                                                                              default_return='N/A'),
+                                                   note[i])
 
     # Switch blocked shots from being an event for player who blocked, to player who took shot that was blocked
     # That means switching team attribution and actor/recipient.
