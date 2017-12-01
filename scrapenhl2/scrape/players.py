@@ -98,7 +98,8 @@ def check_default_player_id(playername):
                                        'Tyler Johnson': 8474870,
                                        'Josh Anderson': 8476981,
                                        'Sebastian Aho': 8478427,
-                                       'Trevor Lewis': 8473453}, playername)
+                                       'Trevor Lewis': 8473453,
+                                       'Ryan Murphy': 8476465}, playername)
 
 
 def player_setup():

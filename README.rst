@@ -153,3 +153,6 @@ Major outstanding to-dos
 ------------------------
 
 * Bring in old play by play and shifts from HTML
+* More examples
+* More graphs
+* More graphs in Dash app

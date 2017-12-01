@@ -26,7 +26,7 @@ def live_timeline(team1, team2, update=True, save_file=None):
         autoupdate.autoupdate()
     from scrapenhl2.scrape import games
     game = games.most_recent_game_id(team1, team2)
-    return game_timeline(2017, game)
+    return game_timeline(2017, game, save_file)
 
 
 def game_timeline(season, game, save_file=None):
