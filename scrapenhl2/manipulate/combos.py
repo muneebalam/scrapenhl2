@@ -4,7 +4,7 @@ This module contains methods for generating H2H data for games
 import pandas as pd
 
 from scrapenhl2.manipulate import manipulate as manip
-from scrapenhl2.scrape import general_helpers as helpers, parse_toi, parse_pbp, schedules
+from scrapenhl2.scrape import general_helpers as helpers, parse_toi, parse_pbp, schedules, team_info
 
 
 def get_game_combo_toi(season, game, player_n=2, *hrcodes):
@@ -27,16 +27,7 @@ def get_game_combo_toi(season, game, player_n=2, *hrcodes):
     for hrcode in hrcodes:
         assert len(hrcode) == player_n
 
-    toi = parse_toi.get_parsed_toi(season, game)
-    fives = toi[(toi.HomeStrength == "5") & (toi.RoadStrength == "5")]
-    home = helpers.melt_helper(fives[['Time', 'H1', 'H2', 'H3', 'H4', 'H5']],
-                               id_vars='Time', var_name='P', value_name='PlayerID') \
-        .drop('P', axis=1) \
-        .assign(Team='H')
-    road = helpers.melt_helper(fives[['Time', 'R1', 'R2', 'R3', 'R4', 'R5']],
-                               id_vars='Time', var_name='P', value_name='PlayerID') \
-        .drop('P', axis=1) \
-        .assign(Team='R')
+    home, road = parse_toi.get_melted_home_road_5v5_toi(season, game)
 
     return _combo_secs_from_hrcodes(home, road, *hrcodes)
 
@@ -192,3 +183,39 @@ def _combo_secs_from_hrcodes(homedf=None, roaddf=None, *hrcodes):
         dflst.append(allcombos)
 
     return pd.concat(dflst)
+
+
+def get_team_combo_toi(season, team, games, n_players=2):
+    """
+    Gets combo TOI for team for specified games
+
+    :param team: int or str, team
+    :param games: int or iterable of int, games
+    :param n_players: int. E.g. 1 gives you player TOI, 2 gives you 2-player group TOI, 3 makes 3-player groups, etc
+
+    :return: dataframe
+    """
+
+    if helpers.check_number(games):
+        games = [games]
+
+    teamid = team_info.team_as_id(team)
+
+    dflst = []
+    for game in games:
+        if schedules.get_home_team(season, game) == teamid:
+            hr = 'H'*n_players
+        else:
+            hr = 'R' * n_players
+        home, road = parse_toi.get_melted_home_road_5v5_toi(season, game)
+        df = _combo_secs_from_hrcodes(home, road, hr)
+        dflst.append(df)
+
+    df = pd.concat(dflst)
+    df = df.groupby([col for col in df.columns if col != 'Secs' and col != 'Min'], as_index=False).sum()
+
+    # Get all combos of players
+    combocols = tuple([('PlayerID' + str(x), 'Team' + str(x)) for x in range(1, n_players + 1)])
+    allcombos = manip.convert_to_all_combos(df, 0, *combocols)
+
+    return allcombos
