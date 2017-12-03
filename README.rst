@@ -22,7 +22,7 @@ Introduction
 scrapenhl2 is a python package for scraping and manipulating NHL data pulled from the NHL website.
 
 Installation
--------------
+------------
 You need python3 and the python scientific stack (e.g. numpy, matplotlib, pandas, etc).
 Easiest way is to simply use `Anaconda <https://conda.io/docs/user-guide/install/index.html>`_.
 To be safe, make sure you have python 3.5+, matplotlib 2.0+, and pandas 0.20+.
@@ -108,7 +108,7 @@ Look through the documentation at `Read the Docs <http://scrapenhl2.readthedocs.
 Also always feel free to contact me with questions or suggestions.
 
 Contact
---------
+-------
 `Twitter
 <http://www.twitter.com/muneebalamcu>`_.
 

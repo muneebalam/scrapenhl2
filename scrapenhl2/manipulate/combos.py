@@ -6,12 +6,13 @@ import pandas as pd
 from scrapenhl2.manipulate import manipulate as manip
 from scrapenhl2.scrape import general_helpers as helpers, parse_toi, parse_pbp, schedules
 
+
 def get_game_combo_toi(season, game, player_n=2, *hrcodes):
     """
     This method gets H2H TOI at 5v5 for the given game.
 
     :param season: int, the season
-    :param games: int, the game
+    :param game: int, the game
     :param player_n: int. E.g. 1 gives you a list of players and TOI, 2 gives you h2h, 3 gives you groups of 3, etc.
     :param hrcodes: to limit exploding joins, specify strings containing 'H' and 'R' and 'A', each of length player_n
         For example, if player_n=3, specify 'HHH' to only get home team player combos.
@@ -45,7 +46,7 @@ def get_game_h2h_corsi(season, game, player_n=2, cfca=None, *hrcodes):
     This method gets H2H Corsi at 5v5 for the given game.
 
     :param season: int, the season
-    :param games: int, the game
+    :param game: int, the game
     :param player_n: int. E.g. 1 gives you a list of players and TOI, 2 gives you h2h, 3 gives you groups of 3, etc.
     :param cfca: str, or None. If you specify 'cf', returns CF only. For CA, use 'ca'. None returns CF - CA.
     :param hrcodes: to limit exploding joins, specify strings containing 'H' and 'R' and 'A', each of length player_n
@@ -191,5 +192,3 @@ def _combo_secs_from_hrcodes(homedf=None, roaddf=None, *hrcodes):
         dflst.append(allcombos)
 
     return pd.concat(dflst)
-
-
