@@ -1182,7 +1182,6 @@ def convert_to_all_combos(df, fillval=0, *args):
     """
     args = set(args)
     if len(args) == 1:
-        df.loc[:, list(args)[0]] = df[list(args)[0]].fillna(fillval)
         return df  # Nothing else to do here
 
     dfs_with_unique = []
@@ -1478,6 +1477,7 @@ def get_game_h2h_corsi(season, games, cfca=None):
                                    id_vars='Time', var_name='P', value_name='PlayerID') \
             .drop('P', axis=1)
 
+        # Drop duplicates so if you have 2 shots in the same second, the final df has 2 also, not 4
         hh = home.merge(home.drop_duplicates(), how='inner', on='Time', suffixes=['1', '2']).assign(Team1='H', Team2='H')
         hr = home.merge(road.drop_duplicates(), how='inner', on='Time', suffixes=['1', '2']).assign(Team1='H', Team2='R')
         rh = road.merge(home.drop_duplicates(), how='inner', on='Time', suffixes=['1', '2']).assign(Team1='R', Team2='H')
