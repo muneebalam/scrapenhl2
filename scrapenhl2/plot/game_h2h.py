@@ -261,7 +261,8 @@ def _get_game_h2h_chart_title(season, game, homecf_diff=None, totaltoi=None):
     if homecf_diff is not None and totaltoi is not None:
         titletext.append('{0:s} {1:s} in 5v5 attempts in {2:s}'.format(
             team_info.team_as_str(schedules.get_home_team(season, game)),
-            visualization_helper.format_number_with_plus(int(homecf_diff)), manip.time_to_mss(int(totaltoi))))
+            visualization_helper.format_number_with_plus(int(homecf_diff)),
+            manip.time_to_mss(int(totaltoi) + 1)))
     return '\n'.join(titletext)
 
 
