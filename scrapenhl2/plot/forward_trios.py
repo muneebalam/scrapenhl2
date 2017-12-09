@@ -170,36 +170,23 @@ def drop_duplicate_lines(rates):
     :return: dataframe, rates with half of rows dropped
     """
 
-    handedness = players.get_player_ids_file().query('Pos != "D"')[['ID', 'Hand']]
-    rates = rates.merge(handedness.rename(columns={'ID': 'PlayerID1', 'Hand': 'Hand1'})) \
-        .merge(handedness.rename(columns={'ID': 'PlayerID2', 'Hand': 'Hand2'}))
-
-    rates = rates[((rates.Hand1 == "R") & (rates.Hand2 == "L")) == False]
-
-    lr_pairs = rates.query('Hand1 == "L" & Hand2 == "R"')  # Will keep these
-    ll_rr_pairs = rates[((rates.Hand1 == "L") & (rates.Hand2 == "R")) == False]
-
     # Melt and arrange, and pick first
-    ll_rr_pairs = ll_rr_pairs[['PlayerID1', 'PlayerID2']].assign(PairIndex=1)
-    ll_rr_pairs.loc[:, 'PairIndex'] = ll_rr_pairs.PairIndex.cumsum()
-    melted = helper.melt_helper(ll_rr_pairs, id_vars='PairIndex', var_name='P1P2', value_name='PlayerID')
+    lines = rates[['PlayerID1', 'PlayerID2', 'PlayerID3']].assign(LineIndex=1)
+    lines.loc[:, 'LineIndex'] = lines.LineIndex.cumsum()
+    melted = helper.melt_helper(lines, id_vars='LineIndex', var_name='P1P2P3', value_name='PlayerID')
 
-    firsts = melted.sort_values(['PairIndex', 'PlayerID']) \
-        .groupby('PairIndex', as_index=False) \
-        .first() \
-        .drop('P1P2', axis=1) \
-        .rename(columns={'PlayerID': 'PlayerID1'})
-    lasts = melted.sort_values(['PairIndex', 'PlayerID']) \
-        .groupby('PairIndex', as_index=False) \
-        .last() \
-        .drop('P1P2', axis=1) \
-        .rename(columns={'PlayerID': 'PlayerID2'})
+    grouped = melted.sort_values(['LineIndex', 'PlayerID']).groupby('LineIndex', as_index=False)
 
-    joined = firsts.merge(lasts, how='outer', on='PairIndex').drop('PairIndex', axis=1)
+    firsts = grouped.first().rename(columns={'PlayerID': 'PlayerID1'}).drop('P1P2P3', axis=1)
+    middles = grouped.median().rename(columns={'PlayerID': 'PlayerID2'}).drop('P1P2P3', axis=1)
+    lasts = grouped.last().rename(columns={'PlayerID': 'PlayerID3'}).drop('P1P2P3', axis=1)
+
+    joined = firsts.merge(middles, how='outer', on='LineIndex') \
+        .merge(lasts, how='outer', on='LineIndex') \
+        .drop('LineIndex', axis=1)
 
     # Inner join back on
-    df = pd.concat([lr_pairs,
-                    rates.merge(joined, how='inner', on=['PlayerID1', 'PlayerID2'])]) \
+    df = rates.merge(joined, how='inner', on=['PlayerID1', 'PlayerID2', 'PlayerID3']) \
         .drop({'Hand1', 'Hand2'}, axis=1)
 
     return df
@@ -215,6 +202,8 @@ def get_fline_shot_rates(team, startdate, enddate):
 
     :return: dataframe with PlayerID1, PlayerID2, CF, CA, TOI (in secs), CF/60 and CA/60
     """
+    # TODO this method is so slow
+
     startseason, endseason = [helper.infer_season_from_date(x) for x in (startdate, enddate)]
 
     dflst = []
@@ -223,46 +212,38 @@ def get_fline_shot_rates(team, startdate, enddate):
         games_played = [g for g in games_played if 20001 <= g <= 30417]
 
         toi = combos.get_team_combo_toi(season, team, games_played, n_players=3) \
-            .drop('Min', axis=1) \
+            .drop({'Min', 'Team1', 'Team2', 'Team3'}, axis=1) \
             .rename(columns={'Secs': 'TOI'})
 
-        cf = manip.get_game_h2h_corsi(season, games_played, 'cf').rename(columns={'HomeCorsi': 'CF'})
-        ca = manip.get_game_h2h_corsi(season, games_played, 'ca').rename(columns={'HomeCorsi': 'CA'})
-
-        # TOI, CF, and CA have columns designating which team--H or R
-        # Use schedule to find appropriate ones to filter for
-        sch = schedules.get_team_schedule(season, team, startdate, enddate)
-        sch = helper.melt_helper(sch[['Game', 'Home', 'Road']],
-                                 id_vars='Game', var_name='HR', value_name='Team')
-        sch = sch.query('Team == {0:d}'.format(int(team_info.team_as_id(team))))
-        sch.loc[:, 'HR'] = sch.HR.apply(lambda x: x[0])
-        sch = sch.assign(Team1=sch.HR, Team2=sch.HR).drop({'Team', 'HR'}, axis=1)
-
-        toi = toi.merge(sch, how='inner', on=['Game', 'Team1', 'Team2'])
-        cf = cf.merge(sch, how='inner', on=['Game', 'Team1', 'Team2'])
-        ca = ca.merge(sch, how='inner', on=['Game', 'Team1', 'Team2'])
+        cf = combos.get_team_combo_corsi(season, team, games_played, n_players=3, cfca='cf') \
+            .drop({'Team2', 'Team3'}, axis=1) \
+            .rename(columns={'HomeCorsi': 'CF'})
+        ca = combos.get_team_combo_corsi(season, team, games_played, n_players=3, cfca='ca') \
+            .drop({'Team2', 'Team3'}, axis=1) \
+            .rename(columns={'HomeCorsi': 'CF'})
 
         # CF and CA from home perspective, so switch if necessary
-        cfca = cf.merge(ca, how='outer', on=['Game', 'PlayerID1', 'PlayerID2', 'Team1', 'Team2'])
+        cfca = cf.merge(ca, how='outer', on=['Game', 'PlayerID1', 'PlayerID2', 'PlayerID3', 'Team1'])
         cfca.loc[:, 'tempcf'] = cfca.CF
         cfca.loc[:, 'tempca'] = cfca.CA
+        # Pick up here
         cfca.loc[cf.Team1 == 'R', 'CF'] = cfca[cfca.Team1 == 'R'].tempca
         cfca.loc[ca.Team1 == 'R', 'CA'] = cfca[cfca.Team1 == 'R'].tempcf
 
-        cfca = cfca.drop({'Team1', 'Team2', 'tempcf', 'tempca'}, axis=1)
-        toi = toi.drop({'Team1', 'Team2', 'Min'}, axis=1)
+        cfca = cfca.drop({'tempcf', 'tempca'}, axis=1)
 
-        joined = toi.merge(cfca, how='outer', on=['PlayerID1', 'PlayerID2', 'Game']) \
+        joined = toi.merge(cfca, how='outer', on=['PlayerID1', 'PlayerID2', 'PlayerID3', 'Game']) \
             .assign(Season=season)
         dflst.append(joined)
 
     df = pd.concat(dflst) \
-        .groupby(['PlayerID1', 'PlayerID2'], as_index=False).sum()
+        .groupby(['PlayerID1', 'PlayerID2', 'PlayerID3'], as_index=False).sum()
     df.loc[:, 'CF60'] = df.CF * 3600 / df.TOI
     df.loc[:, 'CA60'] = df.CA * 3600 / df.TOI
 
-    defensemen = players.get_player_ids_file().query('Pos == "D"')[['ID']]
-    df = df.merge(defensemen.rename(columns={'ID': 'PlayerID1'}), how='inner', on='PlayerID1') \
-        .merge(defensemen.rename(columns={'ID': 'PlayerID2'}), how='inner', on='PlayerID2')
+    forwards = players.get_player_ids_file().query('Pos != "D"')[['ID']]
+    df = df.merge(forwards.rename(columns={'ID': 'PlayerID1'}), how='inner', on='PlayerID1') \
+        .merge(forwards.rename(columns={'ID': 'PlayerID2'}), how='inner', on='PlayerID2') \
+        .merge(forwards.rename(columns={'ID': 'PlayerID3'}), how='inner', on='PlayerID3')
 
     return df

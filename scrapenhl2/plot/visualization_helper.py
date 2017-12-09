@@ -392,6 +392,7 @@ def savefilehelper(**kwargs):
         return plt.gcf()
     else:
         plt.savefig(save_file)
+    plt.close()
 
 
 def generic_5v5_log_graph_title(figtype, **kwargs):

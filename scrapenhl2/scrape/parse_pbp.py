@@ -7,12 +7,8 @@ import os.path
 import numpy as np
 import pandas as pd
 
-import scrapenhl2.scrape.general_helpers as helpers
-import scrapenhl2.scrape.manipulate_schedules as manipulate_schedules
-import scrapenhl2.scrape.organization as organization
-import scrapenhl2.scrape.players as players
-import scrapenhl2.scrape.schedules as schedules
-import scrapenhl2.scrape.scrape_pbp as scrape_pbp
+from scrapenhl2.scrape import general_helpers as helpers, manipulate_schedules, organization, players, schedules, \
+    scrape_pbp, parse_toi
 
 
 def parse_season_pbp(season, force_overwrite=False):
@@ -317,6 +313,43 @@ def parse_game_pbp_from_html(season, game, force_overwrite=False):
     save_parsed_pbp(parsedpbp, season, game)
     # ed.print_and_log('Parsed events for {0:d} {1:d}'.format(season, game), print_and_log=False)
     return True
+
+
+def get_5v5_corsi_pm(season, game, cfca=None):
+    """
+    Returns a dataframe from home team perspective. Each row is a Corsi event, with time and note of whether it's
+    positive or negative for home team.
+
+    :param season: int, the season
+    :param game: int, the game
+    :param cfca: str, or None. If you specify 'cf', returns CF only. For CA, use 'ca'. None returns CF - CA.
+
+    :return: dataframe with columns Time and HomeCorsi
+    """
+
+    toi = parse_toi.get_parsed_toi(season, game)
+    pbp = get_parsed_pbp(season, game)
+
+    pbp = pbp[['Time', 'Event', 'Team']] \
+        .merge(toi[['Time', 'R1', 'R2', 'R3', 'R4', 'R5', 'H1', 'H2', 'H3', 'H4', 'H5',
+                    'HomeStrength', 'RoadStrength']], how='inner', on='Time')
+
+    from scrapenhl2.manipulate import manipulate as manip
+
+    corsi = manip.filter_for_five_on_five(manip.filter_for_corsi(pbp)) \
+        .drop(['HomeStrength', 'RoadStrength'], axis=1)
+
+    hometeam = schedules.get_home_team(season, game)
+
+    if cfca is None:
+        corsi.loc[:, 'HomeCorsi'] = corsi.Team.apply(lambda x: 1 if x == hometeam else -1)
+    elif cfca == 'cf':
+        corsi.loc[:, 'HomeCorsi'] = corsi.Team.apply(lambda x: 1 if x == hometeam else 0)
+    elif cfca == 'ca':
+        corsi.loc[:, 'HomeCorsi'] = corsi.Team.apply(lambda x: 0 if x == hometeam else 1)
+
+    corsipm = corsi[['Time', 'HomeCorsi']]
+    return corsipm
 
 
 def parse_pbp_setup():

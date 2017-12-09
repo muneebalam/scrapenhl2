@@ -1319,16 +1319,7 @@ def get_game_h2h_toi(season, games):
         games = [games]
     dflst = []
     for game in games:
-        toi = parse_toi.get_parsed_toi(season, game)
-        fives = toi[(toi.HomeStrength == "5") & (toi.RoadStrength == "5")]
-        home = helpers.melt_helper(fives[['Time', 'H1', 'H2', 'H3', 'H4', 'H5']],
-                                   id_vars='Time', var_name='P', value_name='PlayerID') \
-            .drop('P', axis=1) \
-            .assign(Team='H')
-        road = helpers.melt_helper(fives[['Time', 'R1', 'R2', 'R3', 'R4', 'R5']],
-                                   id_vars='Time', var_name='P', value_name='PlayerID') \
-            .drop('P', axis=1) \
-            .assign(Team='R')
+        home, road = parse_toi.get_melted_home_road_5v5_toi(season, game)
 
         hh = home.merge(home, how='inner', on='Time', suffixes=['1', '2'])
         hr = home.merge(road, how='inner', on='Time', suffixes=['1', '2'])
@@ -1621,3 +1612,66 @@ def team_5v5_shot_rates_by_score(season):
 
     df = pd.concat(dflst)
     return df
+
+
+def get_micah_score_adjustment():
+    """
+    See http://hockeyviz.com/txt/senstats
+
+    :return: dataframe: HomeScoreDiff, HomeFFWeight, and HomeFAWeight
+    """
+    adjs = {-3: [.85, 1.214],
+            -2: [.882, 1.154],
+            -1: [.915, 1.103],
+            0: [.97, 1.032],
+            1: [1.026, 0.975],
+            2: [1.074, 0.936],
+            3: [1.132, 0.895]}
+
+    adj_df = pd.DataFrame({'HomeScoreDiff': [key for key, val in adjs.items()],
+                           'HomeFFWeight': [val[0] for key, val, in adjs.items()],
+                           'HomeFAWeight': [val[1] for key, val in adjs.items()]})
+    return adj_df
+
+
+def add_score_adjustment_to_team_pbp(df):
+    """
+    Adds AdjFF and AdjFA
+
+    :param df: dataframe
+
+    :return: dataframe with extra columns
+    """
+    df.loc[:, '_Row'] = 1
+    df.loc[:, '_Row'] = df['_Row'].cumsum()
+
+    adj_df = get_micah_score_adjustment()
+    focus_team = df.FocusTeam.iloc[0]
+
+    home_games = df.assign(ScoreDiff=df.TeamScore-df.OppScore) \
+        .query('Home == FocusTeam') \
+        .pipe(filter_for_fenwick)
+    home_games.loc[:, 'ScoreDiff'] = home_games.ScoreDiff.apply(lambda x: max(min(x, 3), -3))
+    home_games = home_games \
+        .merge(adj_df, how='left', left_on='ScoreDiff', right_on='HomeScoreDiff') \
+        .drop('HomeScoreDiff', axis=1)
+    home_games.loc[:, 'AdjFF'] = home_games.Team.apply(lambda x: 1 if x == focus_team else 0)
+    #home_games.loc[:, 'AdjFF'] = home_games.AdjFF * home_games.HomeFFWeight
+    home_games.loc[:, 'AdjFA'] = home_games.Team.apply(lambda x: 0 if x == focus_team else 1)
+    #home_games.loc[:, 'AdjFA'] = home_games.AdjFA * home_games.HomeFAWeight
+
+    road_games = df.assign(ScoreDiff=-1 * (df.TeamScore - df.OppScore)) \
+        .query('Home != FocusTeam') \
+        .pipe(filter_for_fenwick)
+    road_games.loc[:, 'ScoreDiff'] = road_games.ScoreDiff.apply(lambda x: max(min(x, 3), -3))
+    road_games = road_games \
+        .merge(adj_df, how='left', left_on='ScoreDiff', right_on='HomeScoreDiff') \
+        .drop('HomeScoreDiff', axis=1)
+    road_games.loc[:, 'AdjFF'] = road_games.Team.apply(lambda x: 1 if x == focus_team else 0)
+    #road_games.loc[:, 'AdjFF'] = road_games.AdjFF * road_games.HomeFAWeight
+    road_games.loc[:, 'AdjFA'] = road_games.Team.apply(lambda x: 0 if x == focus_team else 1)
+    #road_games.loc[:, 'AdjFA'] = road_games.AdjFA * home_games.HomeFFWeight
+
+    df2 = df.merge(pd.concat([home_games, road_games])[['ScoreDiff', 'AdjFF', 'AdjFA', '_Row']],
+                   how='left', on='_Row')
+    return df2

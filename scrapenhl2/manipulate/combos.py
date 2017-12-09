@@ -4,7 +4,7 @@ This module contains methods for generating H2H data for games
 import pandas as pd
 
 from scrapenhl2.manipulate import manipulate as manip
-from scrapenhl2.scrape import general_helpers as helpers, parse_toi, parse_pbp, schedules, team_info
+from scrapenhl2.scrape import general_helpers as helpers, parse_toi, parse_pbp, schedules, team_info, teams
 
 
 def get_game_combo_toi(season, game, player_n=2, *hrcodes):
@@ -32,7 +32,7 @@ def get_game_combo_toi(season, game, player_n=2, *hrcodes):
     return _combo_secs_from_hrcodes(home, road, *hrcodes)
 
 
-def get_game_h2h_corsi(season, game, player_n=2, cfca=None, *hrcodes):
+def get_game_combo_corsi(season, game, player_n=2, cfca=None, *hrcodes):
     """
     This method gets H2H Corsi at 5v5 for the given game.
 
@@ -53,33 +53,8 @@ def get_game_h2h_corsi(season, game, player_n=2, cfca=None, *hrcodes):
     for hrcode in hrcodes:
         assert len(hrcode) == player_n
 
-    toi = parse_toi.get_parsed_toi(season, game)
-    pbp = parse_pbp.get_parsed_pbp(season, game)
-
-    pbp = pbp[['Time', 'Event', 'Team']] \
-        .merge(toi[['Time', 'R1', 'R2', 'R3', 'R4', 'R5', 'H1', 'H2', 'H3', 'H4', 'H5',
-                    'HomeStrength', 'RoadStrength']], how='inner', on='Time')
-    corsi = manip.filter_for_five_on_five(manip.filter_for_corsi(pbp)) \
-        .drop(['HomeStrength', 'RoadStrength'], axis=1)
-
-    hometeam = schedules.get_home_team(season, game)
-
-    if cfca is None:
-        corsi.loc[:, 'HomeCorsi'] = corsi.Team.apply(lambda x: 1 if x == hometeam else -1)
-    elif cfca == 'cf':
-        corsi.loc[:, 'HomeCorsi'] = corsi.Team.apply(lambda x: 1 if x == hometeam else 0)
-    elif cfca == 'ca':
-        corsi.loc[:, 'HomeCorsi'] = corsi.Team.apply(lambda x: 0 if x == hometeam else 1)
-
-    corsipm = corsi[['Time', 'HomeCorsi']]
-
-    home = helpers.melt_helper(corsi[['Time', 'H1', 'H2', 'H3', 'H4', 'H5']],
-                               id_vars='Time', var_name='P', value_name='PlayerID') \
-        .drop('P', axis=1) \
-        .drop_duplicates()
-    road = helpers.melt_helper(corsi[['Time', 'R1', 'R2', 'R3', 'R4', 'R5']],
-                               id_vars='Time', var_name='P', value_name='PlayerID') \
-        .drop('P', axis=1)
+    corsipm = parse_pbp.get_5v5_corsi_pm(season, game)
+    home, road = parse_toi.get_melted_home_road_5v5_toi(season, game)
 
     return _combo_corsi_from_hrcodes(home, road, corsipm, cfca, *hrcodes)
 
@@ -131,7 +106,6 @@ def _combo_corsi_from_hrcodes(homedf=None, roaddf=None, corsidf=None, cfca=None,
         # One last to-do: make sure I have all possible pairs of players covered
         combocols = tuple([('PlayerID' + str(x), 'Team' + str(x)) for x in range(1, len(hrcodes[0]) + 1)])
         allcombos = manip.convert_to_all_combos(gamedf, 0, *combocols)
-        allcombos.loc[:, 'Min'] = allcombos.Secs / 60
         dflst.append(allcombos)
 
     return pd.concat(dflst)
@@ -187,11 +161,55 @@ def _combo_secs_from_hrcodes(homedf=None, roaddf=None, *hrcodes):
 
 def get_team_combo_toi(season, team, games, n_players=2):
     """
-    Gets combo TOI for team for specified games
+    Gets 5v5 combo TOI for team for specified games
 
+    :param season: int, the season
     :param team: int or str, team
     :param games: int or iterable of int, games
     :param n_players: int. E.g. 1 gives you player TOI, 2 gives you 2-player group TOI, 3 makes 3-player groups, etc
+
+    :return: dataframe
+    """
+
+    if helpers.check_number(games):
+        games = [games]
+
+    teamid = team_info.team_as_id(team)
+    toi = teams.get_team_toi(season, team) \
+        .merge(pd.DataFrame({'Game': games}), how='inner', on='Game') \
+        .pipe(manip.filter_for_five_on_five) \
+        [['Game', 'Time', 'Team1', 'Team2', 'Team3', 'Team4', 'Team5']] \
+        .pipe(helpers.melt_helper, id_vars=['Game', 'Time'], var_name='P', value_name='PlayerID') \
+        .drop('P', axis=1)
+    toi2 = None
+    for i in range(n_players):
+        toitemp = toi.rename(columns={'PlayerID': 'PlayerID' + str(i+1)})
+        if toi2 is None:
+            toi2 = toitemp
+        else:
+            toi2 = toi2.merge(toitemp, how='inner', on=['Game', 'Time'])
+
+    # Group by players and count
+    groupcols = ['PlayerID' + str(i+1) for i in range(n_players)]
+    grouped = toi2.drop('Game', axis=1) \
+        .groupby(groupcols, as_index=False) \
+        .count() \
+        .rename(columns={'Time': 'Secs'})
+
+    # Convert to all columns
+    allcombos = manip.convert_to_all_combos(grouped, 0, *groupcols)
+    return allcombos
+
+
+def get_team_combo_corsi(season, team, games, n_players=2, cfca=None):
+    """
+    Gets combo Corsi for team for specified games
+
+    :param season: int, the season
+    :param team: int or str, team
+    :param games: int or iterable of int, games
+    :param n_players: int. E.g. 1 gives you player TOI, 2 gives you 2-player group TOI, 3 makes 3-player groups, etc
+    :param cfca: str, or None. If you specify 'cf', returns CF only. For CA, use 'ca'. None returns CF - CA.
 
     :return: dataframe
     """
@@ -207,12 +225,11 @@ def get_team_combo_toi(season, team, games, n_players=2):
             hr = 'H'*n_players
         else:
             hr = 'R' * n_players
-        home, road = parse_toi.get_melted_home_road_5v5_toi(season, game)
-        df = _combo_secs_from_hrcodes(home, road, hr)
+        df = get_game_combo_corsi(season, game, n_players, cfca, hr)
         dflst.append(df)
 
     df = pd.concat(dflst)
-    df = df.groupby([col for col in df.columns if col != 'Secs' and col != 'Min'], as_index=False).sum()
+    df = df.groupby([col for col in df.columns if col != 'HomeCorsi'], as_index=False).sum()
 
     # Get all combos of players
     combocols = tuple([('PlayerID' + str(x), 'Team' + str(x)) for x in range(1, n_players + 1)])
