@@ -8,9 +8,7 @@ import urllib.request
 import zlib
 from time import sleep
 
-import scrapenhl2.scrape.organization as organization
-import scrapenhl2.scrape.schedules as schedules
-import scrapenhl2.scrape.general_helpers as helpers
+from scrapenhl2.scrape import organization, schedules, general_helpers as helpers, manipulate_schedules, parse_pbp
 
 
 def scrape_game_pbp_from_html(season, game, force_overwrite=True):
@@ -194,6 +192,37 @@ def get_game_pbplog_filename(season, game):
     :return: str, /scrape/data/raw/pbp/[season]/[game].html
     """
     return os.path.join(organization.get_season_raw_pbp_folder(season), str(game) + '.html')
+
+
+def scrape_season_pbp(season, force_overwrite=False):
+    """
+    Scrapes and parses pbp from the given season.
+
+    :param season: int, the season
+    :param force_overwrite: bool. If true, rescrapes all games. If false, only previously unscraped ones
+
+    :return: nothing
+    """
+    if season is None:
+        season = schedules.get_current_season()
+
+    sch = schedules.get_season_schedule(season)
+    games = sch[sch.Status == "Final"].Game.values
+    games.sort()
+    intervals = helpers.intervals(games)
+    interval_j = 0
+    for i, game in enumerate(games):
+        try:
+            scrape_game_pbp(season, game, force_overwrite)
+            manipulate_schedules.update_schedule_with_pbp_scrape(season, game)
+            parse_pbp.parse_game_pbp(season, game, True)
+        except Exception as e:
+            pass  # ed.print_and_log('{0:d} {1:d} {2:s}'.format(season, game, str(e)), 'warn')
+        if interval_j < len(intervals):
+            if i == intervals[interval_j][0]:
+                print('Done scraping through {0:d} {1:d} ({2:d}%)'.format(
+                    season, game, round(intervals[interval_j][0] / len(games) * 100)))
+                interval_j += 1
 
 
 def scrape_pbp_setup():

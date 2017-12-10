@@ -8,9 +8,7 @@ import urllib.request
 import zlib
 from time import sleep
 
-from scrapenhl2.scrape import organization
-from scrapenhl2.scrape import schedules
-from scrapenhl2.scrape import general_helpers as helpers
+from scrapenhl2.scrape import organization, schedules, manipulate_schedules, general_helpers as helpers, parse_toi
 
 
 def scrape_game_toi(season, game, force_overwrite=False):
@@ -206,6 +204,40 @@ def get_game_raw_toi_filename(season, game):
     :return: str, /scrape/data/raw/toi/[season]/[game].zlib
     """
     return os.path.join(organization.get_season_raw_toi_folder(season), str(game) + '.zlib')
+
+
+def scrape_season_toi(season, force_overwrite=False):
+    """
+    Scrapes and parses toi from the given season.
+
+    :param season: int, the season
+    :param force_overwrite: bool. If true, rescrapes all games. If false, only previously unscraped ones
+
+    :return: nothing
+    """
+    if season is None:
+        season = schedules.get_current_season()
+
+    sch = schedules.get_season_schedule(season)
+    games = sch[sch.Status == "Final"].Game.values
+    games.sort()
+    intervals = helpers.intervals(games)
+    interval_j = 0
+    for i, game in enumerate(games):
+        try:
+            scrape_game_toi(season, game, force_overwrite)
+            manipulate_schedules.update_schedule_with_pbp_scrape(season, game)
+            parse_toi.parse_game_pbp(season, game, True)
+            if len(parse_toi.get_parsed_toi(season, game)) < 3600:
+                scrape_game_toi_from_html(season, game, True)
+                parse_toi.parse_game_toi_from_html(season, game, True)
+        except Exception as e:
+            pass  # ed.print_and_log('{0:d} {1:d} {2:s}'.format(season, game, str(e)), 'warn')
+        if interval_j < len(intervals):
+            if i == intervals[interval_j][0]:
+                print('Done scraping through {0:d} {1:d} ({2:d}%)'.format(
+                    season, game, round(intervals[interval_j][0] / len(games) * 100)))
+                interval_j += 1
 
 
 def scrape_toi_setup():

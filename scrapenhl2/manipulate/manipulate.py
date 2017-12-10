@@ -1656,9 +1656,9 @@ def add_score_adjustment_to_team_pbp(df):
         .merge(adj_df, how='left', left_on='ScoreDiff', right_on='HomeScoreDiff') \
         .drop('HomeScoreDiff', axis=1)
     home_games.loc[:, 'AdjFF'] = home_games.Team.apply(lambda x: 1 if x == focus_team else 0)
-    #home_games.loc[:, 'AdjFF'] = home_games.AdjFF * home_games.HomeFFWeight
+    home_games.loc[:, 'AdjFF'] = home_games.AdjFF * home_games.HomeFFWeight
     home_games.loc[:, 'AdjFA'] = home_games.Team.apply(lambda x: 0 if x == focus_team else 1)
-    #home_games.loc[:, 'AdjFA'] = home_games.AdjFA * home_games.HomeFAWeight
+    home_games.loc[:, 'AdjFA'] = home_games.AdjFA * home_games.HomeFAWeight
 
     road_games = df.assign(ScoreDiff=-1 * (df.TeamScore - df.OppScore)) \
         .query('Home != FocusTeam') \

@@ -8,4 +8,5 @@ __all__ = ['game_h2h',
            'rolling_boxcars',
            'label_lines',
            'defense_pairs',
+           'forward_trios',
            'team_score_shot_rate']

@@ -642,13 +642,17 @@ def add_cfpct_ref_lines_to_plot(ax, refs=None):
                      zorder=0.75)
 
 
-def add_good_bad_fast_slow(margin=0.05):
+def add_good_bad_fast_slow(margin=0.05, bottomleft='Slower', bottomright='Better', topleft='Worse', topright='Faster'):
     """
     Adds better, worse, faster, slower, to current matplotlib plot. CF60 should be on the x-axis and CA60 on the y-axis.
     Also expands figure limits by margin (default 5%). That means you should use this before using, say,
     add_cfpct_ref_lines_to_plot.
 
     :param margin: expand figure limits by margin. Defaults to 5%.
+    :param bottomleft: label to put in bottom left corner
+    :param bottomright: label to put in bottom right corner
+    :param topleft: label to put in top left corner
+    :param topright: label to put in top right corner
 
     :return: nothing
     """
@@ -663,10 +667,10 @@ def add_good_bad_fast_slow(margin=0.05):
     plt.gca().set_ylim(ymin - margin * ydiff, ymax + margin * ydiff)
 
     bbox_props = dict(boxstyle="round", fc="w", ec="0.5", alpha=0.9)
-    plt.annotate('Faster', xy=(0.95, 0.95), xycoords='axes fraction', bbox=bbox_props, ha='center', va='center')
-    plt.annotate('Slower', xy=(0.05, 0.05), xycoords='axes fraction', bbox=bbox_props, ha='center', va='center')
-    plt.annotate('Better', xy=(0.95, 0.05), xycoords='axes fraction', bbox=bbox_props, ha='center', va='center')
-    plt.annotate('Worse', xy=(0.05, 0.95), xycoords='axes fraction', bbox=bbox_props, ha='center', va='center')
+    plt.annotate(topright, xy=(0.95, 0.95), xycoords='axes fraction', bbox=bbox_props, ha='center', va='center')
+    plt.annotate(bottomleft, xy=(0.05, 0.05), xycoords='axes fraction', bbox=bbox_props, ha='center', va='center')
+    plt.annotate(bottomright, xy=(0.95, 0.05), xycoords='axes fraction', bbox=bbox_props, ha='center', va='center')
+    plt.annotate(topleft, xy=(0.05, 0.95), xycoords='axes fraction', bbox=bbox_props, ha='center', va='center')
 
 
 def get_line_slope_intercept(x1, y1, x2, y2):
