@@ -551,6 +551,8 @@ def add_cfpct_ref_lines_to_plot(ax, refs=None):
     50% has the largest width and is solid. 40%, 60%, etc will be dashed with medium width. Other numbers will be
     dotted and have the lowest width.
 
+    Also adds little labels in center of pictured range.
+
     :param ax: axes. CF should be on the X axis and CA on the Y axis.
     :param refs: None, or a list of percentages (e.g. [45, 50, 55]). Defaults to every 5% from 35% to 65%
 
@@ -564,7 +566,7 @@ def add_cfpct_ref_lines_to_plot(ax, refs=None):
     larger_max = max(org_xlim[1], org_ylim[1])
 
     if refs is None:
-        refs = list(range(35, 66, 5))
+        refs = list(range(30, 71, 5))
 
     # Convert these percentages into ratios
     # i.e. instead of cf / (cf + ca), I want cf/ca
@@ -589,8 +591,53 @@ def add_cfpct_ref_lines_to_plot(ax, refs=None):
         ys = get_ca_from_cfpct(np.array(org_xlim), ref/100)
         ax.plot(org_xlim, ys, zorder=0.5,
                 lw=linewidth, color=color, ls=linestyle)
+
     ax.set_xlim(*org_xlim)
     ax.set_ylim(*org_ylim)
+
+    # For adding boxes, first find the slopes of each ref line (intercepts are zero)
+    x1 = np.array([org_xlim[0] for _ in range(len(refs))])
+    x2 = np.array([org_xlim[1] for _ in range(len(refs))])
+    ys = get_ca_from_cfpct(np.array(org_xlim).repeat(len(refs)).reshape((2, len(refs))), np.array(refs)/100)
+    y1 = ys[0]
+    y2 = ys[1]
+    slopes, intercepts = get_line_slope_intercept(x1, y1, x2, y2)  # intercepts all zero, as expected
+
+    # Next find coordinates of intersections with window edges
+    leftx = np.array([org_xlim[0] for _ in range(len(refs))])
+    rightx = np.array([org_xlim[1] for _ in range(len(refs))])
+    bottomy = np.array([org_ylim[0] for _ in range(len(refs))])
+    topy = np.array([org_ylim[1] for _ in range(len(refs))])
+    lefty = slopes * leftx
+    righty = slopes * rightx
+    bottomx = bottomy / slopes
+    topx = topy / slopes
+
+    # Note whether each line intersected each of those window edges
+    int_left = (org_ylim[0] <= lefty) & (lefty <= org_ylim[1])
+    int_right = (org_ylim[0] <= righty) & (righty <= org_ylim[1])
+    int_bottom = (org_xlim[0] <= bottomx) & (bottomx <= org_xlim[1])
+    int_top = (org_xlim[0] <= topx) & (topx <= org_xlim[1])
+
+    # Iterate through
+    bbox_props = dict(boxstyle="round", fc="w", ec="0.5", alpha=0.9)
+    for ily, iry, ibx, itx, pct in zip(int_left, int_right, int_bottom, int_top, refs):
+        # Continue to next iteration in loop if don't have two intersections
+        if ily + iry + ibx + itx < 2:
+            continue
+        if ily and iry:
+            midx = (org_xlim[0] + org_xlim[1]) / 2
+            midy = (iry + ily) / 2
+        elif ily and itx:
+            midx = (org_xlim[0] + itx) / 2
+            midy = (ily + org_ylim[1]) / 2
+        elif ibx and itx:
+            midx = (ibx + itx) / 2
+            midy = (org_ylim[0] + org_ylim[1]) / 2
+        elif ibx and iry:
+            midx = (ibx + org_xlim[1]) / 2
+            midy = (org_ylim[0] + iry) / 2
+        plt.annotate('{0:d}%'.format(pct), xy=(midx, midy), ha='center', va='center', bbox=bbox_props)
 
 
 def add_good_bad_fast_slow(margin=0.05):
@@ -618,3 +665,10 @@ def add_good_bad_fast_slow(margin=0.05):
     plt.annotate('Slower', xy=(0.05, 0.05), xycoords='axes fraction', bbox=bbox_props, ha='center', va='center')
     plt.annotate('Better', xy=(0.95, 0.05), xycoords='axes fraction', bbox=bbox_props, ha='center', va='center')
     plt.annotate('Worse', xy=(0.05, 0.95), xycoords='axes fraction', bbox=bbox_props, ha='center', va='center')
+
+
+def get_line_slope_intercept(x1, y1, x2, y2):
+    """Returns slope and intercept of lines defined by given coordinates"""
+    m = (y2 - y1) / (x2 - x1)
+    b = y1 - m*x1
+    return m, b

@@ -127,6 +127,7 @@ def save_parsed_toi(toi, season, game):
     if toi is None:
         print('None for TOI for', season, game)
         return
+    toi = toi.drop_duplicates()  # TODO why do I need this? E.g. see 20008 second 329
     toi.to_hdf(get_game_parsed_toi_filename(season, game),
                key='T{0:d}0{1:d}'.format(season, game),
                mode='w', complib='zlib')

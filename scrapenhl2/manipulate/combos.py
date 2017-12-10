@@ -3,7 +3,7 @@ This module contains methods for generating H2H data for games
 """
 import pandas as pd
 
-from scrapenhl2.manipulate import manipulate as manip
+from scrapenhl2.manipulate import manipulate as manip, add_onice_players as onice
 from scrapenhl2.scrape import general_helpers as helpers, parse_toi, parse_pbp, schedules, team_info, teams
 
 
@@ -201,7 +201,7 @@ def get_team_combo_toi(season, team, games, n_players=2):
     return allcombos
 
 
-def get_team_combo_corsi(season, team, games, n_players=2, cfca=None):
+def get_team_combo_corsi(season, team, games, n_players=2):
     """
     Gets combo Corsi for team for specified games
 
@@ -209,7 +209,6 @@ def get_team_combo_corsi(season, team, games, n_players=2, cfca=None):
     :param team: int or str, team
     :param games: int or iterable of int, games
     :param n_players: int. E.g. 1 gives you player TOI, 2 gives you 2-player group TOI, 3 makes 3-player groups, etc
-    :param cfca: str, or None. If you specify 'cf', returns CF only. For CA, use 'ca'. None returns CF - CA.
 
     :return: dataframe
     """
@@ -218,21 +217,38 @@ def get_team_combo_corsi(season, team, games, n_players=2, cfca=None):
         games = [games]
 
     teamid = team_info.team_as_id(team)
-
-    dflst = []
-    for game in games:
-        if schedules.get_home_team(season, game) == teamid:
-            hr = 'H'*n_players
+    corsi = teams.get_team_pbp(season, team)
+    corsi = corsi.assign(_Secs=corsi.Time) \
+        .merge(pd.DataFrame({'Game': games}), how='inner', on='Game') \
+        .pipe(manip.filter_for_five_on_five) \
+        .pipe(manip.filter_for_corsi) \
+        [['Game', 'Time', 'Team', '_Secs']] \
+        .pipe(onice.add_onice_players_to_df, focus_team=team, season=season, gamecol='Game')
+    cols_to_drop = ['Opp{0:d}'.format(i) for i in range(1, 7)] + ['{0:s}6'.format(team_info.team_as_str(team))]
+    corsi = corsi.drop(cols_to_drop, axis=1) \
+        .pipe(helpers.melt_helper, id_vars=['Game', 'Time', 'Team'], var_name='P', value_name='PlayerID') \
+        .drop('P', axis=1)
+    corsi2 = None
+    for i in range(n_players):
+        corsitemp = corsi.rename(columns={'PlayerID': 'PlayerID' + str(i+1)})
+        if corsi2 is None:
+            corsi2 = corsitemp
         else:
-            hr = 'R' * n_players
-        df = get_game_combo_corsi(season, game, n_players, cfca, hr)
-        dflst.append(df)
+            corsi2 = corsi2.merge(corsitemp, how='inner', on=['Game', 'Time', 'Team'])
 
-    df = pd.concat(dflst)
-    df = df.groupby([col for col in df.columns if col != 'HomeCorsi'], as_index=False).sum()
+    # Assign CF and CA
+    teamid = team_info.team_as_id(team)
+    corsi2.loc[:, 'CF'] = corsi2.Team.apply(lambda x: 1 if x == teamid else 0)
+    corsi2.loc[:, 'CA'] = corsi2.Team.apply(lambda x: 0 if x == teamid else 1)
+    corsi2 = corsi2.drop({'Game', 'Time', 'Team'}, axis=1)
 
-    # Get all combos of players
-    combocols = tuple([('PlayerID' + str(x), 'Team' + str(x)) for x in range(1, n_players + 1)])
-    allcombos = manip.convert_to_all_combos(df, 0, *combocols)
+    # Group by players and count
+    groupcols = ['PlayerID' + str(i+1) for i in range(n_players)]
+    grouped = corsi2 \
+        .groupby(groupcols, as_index=False) \
+        .sum() \
+        .rename(columns={'Time': 'Secs'})
 
+    # Convert to all columns
+    allcombos = manip.convert_to_all_combos(grouped, 0, *groupcols)
     return allcombos

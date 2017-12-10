@@ -411,7 +411,7 @@ def player_as_str(playerid, filterids=None):
         player = int(playerid)
         df = filterdf.query('ID == {0:.0f}'.format(playerid))
         if len(df) == 0:
-            print('Could not find name for {0:d}'.format(playerid))
+            print('Could not find name for {0:.0f}'.format(playerid))
             return None
         elif len(df) == 1:
             return df.Name.iloc[0]

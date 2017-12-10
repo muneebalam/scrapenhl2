@@ -26,51 +26,59 @@ def team_fline_shot_rates_scatter(team, min_line_toi=50, **kwargs):
 
     startdate, enddate = vhelper.get_startdate_enddate_from_kwargs(**kwargs)
     rates = get_fline_shot_rates(team, startdate, enddate)
-    pairs = drop_duplicate_lines(rates).query('TOI >= {0:d}'.format(60 * min_line_toi))
-    xy = _add_xy_names_for_fline_graph(pairs)
+    lines = drop_duplicate_lines(rates)
+    xy = _add_xy_names_for_fline_graph(lines)
 
     fig = plt.figure(figsize=[8, 6])
     ax = plt.gca()
 
     xy = _get_point_sizes_for_fline_scatter(xy)
-    xy = _get_colors_for_fline_scatter(xy)
+    xy = _get_colors_markers_for_fline_scatter(xy)
 
-    def p_to_marker(pid):
-        return {'C': '^', 'L': '<', 'R': '>'}[players.get_player_position(pid)]
+    # Remove players who didn't have at least one line combination above minimum
+    # Remove total TOI rows first, then filter
+    # Get indiv toi by finding index of max TOI of each group. Then anti-join lines onto indiv toi
+    indivtoi = xy.ix[xy.groupby(['Name', 'PlayerID'], as_index=False)['TOI'].idxmax()] \
+        [['Name', 'PlayerID', 'TOI', 'X', 'Y', 'Color', 'Marker', 'Size']] \
+        .sort_values('TOI', ascending=False)
+    xy = helper.anti_join(xy.query('TOI >= {0:d}'.format(60 * min_line_toi)),
+                          indivtoi[['Name', 'PlayerID', 'TOI']], on=['Name', 'PlayerID', 'TOI'])
 
-    # First plot players on their own
-    for name in xy.Name.unique():
-        # Get first two rows, which are this player adjusted a bit. Take average
-        temp = xy.query('Name == "{0:s}"'.format(name)).sort_values('TOI', ascending=False) \
-            .iloc[:2, :] \
-            .groupby(['Name', 'PlayerID', 'Color'], as_index=False).mean()
-        marker = p_to_marker(temp.PlayerID.iloc[0])
-        ax.scatter(temp.X.values, temp.Y.values, label=name, marker=marker,
-                   s=temp.Size.values, c=temp.Color.values)
+    # Plot individuals
+    # Ordinarily would filter for players with a qualifying line combo again
+    # But this would eliminate some fourth liners who are lineup constants
+    # Instead, make sure anybody with at least as much TOI as anybody on a qualifying line is in
+    mintoi = indivtoi[['PlayerID', 'TOI']] \
+        .merge(pd.DataFrame({'PlayerID': xy.PlayerID.unique()}), how='inner', on='PlayerID') \
+        .TOI.min()
+    indivtoi = indivtoi.query('TOI >= {0:d}'.format(int(mintoi)))
+    for i, name, pid, toi, x, y, color, marker, s in indivtoi.itertuples():
+        ax.scatter([x], [y], marker=marker, s=s, c=color, label=helper.get_lastname(name))
 
     # Now plot lines
     for name in xy.Name.unique():
-        temp = xy.query('Name == "{0:s}"'.format(name)).sort_values('TOI', ascending=False).iloc[2:, :]
+        temp = xy.query('Name == "{0:s}"'.format(name)).sort_values('TOI', ascending=False)
         if len(temp) == 0:
             continue
-        marker = p_to_marker(temp.PlayerID.iloc[0])
-        ax.scatter(temp.X.values, temp.Y.values, marker=marker, s=temp.Size.values, c=temp.Color.values)
+        ax.scatter(temp.X.values, temp.Y.values, marker=temp.Marker.values[0], s=temp.Size.values, c=temp.Color.values)
 
     ax.set_xlabel('CF60')
     ax.set_ylabel('CA60')
-    plt.legend(loc='best', fontsize=10)
+    num_players = len(xy.Name.unique())
+    plt.legend(loc='upper center', fontsize=6, ncol=num_players//3+1)
     vhelper.add_good_bad_fast_slow()
     vhelper.add_cfpct_ref_lines_to_plot(ax)
 
-    ax.set_title(', '.join(vhelper.generic_5v5_log_graph_title('D pair shot rates', **kwargs)))
+    ax.set_title(', '.join(vhelper.generic_5v5_log_graph_title('F line shot rates', **kwargs)))
 
     return vhelper.savefilehelper(**kwargs)
 
 
-def _get_colors_for_fline_scatter(df):
+def _get_colors_markers_for_fline_scatter(df):
     """
     A helper method that scales scatterpoint alphas corresponding to TOI column. The largest point gets an alpha of 0.9;
     others get smaller linearly. Follows current matplotlib color cycle, turning RGB into RGBA.
+    Top 3 forwards get a star marker, next six get a plus, rest get up triangles
 
     :param df: dataframe with TOI column
 
@@ -85,13 +93,27 @@ def _get_colors_for_fline_scatter(df):
         newcolor = mplc.to_rgba(base, alpha=thistoi / largesttoi * 0.9)
         return newcolor
 
+    toisums = df[['PlayerID', 'Name', 'TOI']] \
+        .groupby(['PlayerID', 'Name'], as_index=False) \
+        .sum() \
+        .sort_values('TOI', ascending=False) \
+        .drop('TOI', axis=1)
+    markers = ['*'] * 3 + ['P'] * 3 + ['^'] * 3 + ['v'] * 30  # very large
+    toisums = toisums.assign(Marker=markers[:len(toisums)])
+
     dflst = []
-    for i, name in enumerate(df.Name.unique()):
-        color = vhelper.hex_to_rgb(color_cycle[i], maxval=1)
+    for i, name in enumerate(toisums.Name):
+        if i < 9:
+            j = i % 3
+        else:
+            j = i - 9
+        color = vhelper.hex_to_rgb(color_cycle[j], maxval=1)
         temp = df.query('Name == "{0:s}"'.format(name))
         temp.loc[:, 'Color'] = temp.TOI.apply(lambda x: get_adjusted_color(color, largest, x))
         dflst.append(temp)
-    return pd.concat(dflst)
+
+    df2 = pd.concat(dflst).merge(toisums, how='left', on=['PlayerID', 'Name'])
+    return df2
 
 
 def _get_point_sizes_for_fline_scatter(df):
@@ -105,11 +127,11 @@ def _get_point_sizes_for_fline_scatter(df):
     """
 
     largest = df.TOI.max()
-    df.loc[:, 'Size'] = df.TOI / largest * 200
+    df.loc[:, 'Size'] = (df.TOI / largest) * 200
     return df
 
 
-def _add_xy_names_for_fline_graph(df, delta_small=0.25, delta_large=0.75):
+def _add_xy_names_for_fline_graph(df, delta=0.75):
     """
     X is CF60 and Y is CA60. Pushes PlayerID1 a little to the left, playerID2 a little up, and PlayerID3 right.
     Also adds player names.
@@ -119,32 +141,38 @@ def _add_xy_names_for_fline_graph(df, delta_small=0.25, delta_large=0.75):
 
     :return: dataframe with X and Y and names added on, melted version of original df
     """
-    df = df.assign(PairIndex=1)
-    df.loc[:, 'PairIndex'] = df.PairIndex.cumsum()
-
-    melted = helper.melt_helper(df[['PlayerID1', 'PlayerID2', 'CF60', 'CA60', 'TOI', 'PairIndex']],
-                                id_vars=['CF60', 'CA60', 'TOI', 'PairIndex'], var_name='P1P2', value_name='PlayerID')
-
-    handedness = players.get_player_ids_file().query('Pos == "D"')[['ID', 'Hand']]
-    deltadf = df[['PlayerID1', 'PlayerID2', 'PairIndex']] \
-        .merge(handedness.rename(columns={'ID': 'PlayerID1', 'Hand': 'Hand1'}), how='left', on='PlayerID1') \
-        .merge(handedness.rename(columns={'ID': 'PlayerID2', 'Hand': 'Hand2'}), how='left', on='PlayerID2')
-    deltadf.loc[((deltadf.Hand1 == 'L') & (deltadf.Hand2 == 'R')), 'DeltaReq'] = delta_large
-    deltadf.loc[:, 'DeltaReq'] = deltadf.DeltaReq.fillna(delta_small)
-    deltadf = deltadf[['PairIndex', 'DeltaReq']]
-
-    melted = melted.merge(deltadf, how='left', on='PairIndex')
-
+    df = df.assign(LineIndex=1)
+    df.loc[:, 'LineIndex'] = df.LineIndex.cumsum()
+    melted = helper.melt_helper(df[['CF60', 'CA60', 'TOI', 'PlayerID1', 'PlayerID2', 'PlayerID3', 'LineIndex']],
+                                id_vars=['CF60', 'CA60', 'TOI', 'LineIndex'],
+                                var_name='P1P2P3', value_name='PlayerID')
     melted.loc[:, 'Name'] = melted.PlayerID.apply(lambda x: players.player_as_str(x))
 
-    temp1 = melted[melted.P1P2 == 'PlayerID1']
-    temp2 = melted[melted.P1P2 == 'PlayerID2']
+    # Extract singles, pairs, and triples
+    temp = melted[['TOI', 'LineIndex', 'PlayerID']] \
+        .drop_duplicates() \
+        .rename(columns={'PlayerID': 'Count'}) \
+        .groupby(['TOI', 'LineIndex'], as_index=False) \
+        .count() \
+        .merge(melted, how='left', on=['TOI', 'LineIndex'])
+    singles = temp.query('Count == 1').drop('Count', axis=1) \
+        .assign(P1P2P3='PlayerID1').drop_duplicates()
+    #pairs = temp.query('Count == 2').drop('Count', axis=1) \
+    #    .assign(P1P2P3='PlayerID1').drop_duplicates(subset=)
+    triples = temp.query('Count == 3').drop('Count', axis=1)
 
-    temp1.loc[:, 'X'] = temp1.CF60 - temp1.DeltaReq
-    temp2.loc[:, 'X'] = temp2.CF60 + temp2.DeltaReq
+    # For triples, do the shift. For singles, no shift. For pairs, shift left and right only.
+    triples.loc[:, 'DeltaX'] = triples.P1P2P3.apply(lambda x: {'PlayerID1': -1 * delta,
+                                                             'PlayerID2': 0,
+                                                             'PlayerID3': delta}[x])
+    triples.loc[:, 'DeltaY'] = triples.P1P2P3.apply(lambda x: {'PlayerID1': 0,
+                                                             'PlayerID2': delta,
+                                                             'PlayerID3': 0}[x])
+    melted = pd.concat([singles, triples]).fillna(0)
 
-    melted = pd.concat([temp1, temp2])
-    melted.loc[:, 'Y'] = melted.CA60
+    melted.loc[:, 'X'] = melted.CF60 + melted.DeltaX
+    melted.loc[:, 'Y'] = melted.CA60 + melted.DeltaY
+    melted = melted.drop({'DeltaX', 'DeltaY', 'LineIndex'}, axis=1)
 
     return melted
 
@@ -175,19 +203,23 @@ def drop_duplicate_lines(rates):
     lines.loc[:, 'LineIndex'] = lines.LineIndex.cumsum()
     melted = helper.melt_helper(lines, id_vars='LineIndex', var_name='P1P2P3', value_name='PlayerID')
 
-    grouped = melted.sort_values(['LineIndex', 'PlayerID']).groupby('LineIndex', as_index=False)
+    grouped = melted.sort_values(['LineIndex', 'PlayerID'])\
+        .drop('P1P2P3', axis=1) \
+        .groupby('LineIndex', as_index=False)
 
-    firsts = grouped.first().rename(columns={'PlayerID': 'PlayerID1'}).drop('P1P2P3', axis=1)
-    middles = grouped.median().rename(columns={'PlayerID': 'PlayerID2'}).drop('P1P2P3', axis=1)
-    lasts = grouped.last().rename(columns={'PlayerID': 'PlayerID3'}).drop('P1P2P3', axis=1)
+    firsts = grouped.first().rename(columns={'PlayerID': 'PlayerID1'})
+    middles = grouped.median().rename(columns={'PlayerID': 'PlayerID2'})
+    lasts = grouped.last().rename(columns={'PlayerID': 'PlayerID3'})
 
-    joined = firsts.merge(middles, how='outer', on='LineIndex') \
-        .merge(lasts, how='outer', on='LineIndex') \
-        .drop('LineIndex', axis=1)
+    joined = lines[['LineIndex']] \
+        .merge(firsts, how='left', on='LineIndex') \
+        .merge(middles, how='left', on='LineIndex') \
+        .merge(lasts, how='left', on='LineIndex') \
+        .drop('LineIndex', axis=1) \
+        .drop_duplicates()
 
     # Inner join back on
-    df = rates.merge(joined, how='inner', on=['PlayerID1', 'PlayerID2', 'PlayerID3']) \
-        .drop({'Hand1', 'Hand2'}, axis=1)
+    df = rates.merge(joined, how='inner', on=['PlayerID1', 'PlayerID2', 'PlayerID3'])
 
     return df
 
@@ -212,27 +244,11 @@ def get_fline_shot_rates(team, startdate, enddate):
         games_played = [g for g in games_played if 20001 <= g <= 30417]
 
         toi = combos.get_team_combo_toi(season, team, games_played, n_players=3) \
-            .drop({'Min', 'Team1', 'Team2', 'Team3'}, axis=1) \
             .rename(columns={'Secs': 'TOI'})
 
-        cf = combos.get_team_combo_corsi(season, team, games_played, n_players=3, cfca='cf') \
-            .drop({'Team2', 'Team3'}, axis=1) \
-            .rename(columns={'HomeCorsi': 'CF'})
-        ca = combos.get_team_combo_corsi(season, team, games_played, n_players=3, cfca='ca') \
-            .drop({'Team2', 'Team3'}, axis=1) \
-            .rename(columns={'HomeCorsi': 'CF'})
+        cfca = combos.get_team_combo_corsi(season, team, games_played, n_players=3)
 
-        # CF and CA from home perspective, so switch if necessary
-        cfca = cf.merge(ca, how='outer', on=['Game', 'PlayerID1', 'PlayerID2', 'PlayerID3', 'Team1'])
-        cfca.loc[:, 'tempcf'] = cfca.CF
-        cfca.loc[:, 'tempca'] = cfca.CA
-        # Pick up here
-        cfca.loc[cf.Team1 == 'R', 'CF'] = cfca[cfca.Team1 == 'R'].tempca
-        cfca.loc[ca.Team1 == 'R', 'CA'] = cfca[cfca.Team1 == 'R'].tempcf
-
-        cfca = cfca.drop({'tempcf', 'tempca'}, axis=1)
-
-        joined = toi.merge(cfca, how='outer', on=['PlayerID1', 'PlayerID2', 'PlayerID3', 'Game']) \
+        joined = toi.merge(cfca, how='outer', on=['PlayerID1', 'PlayerID2', 'PlayerID3']) \
             .assign(Season=season)
         dflst.append(joined)
 
