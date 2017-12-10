@@ -29,20 +29,19 @@ def team_fline_shot_rates_scatter(team, min_line_toi=50, **kwargs):
     lines = drop_duplicate_lines(rates)
     xy = _add_xy_names_for_fline_graph(lines)
 
-    fig = plt.figure(figsize=[8, 6])
-    ax = plt.gca()
-
-    xy = _get_point_sizes_for_fline_scatter(xy)
     xy = _get_colors_markers_for_fline_scatter(xy)
 
     # Remove players who didn't have at least one line combination above minimum
     # Remove total TOI rows first, then filter
     # Get indiv toi by finding index of max TOI of each group. Then anti-join lines onto indiv toi
     indivtoi = xy.ix[xy.groupby(['Name', 'PlayerID'], as_index=False)['TOI'].idxmax()] \
-        [['Name', 'PlayerID', 'TOI', 'X', 'Y', 'Color', 'Marker', 'Size']] \
+        [['Name', 'PlayerID', 'TOI', 'X', 'Y', 'Color', 'Marker']] \
         .sort_values('TOI', ascending=False)
     xy = helper.anti_join(xy.query('TOI >= {0:d}'.format(60 * min_line_toi)),
                           indivtoi[['Name', 'PlayerID', 'TOI']], on=['Name', 'PlayerID', 'TOI'])
+
+    # Now get sizes. Scaling is too poor if I do it earlier
+    xy = _get_point_sizes_for_fline_scatter(xy)
 
     # Plot individuals
     # Ordinarily would filter for players with a qualifying line combo again
@@ -52,8 +51,12 @@ def team_fline_shot_rates_scatter(team, min_line_toi=50, **kwargs):
         .merge(pd.DataFrame({'PlayerID': xy.PlayerID.unique()}), how='inner', on='PlayerID') \
         .TOI.min()
     indivtoi = indivtoi.query('TOI >= {0:d}'.format(int(mintoi)))
-    for i, name, pid, toi, x, y, color, marker, s in indivtoi.itertuples():
-        ax.scatter([x], [y], marker=marker, s=s, c=color, label=helper.get_lastname(name))
+
+    fig = plt.figure(figsize=[8, 6])
+    ax = plt.gca()
+    for i, name, pid, toi, x, y, color, marker in indivtoi.itertuples():
+        # Size gets too crazy, so fix it
+        ax.scatter([x], [y], marker=marker, s=200, c=color, label=helper.get_lastname(name))
 
     # Now plot lines
     for name in xy.Name.unique():

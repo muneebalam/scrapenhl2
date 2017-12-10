@@ -416,7 +416,7 @@ def generic_5v5_log_graph_title(figtype, **kwargs):
     titlestr = []
     line1help = ''
     if 'player' in kwargs:
-        line1help = ' for {0:s}'.format(players.player_as_str(kwargs['team']))
+        line1help = ' for {0:s}'.format(players.player_as_str(kwargs['player']))
     elif 'team' in kwargs:
         line1help = ' for {0:s}'.format(team_info.team_as_str(kwargs['team']))
     elif 'players' in kwargs:
@@ -566,7 +566,7 @@ def add_cfpct_ref_lines_to_plot(ax, refs=None):
     larger_max = max(org_xlim[1], org_ylim[1])
 
     if refs is None:
-        refs = list(range(30, 71, 5))
+        refs = list(range(0, 101, 5))
 
     # Convert these percentages into ratios
     # i.e. instead of cf / (cf + ca), I want cf/ca
@@ -589,13 +589,14 @@ def add_cfpct_ref_lines_to_plot(ax, refs=None):
             linewidth = 1
             linestyle = ':'
         ys = get_ca_from_cfpct(np.array(org_xlim), ref/100)
-        ax.plot(org_xlim, ys, zorder=0.5,
+        ax.plot(org_xlim, ys, zorder=0.5, alpha=0.2,
                 lw=linewidth, color=color, ls=linestyle)
 
     ax.set_xlim(*org_xlim)
     ax.set_ylim(*org_ylim)
 
     # For adding boxes, first find the slopes of each ref line (intercepts are zero)
+    refs = list(range(0, 101, 10))
     x1 = np.array([org_xlim[0] for _ in range(len(refs))])
     x2 = np.array([org_xlim[1] for _ in range(len(refs))])
     ys = get_ca_from_cfpct(np.array(org_xlim).repeat(len(refs)).reshape((2, len(refs))), np.array(refs)/100)
@@ -613,31 +614,32 @@ def add_cfpct_ref_lines_to_plot(ax, refs=None):
     bottomx = bottomy / slopes
     topx = topy / slopes
 
-    # Note whether each line intersected each of those window edges
-    int_left = (org_ylim[0] <= lefty) & (lefty <= org_ylim[1])
-    int_right = (org_ylim[0] <= righty) & (righty <= org_ylim[1])
-    int_bottom = (org_xlim[0] <= bottomx) & (bottomx <= org_xlim[1])
-    int_top = (org_xlim[0] <= topx) & (topx <= org_xlim[1])
+    # Iterate through and see which sides are intersected
+    bbox_props = dict(boxstyle="round", fc="w", ec="0.5", alpha=0.5)
+    for ily, iry, ibx, itx, pct in zip(lefty, righty, bottomx, topx, refs):
+        # Find which sides intersect
+        left = org_ylim[0] <= ily <= org_ylim[1]
+        right = org_ylim[0] <= iry <= org_ylim[1]
+        bottom = org_xlim[0] <= ibx <= org_xlim[1]
+        top = org_xlim[0] <= itx <= org_xlim[1]
 
-    # Iterate through
-    bbox_props = dict(boxstyle="round", fc="w", ec="0.5", alpha=0.9)
-    for ily, iry, ibx, itx, pct in zip(int_left, int_right, int_bottom, int_top, refs):
         # Continue to next iteration in loop if don't have two intersections
-        if ily + iry + ibx + itx < 2:
+        if sum((left, right, top, bottom)) < 2:
             continue
-        if ily and iry:
+        if left and right:
             midx = (org_xlim[0] + org_xlim[1]) / 2
             midy = (iry + ily) / 2
-        elif ily and itx:
+        elif left and top:
             midx = (org_xlim[0] + itx) / 2
             midy = (ily + org_ylim[1]) / 2
-        elif ibx and itx:
+        elif bottom and top:
             midx = (ibx + itx) / 2
             midy = (org_ylim[0] + org_ylim[1]) / 2
-        elif ibx and iry:
+        elif bottom and right:
             midx = (ibx + org_xlim[1]) / 2
             midy = (org_ylim[0] + iry) / 2
-        plt.annotate('{0:d}%'.format(pct), xy=(midx, midy), ha='center', va='center', bbox=bbox_props)
+        plt.annotate('{0:d}%'.format(pct), xy=(midx, midy), ha='center', va='center', bbox=bbox_props, fontsize=6,
+                     zorder=0.75)
 
 
 def add_good_bad_fast_slow(margin=0.05):
