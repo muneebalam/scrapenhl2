@@ -6,7 +6,7 @@ Plot
 The scrapenhl2.plot module contains methods useful for plotting.
 
 Useful examples
-----------------
+---------------
 
 First, import::
 

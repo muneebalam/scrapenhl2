@@ -1,7 +1,7 @@
 .. _support:
 
 Support
-========
+=======
 
 Feel free to contact me with questions or suggestions.
 
@@ -10,11 +10,11 @@ Docs
 `Read the Docs <http://scrapenhl2.readthedocs.io/en/latest/>`_
 
 Github
--------
+------
 `Link <https://github.com/muneebalam/scrapenhl2>`_.
 
 Contact
---------
+-------
 `Twitter
 <http://www.twitter.com/muneebalamcu>`_, or
 `create an issue on GitHub <https://github.com/muneebalam/scrapenhl2/issues>`_.

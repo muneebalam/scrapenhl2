@@ -38,7 +38,7 @@ def add_players_to_file(filename, focus_team, season=None, gamecol='Game', perio
 
     df = _read_tracking_file(filename)
     df = add_times_to_file(df, periodcol, timecol, time_format)
-    df = _add_onice_players_to_df(df, focus_team, season, gamecol, player_output)
+    df = add_onice_players_to_df(df, focus_team, season, gamecol, player_output)
     _write_tracking_file(df, filename)
 
 
@@ -56,7 +56,7 @@ def _write_tracking_file(df, original_filename):
     df.to_csv(new_filename, index=False)
 
 
-def _add_onice_players_to_df(df, focus_team, season, gamecol, player_output):
+def add_onice_players_to_df(df, focus_team, season, gamecol, player_output='ids'):
     """
     Uses the _Secs column in df, the season, and the gamecol to join onto on-ice players.
 
@@ -64,7 +64,7 @@ def _add_onice_players_to_df(df, focus_team, season, gamecol, player_output):
     :param focus_team: str or int, team to focus on. Its players will be listed in first in sheet.
     :param season: int, the season
     :param gamecol: str, the column with game IDs
-    :param player_output: str, use 'names' or 'nums'. Currently only 'names' is supported.
+    :param player_output: str, use 'names' or 'nums' or 'ids'. Currently 'nums' is not supported.
 
     :return: dataframe with team and opponent players
     """
@@ -72,14 +72,17 @@ def _add_onice_players_to_df(df, focus_team, season, gamecol, player_output):
     teamid = team_info.team_as_id(focus_team)
     teamname = team_info.team_as_str(focus_team)
 
-    toi = teams.get_team_toi(season, focus_team).rename(columns={'Time': '_Secs'})
+    toi = teams.get_team_toi(season, focus_team).rename(columns={'Time': '_Secs'}).drop_duplicates()
     toi = toi[['Game', '_Secs', 'Team1', 'Team2', 'Team3', 'Team4', 'Team5', 'Team6',
                'Opp1', 'Opp2', 'Opp3', 'Opp4', 'Opp5', 'Opp6']]
 
     # Now convert to names or numbers
     for col in toi.columns[-12:]:
-        toi.loc[:, col] = players.playerlst_as_str(toi[col])
-        if player_output == 'nums':
+        if player_output == 'ids':
+            pass
+        elif player_output == 'names':
+            toi.loc[:, col] = players.playerlst_as_str(toi[col])
+        elif player_output == 'nums':
             pass  # TODO
 
     # Rename columns

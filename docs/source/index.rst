@@ -4,7 +4,7 @@ Welcome to scrapenhl2's documentation!
 ======================================
 
 Table of Contents
-------------------
+-----------------
 
 .. toctree::
     :maxdepth: 1

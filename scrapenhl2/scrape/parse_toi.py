@@ -127,6 +127,7 @@ def save_parsed_toi(toi, season, game):
     if toi is None:
         print('None for TOI for', season, game)
         return
+    toi = toi.drop_duplicates()  # TODO why do I need this? E.g. see 20008 second 329
     toi.to_hdf(get_game_parsed_toi_filename(season, game),
                key='T{0:d}0{1:d}'.format(season, game),
                mode='w', complib='zlib')
@@ -510,6 +511,28 @@ def get_game_parsed_toi_filename(season, game):
     :return: str, /scrape/data/parsed/toi/[season]/[game].zlib
     """
     return os.path.join(organization.get_season_parsed_toi_folder(season), str(game) + '.h5')
+
+
+def get_melted_home_road_5v5_toi(season, game):
+    """
+    Reads parsed TOI for this game, filters for 5v5 TOI, and melts from wide to long on player
+
+    :param season: int, the season
+    :param game: int, the game
+
+    :return: (home_df, road_df), each with columns Time, PlayerID, and Team (which will be H or R)
+    """
+    toi = get_parsed_toi(season, game)
+    fives = toi[(toi.HomeStrength == "5") & (toi.RoadStrength == "5")]
+    home = helpers.melt_helper(fives[['Time', 'H1', 'H2', 'H3', 'H4', 'H5']],
+                               id_vars='Time', var_name='P', value_name='PlayerID') \
+        .drop('P', axis=1) \
+        .assign(Team='H')
+    road = helpers.melt_helper(fives[['Time', 'R1', 'R2', 'R3', 'R4', 'R5']],
+                               id_vars='Time', var_name='P', value_name='PlayerID') \
+        .drop('P', axis=1) \
+        .assign(Team='R')
+    return home, road
 
 
 def parse_toi_setup():
