@@ -173,6 +173,8 @@ def read_shifts_from_html_pages(rawtoi1, rawtoi2, teamid1, teamid2, season, game
                     shiftnum, per, start, end, dur, ev = tables[i]
                     # print(pname, pid, shiftnum, per, start, end)
                     ids.append(pid)
+                    if per == 'OT':
+                        per = 4
                     periods.append(int(per))
                     starts.append(start[:start.index('/')].strip())
                     ends.append(end[:end.index('/')].strip())
