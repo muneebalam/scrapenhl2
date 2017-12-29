@@ -76,15 +76,6 @@ def add_onice_players_to_df(df, focus_team, season, gamecol, player_output='ids'
     toi = toi[['Game', '_Secs', 'Team1', 'Team2', 'Team3', 'Team4', 'Team5', 'Team6',
                'Opp1', 'Opp2', 'Opp3', 'Opp4', 'Opp5', 'Opp6']]
 
-    # Now convert to names or numbers
-    for col in toi.columns[-12:]:
-        if player_output == 'ids':
-            pass
-        elif player_output == 'names':
-            toi.loc[:, col] = players.playerlst_as_str(toi[col])
-        elif player_output == 'nums':
-            pass  # TODO
-
     # Rename columns
     toi = toi.rename(columns={col: '{0:s}{1:s}'.format(focus_team, col[-1])
                               for col in toi.columns if len(col) >= 4 and col[:4] == 'Team'})
@@ -115,15 +106,6 @@ def add_onice_players_to_df(df, focus_team, season, gamecol, player_output='ids'
                     gametoi = gametoi.rename(columns={'R' + str(x): focus_team + str(x) for x in range(1, 7)})
                     gametoi = gametoi.rename(columns={'H' + str(x): 'Opp' + str(x) for x in range(1, 7)})
 
-
-                for col in gametoi.columns[-12:]:
-                    if player_output == 'ids':
-                        pass
-                    elif player_output == 'names':
-                        gametoi.loc[:, col] = players.playerlst_as_str(pd.to_numeric(gametoi[col], errors='coerce'))
-                    elif player_output == 'nums':
-                        pass  # TODO
-
                 gametoi = gametoi.assign(Game=int(round(game)))
 
                 joined = helpers.fill_join(joined, gametoi, on=['_Secs', 'Game'])
@@ -133,6 +115,15 @@ def add_onice_players_to_df(df, focus_team, season, gamecol, player_output='ids'
                 pass
             print('Missing all data to join on-ice players for {0:d}'.format(int(round(game))))
         print('Check scrape / parse status and game number')
+
+    # Now convert to names or numbers
+    for col in joined.columns[-12:]:
+        if player_output == 'ids':
+            pass
+        elif player_output == 'names':
+            joined.loc[:, col] = players.playerlst_as_str(pd.to_numeric(joined[col]))
+        elif player_output == 'nums':
+            pass  # TODO
 
     return joined.drop('_Secs', axis=1)
 
