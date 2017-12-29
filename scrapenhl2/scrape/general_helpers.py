@@ -400,3 +400,27 @@ def anti_join(df1, df2, **kwargs):
     return df1.merge(df2, how='left', indicator=True, **kwargs) \
         .query('_merge != "both"') \
         .drop('_merge', axis=1)
+
+
+def fill_join(df1, df2, **kwargs):
+    """
+    Uses data from df2 to fill in missing values from df1. Helpful when you have to join using multiple data sources.
+    Preserves data order. Won't work when joining introduces duplicates.
+
+    :param df1: dataframe
+    :param df2: dataframe
+    :param kwargs: keyword arguments as passed to pd.DataFrame.merge (except for 'how' and 'suffixes')
+
+    :return: dataframe
+    """
+
+    tmp = df1.merge(df2, how='left', suffixes=['', '_drop'], **kwargs)
+
+    cols1 = set(df1.columns)
+    cols2 = set(df2.columns)
+    for col in cols2:
+        if col in cols1 and col + '_drop' in tmp:
+            df1.loc[:, col] = df1[col].fillna(tmp[col + '_drop'])
+
+    return df1
+

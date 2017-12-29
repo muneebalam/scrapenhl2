@@ -89,9 +89,52 @@ def add_onice_players_to_df(df, focus_team, season, gamecol, player_output='ids'
     toi = toi.rename(columns={col: '{0:s}{1:s}'.format(focus_team, col[-1])
                               for col in toi.columns if len(col) >= 4 and col[:4] == 'Team'})
 
-    joined = df.merge(toi, how='left', on=['_Secs', 'Game']).drop('_Secs', axis=1)
+    joined = df.merge(toi, how='left', on=['_Secs', 'Game'])
 
-    return joined
+    # Print missing games by finding nulls in Opp1
+    # If I actually do have the TOI (which may not have made it into the team log b/c of missing PBP), then use that
+    missings = set(joined[pd.isnull(joined.Opp1)].Game.unique())
+    hassome = set(joined[pd.notnull(joined.Opp1)].Game.unique())
+    for game in missings:
+        if game in hassome:
+            print('Missing some (not all) data to join on-ice players for {0:d}'.format(int(round(game))))
+        else:
+            # See if I have its TOI
+            try:
+                gametoi = parse_toi.get_parsed_toi(season, int(round(game))) \
+                    .rename(columns={'Time': '_Secs'}).drop_duplicates() \
+                    .drop({'HomeStrength', 'RoadStrength', 'HG', 'RG'}, axis=1)
+
+                # Now that I do, need to switch column names, get players in right format, and join
+                from scrapenhl2.scrape import schedules
+                hname = team_info.team_as_str(schedules.get_home_team(season, int(round(game))))
+                if hname == focus_team:
+                    gametoi = gametoi.rename(columns={'H' + str(x): focus_team + str(x) for x in range(1, 7)})
+                    gametoi = gametoi.rename(columns={'R' + str(x): 'Opp' + str(x) for x in range(1, 7)})
+                else:
+                    gametoi = gametoi.rename(columns={'R' + str(x): focus_team + str(x) for x in range(1, 7)})
+                    gametoi = gametoi.rename(columns={'H' + str(x): 'Opp' + str(x) for x in range(1, 7)})
+
+
+                for col in gametoi.columns[-12:]:
+                    if player_output == 'ids':
+                        pass
+                    elif player_output == 'names':
+                        gametoi.loc[:, col] = players.playerlst_as_str(pd.to_numeric(gametoi[col], errors='coerce'))
+                    elif player_output == 'nums':
+                        pass  # TODO
+
+                gametoi = gametoi.assign(Game=int(round(game)))
+
+                joined = helpers.fill_join(joined, gametoi, on=['_Secs', 'Game'])
+
+                continue
+            except OSError:
+                pass
+            print('Missing all data to join on-ice players for {0:d}'.format(int(round(game))))
+        print('Check scrape / parse status and game number')
+
+    return joined.drop('_Secs', axis=1)
 
 
 def _opp_cols_to_back(df):
@@ -126,7 +169,20 @@ def add_times_to_file(df, periodcol, timecol, time_format):
     df = df.dropna(subset={timecol})
     df.loc[:, periodcol] = df[periodcol].fillna(method='ffill')
 
-    df.loc[:, '_MMSS'] = df[timecol].apply(lambda x: helpers.mmss_to_secs(x))
+    # Common to see semicolon in place of colon; fix here as well
+    # Also fix, e.g. ! instead of 1, @ instead of 2, etc
+    df.loc[:, '_MMSS'] = df[timecol].str.replace(';', ':') \
+        .str.replace('!', '1') \
+        .str.replace('@', '2') \
+        .str.replace('#', '3') \
+        .str.replace('$', '4') \
+        .str.replace('%', '5') \
+        .str.replace('^', '6') \
+        .str.replace('&', '7') \
+        .str.replace('*', '8') \
+        .str.replace('(', '9') \
+        .str.replace(')', '0') \
+        .apply(lambda x: helpers.mmss_to_secs(x))
 
     if time_format == 'elapsed':
         def period_cont(x):

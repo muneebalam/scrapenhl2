@@ -106,7 +106,7 @@ def get_team_toi_filename(season, team):
 def update_team_logs(season, force_overwrite=False, force_games=None):
     """
     This method looks at the schedule for the given season and writes pbp for scraped games to file.
-    It also adds the strength at each pbp event to the log.
+    It also adds the strength at each pbp event to the log. It only includes games that have both PBP *and* TOI.
 
     :param season: int, the season
     :param force_overwrite: bool, whether to generate from scratch
