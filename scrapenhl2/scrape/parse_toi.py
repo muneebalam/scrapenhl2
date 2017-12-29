@@ -30,8 +30,26 @@ def parse_season_toi(season, force_overwrite=False):
     sch = schedules.get_season_schedule(season)
     games = sch[sch.Status == "Final"].Game.values
     games.sort()
-    for game in games:
-        parse_game_toi(season, game, force_overwrite)
+    intervals = helpers.intervals(games)
+    interval_j = 0
+    for i, game in enumerate(games):
+        try:
+            if season >= 2010:
+                parse_game_toi(season, game, force_overwrite)
+            else:
+                parse_game_toi_from_html(season, game, force_overwrite)
+            if len(get_parsed_toi(season, game)) < 3600:
+                parse_game_toi_from_html(season, game, force_overwrite)
+        except Exception as e:
+            try:
+                parse_game_toi_from_html(season, game, force_overwrite)
+            except Exception as e:
+                pass  # ed.print_and_log('{0:d} {1:d} {2:s}'.format(season, game, str(e)), 'warn')
+        if interval_j < len(intervals):
+            if i == intervals[interval_j][0]:
+                print('Done parsing toi through {0:d} {1:d} ({2:d}%)'.format(
+                    season, game, round(intervals[interval_j][0] / len(games) * 100)))
+                interval_j += 1
 
 
 def parse_game_toi(season, game, force_overwrite=False):

@@ -322,6 +322,9 @@ def _get_cf_for_timeline(season, game, homeroad, granularity='sec'):
     # I want it soccer style, so Time = 0 always has CumCF = 0, and that first shot at 30sec will register for Time=1
     df = pd.concat([pd.DataFrame({'Time': [-1], 'CumCF': [0], 'CF': [0]}), df])
     df.loc[:, 'Time'] = df.Time + 1
+    # But because of this, in case of OT or other last-second goals, need to add 1 to the end
+    df = pd.concat([df, pd.DataFrame({'Time': [df.Time.max() + 1]})])
+    df = df.fillna(method='ffill')
 
     # For every shot, want to plot a point as if that shot hadn't happened, and then one where it did
     # So every segment of chart has either slope 0 or infinite

@@ -8,7 +8,8 @@ import feather
 import pandas as pd
 import pyarrow
 
-from scrapenhl2.scrape import organization, parse_pbp, parse_toi, schedules, team_info, general_helpers as helpers
+from scrapenhl2.scrape import organization, parse_pbp, parse_toi, schedules, team_info, general_helpers as helpers, \
+    scrape_toi, manipulate_schedules
 
 
 def get_team_pbp(season, team):
@@ -143,7 +144,7 @@ def update_team_logs(season, force_overwrite=False, force_games=None):
                     pbpdf = helpers.anti_join(pbpdf, pd.DataFrame({'Game': list(force_games)}), on='Game')
                 newgames = newgames.merge(pbpdf[['Game']].drop_duplicates(), how='outer', on='Game', indicator=True)
                 newgames = newgames[newgames._merge == "left_only"].drop('_merge', axis=1)
-            except FileNotFoundError:
+            except OSError:
                 pbpdf = None
             except pyarrow.lib.ArrowIOError:  # pyarrow (feather) FileNotFoundError equivalent
                 pbpdf = None
@@ -152,7 +153,7 @@ def update_team_logs(season, force_overwrite=False, force_games=None):
                 toidf = get_team_toi(season, team)
                 if force_games is not None:
                     toidf = helpers.anti_join(toidf, pd.DataFrame({'Game': list(force_games)}), on='Game')
-            except FileNotFoundError:
+            except OSError:
                 toidf = None
             except pyarrow.lib.ArrowIOError:  # pyarrow (feather) FileNotFoundError equivalent
                 toidf = None
@@ -164,12 +165,25 @@ def update_team_logs(season, force_overwrite=False, force_games=None):
 
             # load parsed pbp and toi
             try:
-                gamepbp = parse_pbp.get_parsed_pbp(season, game)
-                gametoi = parse_toi.get_parsed_toi(season, game)
-                # TODO 2016 20779 why does pbp have 0 rows?
-                # Also check for other errors in parsing etc
+                try:
+                    gamepbp = None
+                    gamepbp = parse_pbp.get_parsed_pbp(season, game)
+                except OSError:
+                    print("Check PBP for", season, game)
+                try:
+                    gametoi = None
+                    gametoi = parse_toi.get_parsed_toi(season, game)
+                except OSError:
+                    # try html
+                    scrape_toi.scrape_game_toi_from_html(season, game)
+                    parse_toi.parse_game_toi_from_html(season, game)
+                    manipulate_schedules.update_schedule_with_toi_scrape(season, game)
+                    try:
+                        gametoi = parse_toi.get_parsed_toi(season, game)
+                    except OSError:
+                        print('Check TOI for', season, game)
 
-                if len(gamepbp) > 0 and len(gametoi) > 0:
+                if gamepbp is not None and gametoi is not None and len(gamepbp) > 0 and len(gametoi) > 0:
                     # Rename score and strength columns from home/road to team/opp
                     if team == home:
                         gametoi = gametoi.assign(TeamStrength=gametoi.HomeStrength, OppStrength=gametoi.RoadStrength) \

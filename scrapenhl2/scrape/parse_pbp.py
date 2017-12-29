@@ -35,7 +35,7 @@ def parse_season_pbp(season, force_overwrite=False):
             pass  # ed.print_and_log('{0:d} {1:d} {2:s}'.format(season, game, str(e)), 'warn')
         if interval_j < len(intervals):
             if i == intervals[interval_j][0]:
-                print('Done parsing through {0:d} {1:d} ({2:d}%)'.format(
+                print('Done parsing pbp through {0:d} {1:d} ({2:d}%)'.format(
                     season, game, round(intervals[interval_j][0] / len(games) * 100)))
                 interval_j += 1
 
