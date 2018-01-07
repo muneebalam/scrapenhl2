@@ -80,7 +80,9 @@ def game_timeline(season, game, save_file=None):
                 colors_to_use = darkercolors
             for i, (start, end) in enumerate(pps[team][pptype]):
                 cf_at_time_min = cf[team].loc[cf[team].Time == start].CumCF.max()  # in case there are multiple
-                cf_at_time_max = cf[team][cf[team].Time == end].CumCF.max()
+                cf_at_time_max = cf[team][cf[team].Time == end + 1].CumCF.max()  # +1 ensures you capture shot in last s
+                if pd.isnull(cf_at_time_max):
+                    cf_at_time_max = cf[team][cf[team].Time == end].CumCF.max()
                 if i == 0:
                     ax2.axvspan(start, end, ymin=cf_at_time_min / ymax,
                                 ymax=cf_at_time_max / ymax, alpha=0.5, facecolor=colors_to_use[team],
@@ -88,7 +90,7 @@ def game_timeline(season, game, save_file=None):
                 else:
                     ax2.axvspan(start, end, ymin=cf_at_time_min / ymax,
                                 ymax=cf_at_time_max / ymax, alpha=0.5, facecolor=colors[team])
-                ax2.axvspan(start, end, ymin=0, ymax=0.05, alpha=0.5, facecolor=colors_to_use[team])
+                ax2.axvspan(start, end + 1, ymin=0, ymax=0.05, alpha=0.5, facecolor=colors_to_use[team])
 
     # Set limits
     ax2.set_xlim(0, cf[hname].Time.max())
@@ -226,9 +228,9 @@ def _goal_times_to_scatter_for_timeline(goal_times, cfdf):
     cumgoals = 0
     for i in range(len(goal_times)):
         cumgoals += 1
-        cf_at_time = cfdf[cfdf.Time == goal_times[i]].CumCF.max()
+        cf_at_time = cfdf[cfdf.Time == goal_times[i] - 1].CumCF.max()
         for j in range(cumgoals):
-            goal_xs.append(goal_times[i])
+            goal_xs.append(goal_times[i] - 1)
             goal_ys.append(cf_at_time + j)
     return goal_xs, goal_ys
 
