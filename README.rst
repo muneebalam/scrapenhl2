@@ -133,6 +133,8 @@ If you do make a donation, make me happy `and leave a record here <https://goo.g
 Change log
 ----------
 
+1/13/18: Various bug fixes, some charts added.
+
 11/10/17: Switched from Flask to Dash, bug fixes.
 
 11/5/17: Bug fixes and method to add on-ice players to file. More refactoring.
