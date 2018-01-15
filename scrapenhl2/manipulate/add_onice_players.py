@@ -69,18 +69,15 @@ def add_onice_players_to_df(df, focus_team, season, gamecol, player_output='ids'
     :return: dataframe with team and opponent players
     """
 
-    teamid = team_info.team_as_id(focus_team)
-    teamname = team_info.team_as_str(focus_team)
-
     toi = teams.get_team_toi(season, focus_team).rename(columns={'Time': '_Secs'}).drop_duplicates()
     toi = toi[['Game', '_Secs', 'Team1', 'Team2', 'Team3', 'Team4', 'Team5', 'Team6',
-               'Opp1', 'Opp2', 'Opp3', 'Opp4', 'Opp5', 'Opp6']]
+               'Opp1', 'Opp2', 'Opp3', 'Opp4', 'Opp5', 'Opp6']].rename(columns={'Game': gamecol})
 
     # Rename columns
     toi = toi.rename(columns={col: '{0:s}{1:s}'.format(focus_team, col[-1])
                               for col in toi.columns if len(col) >= 4 and col[:4] == 'Team'})
 
-    joined = df.merge(toi, how='left', on=['_Secs', 'Game'])
+    joined = df.merge(toi, how='left', on=['_Secs', gamecol])
 
     # Print missing games by finding nulls in Opp1
     # If I actually do have the TOI (which may not have made it into the team log b/c of missing PBP), then use that
@@ -108,7 +105,7 @@ def add_onice_players_to_df(df, focus_team, season, gamecol, player_output='ids'
 
                 gametoi = gametoi.assign(Game=int(round(game)))
 
-                joined = helpers.fill_join(joined, gametoi, on=['_Secs', 'Game'])
+                joined = helpers.fill_join(joined, gametoi, on=['_Secs', gamecol])
 
                 continue
             except OSError:
@@ -173,7 +170,7 @@ def add_times_to_file(df, periodcol, timecol, time_format):
         .str.replace('*', '8') \
         .str.replace('(', '9') \
         .str.replace(')', '0') \
-        .apply(lambda x: helpers.mmss_to_secs(x))
+        .apply(helpers.mmss_to_secs)
 
     if time_format == 'elapsed':
         def period_cont(x):
@@ -186,7 +183,7 @@ def add_times_to_file(df, periodcol, timecol, time_format):
                 print('Cannot find period contribution for', x)
                 return ''
 
-        df.loc[:, '_Period_Contribution'] = df[periodcol].apply(lambda x: period_cont(x))
+        df.loc[:, '_Period_Contribution'] = df[periodcol].apply(period_cont)
         df.loc[:, '_Secs'] = df['_Period_Contribution'] + df['_MMSS']
     elif time_format == 'remaining':
         def period_cont(x):
@@ -199,7 +196,7 @@ def add_times_to_file(df, periodcol, timecol, time_format):
                 print('Cannot find period contribution for', x)
                 return ''
 
-        df.loc[:, '_Period_Contribution'] = df[periodcol].apply(lambda x: period_cont(x))
+        df.loc[:, '_Period_Contribution'] = df[periodcol].apply(period_cont)
         df.loc[:, '_Secs'] = df['_Period_Contribution'] - df['_MMSS']
 
     df.loc[:, '_Secs'] = df['_Secs'] + 1

@@ -2,7 +2,6 @@
 This module contains methods for making a stacked bar graph indicating how much TOI each team spends in score states.
 """
 
-import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 

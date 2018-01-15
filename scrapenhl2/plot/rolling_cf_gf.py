@@ -6,9 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np  # standard scientific python stack
 import pandas as pd  # standard scientific python stack
 
-import scrapenhl2.manipulate.manipulate as manip
 from scrapenhl2.scrape import players
-from scrapenhl2.scrape import schedules
 from scrapenhl2.plot import visualization_helper as vhelper
 
 def rolling_player_gf(player, **kwargs):

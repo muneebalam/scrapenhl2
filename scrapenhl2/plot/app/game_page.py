@@ -63,8 +63,8 @@ def generate_table(dataframe):
 def reduced_schedule_dataframe(season):
     """Returns schedule[Date, Game, Road, Home, Status]"""
     sch = schedules.get_season_schedule(season).drop({'Season', 'PBPStatus', 'TOIStatus'}, axis=1)
-    sch.loc[:, 'Home'] = sch.Home.apply(lambda x: team_info.team_as_str(x))
-    sch.loc[:, 'Road'] = sch.Road.apply(lambda x: team_info.team_as_str(x))
+    sch.loc[:, 'Home'] = sch.Home.apply(team_info.team_as_str)
+    sch.loc[:, 'Road'] = sch.Road.apply(team_info.team_as_str)
     sch = sch[['Date', 'Game', 'Road', 'Home', 'Status']].query('Game >= 20001 & Game <= 30417')
     return sch
 

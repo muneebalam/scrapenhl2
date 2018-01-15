@@ -7,9 +7,9 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as mplc
 
 import scrapenhl2.plot.visualization_helper as vhelper
-from scrapenhl2.scrape import schedules, team_info, teams, players
+from scrapenhl2.scrape import schedules, teams, players
 import scrapenhl2.scrape.general_helpers as helper
-from scrapenhl2.manipulate import manipulate as manip, combos
+from scrapenhl2.manipulate import combos
 
 def team_fline_shot_rates_scatter(team, min_line_toi=50, **kwargs):
     """
@@ -54,7 +54,7 @@ def team_fline_shot_rates_scatter(team, min_line_toi=50, **kwargs):
 
     fig = plt.figure(figsize=[8, 6])
     ax = plt.gca()
-    for i, name, pid, toi, x, y, color, marker in indivtoi.itertuples():
+    for _, name, pid, toi, x, y, color, marker in indivtoi.itertuples():
         # Size gets too crazy, so fix it
         ax.scatter([x], [y], marker=marker, s=200, c=color, label=helper.get_lastname(name))
 

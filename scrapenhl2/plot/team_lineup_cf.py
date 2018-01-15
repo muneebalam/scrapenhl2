@@ -6,9 +6,6 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 import scrapenhl2.scrape.players as players
-import scrapenhl2.scrape.schedules as schedules
-import scrapenhl2.scrape.general_helpers as helper
-import scrapenhl2.manipulate.manipulate as manip
 import scrapenhl2.plot.visualization_helper as vhelper
 import scrapenhl2.plot.rolling_cf_gf as rolling_cfgf
 

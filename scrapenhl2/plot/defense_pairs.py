@@ -141,7 +141,7 @@ def _add_xy_names_for_dpair_graph(df, delta_small=0.25, delta_large=0.75):
 
     melted = melted.merge(deltadf, how='left', on='PairIndex')
 
-    melted.loc[:, 'Name'] = melted.PlayerID.apply(lambda x: players.player_as_str(x))
+    melted.loc[:, 'Name'] = melted.PlayerID.apply(players.player_as_str)
 
     temp1 = melted[melted.P1P2 == 'PlayerID1']
     temp2 = melted[melted.P1P2 == 'PlayerID2']

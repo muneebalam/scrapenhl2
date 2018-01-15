@@ -1,11 +1,9 @@
 import functools
 import os
 import os.path
-import os.path
 
 import feather
 import pandas as pd
-import numpy as np
 
 from scrapenhl2.scrape import general_helpers as helpers
 from scrapenhl2.scrape import organization, schedules, teams, parse_pbp, parse_toi, players, events, team_info, scrape_pbp
@@ -852,7 +850,7 @@ def get_directions_for_xy_for_season(season, team):
     lrswitch = {'left': 'right', 'right': 'left', 'N/A': 'N/A'}
 
     game_to_directions = {}
-    for index, game, home, road in sch.itertuples():
+    for _, game, home, road in sch.itertuples():
         try:
             dirdct = get_directions_for_xy_for_game(season, game)
         except Exception as e:
@@ -961,12 +959,10 @@ def infer_zones_for_faceoffs(df, directions, xcol='X', ycol='Y', timecol='Time',
     if focus_team is not None:
         focus_team = team_info.team_as_id(focus_team)
 
-        season_dfs = []
         if 'Season' not in df2.columns:
             print('Need to have a Season column when invoking infer_zones_for_faceoffs with a focus_team')
 
         for season in df2.Season.value_counts().index:
-            temp = df2.query('Season == {0:d}'.format(int(season)))
             team_sch = schedules.get_team_schedule(season, focus_team)
             team_sch = helpers.melt_helper(team_sch[['Game', 'Home', 'Road']],
                                            id_vars='Game', var_name='_HR', value_name='Team') \
@@ -1017,7 +1013,7 @@ def generate_5v5_player_log(season):
     to_concat = []
 
     # Recreate TOI60 file.
-    _ = get_player_toion_toioff_file(season, force_create=True)
+    get_player_toion_toioff_file(season, force_create=True)
 
     for team in schedules.get_teams_in_season(season):
         try:
@@ -1519,7 +1515,6 @@ def player_columns_to_name(df, columns=None):
     if columns is None:
         columns = set(['{0:s}{1:s}'.format(hr, i) for hr in ['H', 'R'] for i in ['1', '2', '3', '4', '5', '6', 'G']])
     colnames = set(df.columns)
-    playersonice = players.get_player_ids_file()[['ID', 'Name']]
 
     newdf = pd.DataFrame(index=df.index)
     for col in colnames:
@@ -1545,7 +1540,7 @@ def team_5v5_score_state_summary_by_game(season):
     for team in schedules.get_teams_in_season(season):
         try:
             toi = teams.get_team_toi(season, team)
-        except Exception as e:
+        except Exception:
             continue
         toi = filter_for_five_on_five(toi).assign(Team=team)
         toi = toi[['Game', 'Team', 'Time', 'TeamScore', 'OppScore']] \
@@ -1574,7 +1569,7 @@ def team_5v5_shot_rates_by_score(season):
         try:
             toi = teams.get_team_toi(season, team)
             pbp = teams.get_team_pbp(season, team)
-        except Exception as e:
+        except Exception:
             continue
         toi = filter_for_five_on_five(toi).assign(Team=team)
         pbp = filter_for_five_on_five(
