@@ -146,7 +146,7 @@ def update_team_logs(season, force_overwrite=False, force_games=None):
                 newgames = newgames[newgames._merge == "left_only"].drop('_merge', axis=1)
             except OSError:
                 pbpdf = None
-            except pyarrow.lib.ArrowIOError:  # pyarrow (feather) FileNotFoundError equivalent
+            except OSError:  # pyarrow (feather) FileNotFoundError equivalent
                 pbpdf = None
 
             try:
@@ -155,7 +155,7 @@ def update_team_logs(season, force_overwrite=False, force_games=None):
                     toidf = helpers.anti_join(toidf, pd.DataFrame({'Game': list(force_games)}), on='Game')
             except OSError:
                 toidf = None
-            except pyarrow.lib.ArrowIOError:  # pyarrow (feather) FileNotFoundError equivalent
+            except OSError:  # pyarrow (feather) FileNotFoundError equivalent
                 toidf = None
 
         for i, gamerow in newgames.iterrows():

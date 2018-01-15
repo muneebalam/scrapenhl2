@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as mplc
 
 import scrapenhl2.plot.visualization_helper as vhelper
-from scrapenhl2.scrape import schedules, team_info, teams, players
+from scrapenhl2.scrape import schedules, team_info, players
 import scrapenhl2.scrape.general_helpers as helper
 import scrapenhl2.manipulate.manipulate as manip
 

@@ -850,7 +850,7 @@ def get_directions_for_xy_for_season(season, team):
     lrswitch = {'left': 'right', 'right': 'left', 'N/A': 'N/A'}
 
     game_to_directions = {}
-    for _, game, home, road in sch.itertuples():
+    for _, game, home, _ in sch.itertuples():
         try:
             dirdct = get_directions_for_xy_for_game(season, game)
         except Exception as e:

@@ -5,12 +5,10 @@ This module creates static and animated usage charts.
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 import pandas as pd
-import numpy as np
 
 from scrapenhl2.scrape import players, team_info, schedules
 from scrapenhl2.scrape import general_helpers as helpers
 from scrapenhl2.plot import visualization_helper as vhelper
-from scrapenhl2.plot import label_lines
 
 def parallel_coords_team_comparison(**kwargs):
     """
@@ -37,7 +35,7 @@ def parallel_coords_team_comparison(**kwargs):
 
     qocqot.loc[:, 'PlayerName'] = qocqot.PlayerID.apply(lambda x: helpers.get_lastname(players.player_as_str(x)))
     qocqot.loc[:, 'PlayerInitials'] = qocqot.PlayerID.apply(lambda x: helpers.get_lastname(players.player_as_str(x)))
-    qocqot.loc[:, 'Position'] = qocqot.PlayerID.apply(lambda x: players.get_player_position(x))
+    qocqot.loc[:, 'Position'] = qocqot.PlayerID.apply(players.get_player_position)
     qocqot.drop({'FCompSum', 'FCompN', 'DCompSum', 'DCompN', 'FTeamSum', 'FTeamN', 'DTeamSum', 'DTeamN',
                  'PlayerID'}, axis=1, inplace=True)
 
@@ -101,7 +99,7 @@ def parallel_usage_chart(**kwargs):
 
     qocqot.loc[:, 'PlayerName'] = qocqot.PlayerID.apply(lambda x: helpers.get_lastname(players.player_as_str(x)))
     qocqot.loc[:, 'PlayerInitials'] = qocqot.PlayerID.apply(lambda x: helpers.get_lastname(players.player_as_str(x)))
-    qocqot.loc[:, 'Position'] = qocqot.PlayerID.apply(lambda x: players.get_player_position(x))
+    qocqot.loc[:, 'Position'] = qocqot.PlayerID.apply(players.get_player_position)
     qocqot.drop({'FCompSum', 'FCompN', 'DCompSum', 'DCompN', 'FTeamSum', 'FTeamN', 'DTeamSum', 'DTeamN',
                  'PlayerID'}, axis=1, inplace=True)
 

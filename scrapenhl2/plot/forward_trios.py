@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as mplc
 
 import scrapenhl2.plot.visualization_helper as vhelper
-from scrapenhl2.scrape import schedules, teams, players
+from scrapenhl2.scrape import schedules, players
 import scrapenhl2.scrape.general_helpers as helper
 from scrapenhl2.manipulate import combos
 
@@ -54,7 +54,7 @@ def team_fline_shot_rates_scatter(team, min_line_toi=50, **kwargs):
 
     fig = plt.figure(figsize=[8, 6])
     ax = plt.gca()
-    for _, name, pid, toi, x, y, color, marker in indivtoi.itertuples():
+    for _, name, _, toi, x, y, color, marker in indivtoi.itertuples():
         # Size gets too crazy, so fix it
         ax.scatter([x], [y], marker=marker, s=200, c=color, label=helper.get_lastname(name))
 
@@ -149,7 +149,7 @@ def _add_xy_names_for_fline_graph(df, delta=0.75):
     melted = helper.melt_helper(df[['CF60', 'CA60', 'TOI', 'PlayerID1', 'PlayerID2', 'PlayerID3', 'LineIndex']],
                                 id_vars=['CF60', 'CA60', 'TOI', 'LineIndex'],
                                 var_name='P1P2P3', value_name='PlayerID')
-    melted.loc[:, 'Name'] = melted.PlayerID.apply(lambda x: players.player_as_str(x))
+    melted.loc[:, 'Name'] = melted.PlayerID.apply(players.player_as_str)
 
     # Extract singles, pairs, and triples
     temp = melted[['TOI', 'LineIndex', 'PlayerID']] \
