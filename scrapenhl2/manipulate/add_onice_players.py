@@ -94,7 +94,6 @@ def add_onice_players_to_df(df, focus_team, season, gamecol, player_output='ids'
                     .drop({'HomeStrength', 'RoadStrength', 'HG', 'RG'}, axis=1)
 
                 # Now that I do, need to switch column names, get players in right format, and join
-                from scrapenhl2.scrape import schedules
                 hname = team_info.team_as_str(schedules.get_home_team(season, int(round(game))))
                 if hname == focus_team:
                     gametoi = gametoi.rename(columns={'H' + str(x): focus_team + str(x) for x in range(1, 7)})
