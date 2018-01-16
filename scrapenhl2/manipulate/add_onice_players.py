@@ -175,7 +175,7 @@ def add_times_to_file(df, periodcol, timecol, time_format):
         def period_cont(x):
             y = str(x)[0]  # take just first since this may be a float
             if y.isdigit():
-                return (x - 1) * 1200
+                return (float(x) - 1) * 1200
             elif x == 'OT':  # OT
                 return period_cont(4)
             else:
@@ -188,7 +188,7 @@ def add_times_to_file(df, periodcol, timecol, time_format):
         def period_cont(x):
             y = str(x)[0]  # take just first since this may be a float
             if y.isdigit():
-                return x * 1200
+                return float(x) * 1200
             elif x == 'OT':
                 return 3900
             else:
