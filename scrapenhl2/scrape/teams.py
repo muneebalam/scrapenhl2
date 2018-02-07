@@ -7,6 +7,7 @@ import os.path
 import feather
 import pandas as pd
 import pyarrow
+from tqdm import tqdm
 
 from scrapenhl2.scrape import organization, parse_pbp, parse_toi, schedules, team_info, general_helpers as helpers, \
     scrape_toi, manipulate_schedules
@@ -128,8 +129,8 @@ def update_team_logs(season, force_overwrite=False, force_games=None):
 
     allteams = sorted(list(new_games_to_do.Home.append(new_games_to_do.Road).unique()))
 
-    for teami, team in enumerate(allteams):
-        print('Updating team log for {0:d} {1:s}'.format(season, team_info.team_as_str(team)))
+    for team in tqdm(allteams, desc = 'Updating team logs'):
+        #print('Updating team log for {0:d} {1:s}'.format(season, team_info.team_as_str(team)))
 
         # Compare existing log to schedule to find missing games
         newgames = new_games_to_do[(new_games_to_do.Home == team) | (new_games_to_do.Road == team)]
@@ -242,8 +243,8 @@ def update_team_logs(season, force_overwrite=False, force_games=None):
 
         write_team_pbp(pbpdf, season, team)
         write_team_toi(toidf, season, team)
-        print('Done with team logs for {0:d} {1:s} ({2:d}/{3:d})'.format(
-            season, team_info.team_as_str(team), teami + 1, len(allteams)))
+        #print('Done with team logs for {0:d} {1:s} ({2:d}/{3:d})'.format(
+        #    season, team_info.team_as_str(team), teami + 1, len(allteams)))
 
 
 def team_setup():
