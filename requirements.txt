@@ -24,3 +24,4 @@ dash-core-components
 pytest
 pytest-cov
 pytest-mock
+numba

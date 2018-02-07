@@ -12,7 +12,7 @@ import scrapenhl2.scrape.organization as organization
 import scrapenhl2.scrape.players as players
 import scrapenhl2.scrape.schedules as schedules
 import scrapenhl2.scrape.scrape_toi as scrape_toi
-
+from numba import jit
 
 def parse_season_toi(season, force_overwrite=False):
     """
@@ -151,6 +151,7 @@ def save_parsed_toi(toi, season, game):
                mode='w', complib='zlib')
 
 
+@jit
 def read_shifts_from_html_pages(rawtoi1, rawtoi2, teamid1, teamid2, season, game):
     """
     Aggregates information from two html pages given into a dataframe with one row per second and one col per player.
@@ -221,6 +222,7 @@ def read_shifts_from_html_pages(rawtoi1, rawtoi2, teamid1, teamid2, season, game
     return _finish_toidf_manipulations(pd.concat(dflst), season, game)
 
 
+@jit
 def read_shifts_from_page(rawtoi, season, game):
     """
     Turns JSON shift start-ends into TOI matrix with one row per second and one col per player
@@ -276,6 +278,7 @@ def read_shifts_from_page(rawtoi, season, game):
     return _finish_toidf_manipulations(df, season, game)
 
 
+@jit
 def _finish_toidf_manipulations(df, season, game):
     """
     Takes dataframe of shifts (one row per shift) and makes into a matrix of players on ice for each second.

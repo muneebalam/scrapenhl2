@@ -6,6 +6,7 @@ import os
 import os.path
 import requests
 from tqdm import tqdm
+from numba import jit
 
 import scrapenhl2.scrape.manipulate_schedules as manipulate_schedules
 import scrapenhl2.scrape.parse_pbp as parse_pbp
@@ -35,6 +36,7 @@ def delete_game_html(season, game):
             os.remove(filename)
 
 
+@jit
 def autoupdate(season=None):
     """
     Run this method to update local data. It reads the schedule file for given season and scrapes and parses
@@ -94,6 +96,7 @@ def autoupdate(season=None):
         pass  # ed.print_and_log("Error with team logs in {0:d}: {1:s}".format(season, str(e)), 'warn')
 
 
+@jit
 def read_final_games(games, season):
     """
 
@@ -144,6 +147,7 @@ def read_final_games(games, season):
         print('Done with {0:d} {1:d} (final)'.format(season, game))
 
 
+@jit
 def read_inprogress_games(inprogressgames, season):
     """
     Saves these games to file via html (for toi) and json (for pbp)
