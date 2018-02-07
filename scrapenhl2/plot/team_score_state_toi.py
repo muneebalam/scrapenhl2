@@ -2,7 +2,6 @@
 This module contains methods for making a stacked bar graph indicating how much TOI each team spends in score states.
 """
 
-import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -52,7 +51,7 @@ def score_state_graph(season):
         plt.barh(bottom=temp.Y.values, width=temp.Width.values, left=temp.Left.values, label=label, alpha=alpha,
                  color=colors[score])
 
-    for index, y, team in bar_positions[['Y', 'Team']].drop_duplicates().itertuples():
+    for _, y, team in bar_positions[['Y', 'Team']].drop_duplicates().itertuples():
         plt.annotate(team, xy=(0, y), ha='center', va='center', fontsize=6)
 
     plt.ylim(-1, len(bar_positions.Team.unique()))

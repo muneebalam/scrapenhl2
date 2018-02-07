@@ -137,7 +137,7 @@ def insert_missing_team_games(df, **kwargs):
     :return: dataframe with added rows
     """
     if 'add_missing_games' in kwargs and 'team' in kwargs and kwargs['add_missing_games'] is True:
-        startdate, enddate = get_startdate_enddate_from_kwargs(**kwargs)
+        _, enddate = get_startdate_enddate_from_kwargs(**kwargs)
         df2 = manip.convert_to_all_combos(df, np.NaN, ('Season', 'Game'), 'PlayerID')
         df2 = schedules.attach_game_dates_to_dateframe(df2).sort_values('Date')
         # Don't use the team kwarg here but this will obviously be messy if we bring in multiple teams' games

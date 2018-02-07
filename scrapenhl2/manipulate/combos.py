@@ -4,7 +4,7 @@ This module contains methods for generating H2H data for games
 import pandas as pd
 
 from scrapenhl2.manipulate import manipulate as manip, add_onice_players as onice
-from scrapenhl2.scrape import general_helpers as helpers, parse_toi, parse_pbp, schedules, team_info, teams
+from scrapenhl2.scrape import general_helpers as helpers, parse_toi, parse_pbp, team_info, teams
 
 
 def get_game_combo_toi(season, game, player_n=2, *hrcodes):
@@ -174,7 +174,6 @@ def get_team_combo_toi(season, team, games, n_players=2):
     if helpers.check_number(games):
         games = [games]
 
-    teamid = team_info.team_as_id(team)
     toi = teams.get_team_toi(season, team) \
         .merge(pd.DataFrame({'Game': games}), how='inner', on='Game') \
         .pipe(manip.filter_for_five_on_five) \

@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as mplc
 
 import scrapenhl2.plot.visualization_helper as vhelper
-from scrapenhl2.scrape import schedules, team_info, teams, players
+from scrapenhl2.scrape import schedules, team_info, players
 import scrapenhl2.scrape.general_helpers as helper
 import scrapenhl2.manipulate.manipulate as manip
 
@@ -141,7 +141,7 @@ def _add_xy_names_for_dpair_graph(df, delta_small=0.25, delta_large=0.75):
 
     melted = melted.merge(deltadf, how='left', on='PairIndex')
 
-    melted.loc[:, 'Name'] = melted.PlayerID.apply(lambda x: players.player_as_str(x))
+    melted.loc[:, 'Name'] = melted.PlayerID.apply(players.player_as_str)
 
     temp1 = melted[melted.P1P2 == 'PlayerID1']
     temp2 = melted[melted.P1P2 == 'PlayerID2']

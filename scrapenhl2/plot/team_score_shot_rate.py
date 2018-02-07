@@ -43,7 +43,7 @@ def team_score_shot_rate_parallel(team, startseason, endseason=None, save_file=N
     df = df[['Team', 'Trail3', 'Trail2', 'Trail1', 'Tied', 'Lead1', 'Lead2', 'Lead3']]
 
     # Teams to strings
-    df.loc[:, 'Team'] = df.Team.apply(lambda x: team_info.team_as_str(x))
+    df.loc[:, 'Team'] = df.Team.apply(team_info.team_as_str)
 
     # filter for own team
     teamdf = df.query('Team == "{0:s}"'.format(team_info.team_as_str(team)))

@@ -40,6 +40,9 @@ Next, install the whl file using pip::
 
     pip install [insert filename here].whl
 
+(Sometimes, this errors out and says you need Visual Studio C++ tools. You can download and install the 2015 version
+`from here <https://landinghub.visualstudio.com/visual-cpp-build-tools>`_.)
+
 Now, all users can open up terminal or command line and enter::
 
     pip install scrapenhl2
@@ -132,6 +135,8 @@ If you do make a donation, make me happy `and leave a record here <https://goo.g
 
 Change log
 ----------
+
+1/13/18: Various bug fixes, some charts added.
 
 11/10/17: Switched from Flask to Dash, bug fixes.
 

@@ -52,7 +52,7 @@ def get_player_options():
 def get_log_for_player(player):
     """Checks player game log and return dataframe of games"""
     if isinstance(player, str):
-        name = player[:player.index('(')].strip()
+        # name = player[:player.index('(')].strip()
         dob = player[player.index('(') + 1:player.index(')')].strip()
         pid = players.player_as_id(player, dob=dob)
     else:
@@ -88,7 +88,7 @@ def get_default_start_end_dates(player):
 
     if temp_min >= try_min:
         return mindate, maxdate
-    return try_min.strftime(format='%Y-%m-%d'), maxdate
+    return try_min.strftime(fmt='%Y-%m-%d'), maxdate
 
 
 app = dash.Dash()
