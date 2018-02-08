@@ -11,7 +11,6 @@ from scrapenhl2.scrape import general_helpers as helpers, manipulate_schedules, 
     scrape_pbp, parse_toi
 from numba import jit
 
-@jit
 def parse_season_pbp(season, force_overwrite=False):
     """
     Parses pbp from the given season.
@@ -68,7 +67,6 @@ def save_parsed_pbp(pbp, season, game):
                mode='w', complib='zlib')
 
 
-@jit
 def _create_pbp_df_json(pbp, gameinfo):
     """
     Creates a pandas dataframe from the pbp, making use of gameinfo (from schedule file) as well
@@ -147,7 +145,6 @@ def _create_pbp_df_json(pbp, gameinfo):
     return pbpdf
 
 
-@jit
 def _add_scores_to_pbp(pbpdf, gameinfo):
     """
     Adds columns for home and road goals to supplied dataframe
