@@ -40,6 +40,9 @@ Next, install the whl file using pip::
 
     pip install [insert filename here].whl
 
+(Sometimes, this errors out and says you need Visual Studio C++ tools. You can download and install the 2015 version
+`from here <https://landinghub.visualstudio.com/visual-cpp-build-tools>`_.)
+
 Now, all users can open up terminal or command line and enter::
 
     pip install scrapenhl2

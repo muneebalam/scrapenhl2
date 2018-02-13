@@ -6,6 +6,7 @@ import os
 import os.path
 import requests
 from tqdm import tqdm
+from numba import jit
 
 import scrapenhl2.scrape.manipulate_schedules as manipulate_schedules
 import scrapenhl2.scrape.parse_pbp as parse_pbp

@@ -9,7 +9,7 @@ import pandas as pd
 
 from scrapenhl2.scrape import general_helpers as helpers, manipulate_schedules, organization, players, schedules, \
     scrape_pbp, parse_toi
-
+from numba import jit
 
 def parse_season_pbp(season, force_overwrite=False):
     """

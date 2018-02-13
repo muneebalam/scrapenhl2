@@ -47,6 +47,7 @@ setuptools.setup(
                       'pytest',  # Testrunner
                       'pytest-cov',  # Coverage reports
                       'pytest-mock',  # Test mocking framework
+                      'numba'
                       ],
     long_description=read('README.rst'),
     classifiers=[

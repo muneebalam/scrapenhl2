@@ -12,7 +12,7 @@ import scrapenhl2.scrape.organization as organization
 import scrapenhl2.scrape.players as players
 import scrapenhl2.scrape.schedules as schedules
 import scrapenhl2.scrape.scrape_toi as scrape_toi
-
+from numba import jit
 
 def parse_season_toi(season, force_overwrite=False):
     """
