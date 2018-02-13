@@ -160,7 +160,7 @@ def _filter_for_scores(data, **kwargs):
 
     if 'score_diff' in kwargs:
         if isinstance(kwargs['score_diff'], int):
-            sds = set((kwargs['score_diff']))
+            sds = {kwargs['score_diff']}
         else:
             sds = set(kwargs['score_diff'])
         data = pd.concat([data[data.TeamScore - data.OppScore == sd] for sd in sds])

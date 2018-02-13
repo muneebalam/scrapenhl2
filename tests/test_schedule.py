@@ -13,6 +13,7 @@ from scrapenhl2.scrape.schedules import (
     _SCHEDULES,
 )
 from unittest.mock import call, MagicMock
+from pytest_mock import mocker
 
 def test_get_current_season(mocker):
 

@@ -36,7 +36,7 @@ setuptools.setup(
                       'html-table-extractor',  # for html parsing
                       'plotly',  # for interactive charts
                       'tqdm',  # CLI progress bar
-                      #'tables',
+                      'tables',
                       'dash',
                       'dash-renderer',
                       'dash-html-components',
@@ -50,7 +50,7 @@ setuptools.setup(
                       ],
     long_description=read('README.rst'),
     classifiers=[
-        "Development Status :: 2 - Pre-Alpha",
+        "Development Status :: 3 - Alpha",
         'Intended Audience :: Science/Research',
         "License :: OSI Approved :: MIT License",
         'Programming Language :: Python :: 3'

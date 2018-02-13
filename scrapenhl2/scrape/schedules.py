@@ -290,6 +290,22 @@ def get_teams_in_season(season):
     return set(allteams)
 
 
+def check_valid_game(season, game):
+    """
+    Checks if gameid in season schedule.
+
+    :param season: int, season
+    :param game: int, game
+    :return: bool
+    """
+
+    try:
+        get_game_status(season, game)
+        return True
+    except IndexError:
+        return False
+
+
 def schedule_setup():
     """
     Reads current season and schedules into memory.

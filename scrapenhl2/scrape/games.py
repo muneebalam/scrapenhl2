@@ -2,6 +2,7 @@
 This module contains methods related to scraping games.
 """
 import os.path
+import re
 
 import scrapenhl2.scrape.organization as organization
 import scrapenhl2.scrape.schedules as schedules
@@ -20,17 +21,20 @@ def most_recent_game_id(team1, team2):
     return find_recent_games(team1, team2).Game.iloc[0]
 
 
-def find_recent_games(team1, team2=None, limit=1):
+def find_recent_games(team1, team2=None, limit=1, season=None):
     """
     A convenience function that lists the most recent in progress or final games for specified team(s)
 
     :param team1: str, a team
     :param team2: str, a team (optional)
     :param limit: How many games to return
+    :param season: int, the season
 
     :return: df with relevant rows
     """
-    sch = schedules.get_season_schedule(schedules.get_current_season())
+    if season is None:
+        season = schedules.get_current_season()
+    sch = schedules.get_season_schedule(season)
     sch = sch[sch.Status != "Scheduled"]
 
     t1 = team_info.team_as_id(team1)
@@ -40,6 +44,41 @@ def find_recent_games(team1, team2=None, limit=1):
         sch = sch[(sch.Home == t2) | (sch.Road == t2)]
 
     return sch.sort_values('Game', ascending=False).iloc[:limit, :]
+
+
+def find_playoff_game(searchstr):
+    """
+    Finds playoff game id based on string specified
+    :param searchstr: e.g. WSH PIT 2016 Game 5
+    :return: (season, game)
+    """
+
+    parts = searchstr.split(' ')
+    teams = []
+    for part in parts:
+        if re.match(r'^[A-z]{3}$', part.strip()):
+            teams.append(part.upper())
+    if len(teams) != 2:
+        return
+
+    team1, team2 = teams[:2]
+
+    searchstr += ' '
+    if re.search(r'\s\d{4}\s', searchstr) is not None:
+        season = int(re.search(r'\s\d{4}\s', searchstr).group(0))
+    else:
+        season = schedules.get_current_season()
+
+    # Get game with a 5-digit regex
+    if re.search(r'\s\d\s', searchstr) is not None:
+        gamenum = int(re.search(r'\s\d\s', searchstr).group(0))
+        games = find_recent_games(team1, team2, limit=7, season=season)
+        game = games[games.Game % 10 == gamenum].Game.iloc[0]
+    else:
+        raise ValueError
+
+    return season, game
+
 
 
 def get_player_5v5_log_filename(season):
