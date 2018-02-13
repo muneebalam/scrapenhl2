@@ -2,10 +2,13 @@ from twython import Twython
 from twython import TwythonStreamer
 import re
 import time
-import os.path
+import os
 import datetime
 from scrapenhl2.scrape import schedules, games, autoupdate, team_info
 from scrapenhl2.plot import game_timeline, game_h2h
+
+if not os.path.exists('bot'):
+    os.mkdir('bot')
 
 # Create this file on your own
 # See https://opensource.com/article/17/8/raspberry-pi-twitter-bot
@@ -26,9 +29,30 @@ twitter = Twython(
 # Only update every 5 mins
 LAST_UPDATE = None
 
+# Add team hashtags
+HASHTAGS = {'ANA': 'LetsGoDucks', 'ARI': 'Yotes', 'BOS': 'NHLBruins', 'BUF': 'Sabres', 'CGY': 'CofRed',
+            'CAR': 'Redvolution', 'CHI': 'CHI', 'COL': 'GoAvsGo', 'CBJ': 'CBJ', 'DAL': 'GoStars',
+            'DET': 'LGRW', 'EDM': 'LetsGoOilers', 'FLA': 'FlaPanthers', 'LAK': 'GoKingsGo', 'MIN': 'mnwild',
+            'MTL': 'GoHabsGo', 'NSH': 'Preds', 'NJD': 'NJDevils', 'NYI': 'Isles', 'NYR': 'NYR',
+            'OTT': 'Sens', 'PHI': 'LetsGoFlyers', 'PIT': 'PIT', 'SJS': 'SJSharks', 'TBL': 'GoBolts',
+            'STL': 'AllTogetherNowSTL', 'TOR': 'TMLtalk', 'VAN': 'Canucks', 'VGK': 'VegasGoesGold',
+            'WSH': 'ALLCAPS', 'WPG': 'GoJetsGo'}
+
 # Message that bot is now active
 twitter.update_status(status="I'm active now ({0:s} ET)".format(
     datetime.datetime.now().strftime('%Y-%m-%d %H:%M')))
+
+
+def tweet_error(message, tweetdata):
+    """
+    Tweets specified message when there's an error
+
+    :param message: str
+    :param tweetdata: dict, tweet info
+    :return:
+    """
+    twitter.update_status(status='@{0:s} {1:s}'.format(tweetdata['user']['screen_name'], message))
+
 
 def tweet_images(h2hfile, tlfile, hname, rname, status, tweetdata):
     """
@@ -39,24 +63,33 @@ def tweet_images(h2hfile, tlfile, hname, rname, status, tweetdata):
     :param hname: home team name
     :param rname: road team name
     :param status: game status
-    :param user: user to tweet at
+    :param tweetdata: dict, tweet info
     :return:
     """
     rname = team_info.team_as_str(rname)
     hname = team_info.team_as_str(hname)
 
+    suffix = ''
+    if rname in HASHTAGS:
+        suffix += ' #' + HASHTAGS[rname]
+    if hname in HASHTAGS:
+        suffix += ' #' + HASHTAGS[hname]
+
     with open(h2hfile, 'rb') as photo:
         response = twitter.upload_media(media=photo)
-        twitter.update_status(status='@{3:s} H2H: {0:s} @ {1:s} ({2:s})'.format(rname, hname, status,
-                                                                                tweetdata['user']['screen_name']),
-                              media_ids=[response['media_id']],
-                              in_reply_to_status_id = tweetdata['id_str'])
+        twitter.update_status(
+            status='@{3:s} H2H: {0:s} @ {1:s} ({2:s}){3:s}'.format(rname, hname, status,
+                                                                   tweetdata['user']['screen_name'], suffix),
+            media_ids=[response['media_id']],
+            in_reply_to_status_id = tweetdata['id_str'])
     with open(tlfile, 'rb') as photo:
         response = twitter.upload_media(media=photo)
-        twitter.update_status(status='@{3:s} TL: {0:s} @ {1:s} ({2:s})'.format(rname, hname, status,
-                                                                               tweetdata['user']['screen_name']),
-                              media_ids=[response['media_id']],
-                              in_reply_to_status_id = tweetdata['id_str'])
+        twitter.update_status(
+            status='@{3:s} TL: {0:s} @ {1:s} ({2:s}){3:s}'.format(rname, hname, status,
+                                                                  tweetdata['user']['screen_name'],
+                                                                  suffix),
+            media_ids=[response['media_id']],
+            in_reply_to_status_id = tweetdata['id_str'])
 
 # Gets info about the game from the tweet, updates data if necessary, and posts chart
 class MyStreamer(TwythonStreamer):
@@ -75,7 +108,7 @@ class MyStreamer(TwythonStreamer):
                     if re.search(r'\s\d{4}\s', text) is not None:
                         season = int(re.search(r'\s\d{4}\s', text).group(0))
                         if season < 2015 or season > schedules.get_current_season():
-                            return
+                            tweet_error("Sorry, I don't have data for this season yet", data)
                     else:
                         season = schedules.get_current_season()
 
@@ -84,7 +117,7 @@ class MyStreamer(TwythonStreamer):
                     if re.search(r'\s\d{5}\s', text) is not None:
                         gameid = int(re.search(r'\s\d{5}\s', text).group(0))
                         if not schedules.check_valid_game(season, gameid):
-                            return
+                            tweet_error("Sorry, this game ID doesn't look right", data)
                     else:
                         pass
 
@@ -96,7 +129,7 @@ class MyStreamer(TwythonStreamer):
                         if re.match(r'[A-z]{3}', part.strip()):
                             teams.append(part.upper())
                     if len(teams) != 2:
-                        return
+                        tweet_error("Sorry, I need 2 teams, not {0:d}".format(len(teams)), data)
 
                     team1, team2 = teams[:2]
                     gameid = games.most_recent_game_id(team1, team2)
@@ -105,10 +138,12 @@ class MyStreamer(TwythonStreamer):
                 rname = schedules.get_road_team(season, gameid)
                 status = schedules.get_game_status(season, gameid)
 
-                h2hfile = '/Users/muneebalam/Desktop/bot/{0:d}0{1:d}h2h.png'.format(season, gameid)
-                tlfile = '/Users/muneebalam/Desktop/bot/{0:d}0{1:d}tl.png'.format(season, gameid)
+                h2hfile = 'bot/{0:d}0{1:d}h2h.png'.format(season, gameid)
+                tlfile = 'bot/{0:d}0{1:d}tl.png'.format(season, gameid)
 
-                # Only update if game is in progress and has been at least five minutes since last update
+                # If game is today or in the past, and game listed as "scheduled," update schedule
+                # If game is in progress and it's been at least 5 min since last date update, then update
+                # TODO
                 if 'In Progress' in status and (LAST_UPDATE is None or time.time() - LAST_UPDATE >= 60 * 5):
                     autoupdate.autoupdate(season)
                     LAST_UPDATE = time.time()
@@ -130,6 +165,8 @@ class MyStreamer(TwythonStreamer):
 
                 if executed:
                     tweet_images(h2hfile, tlfile, hname, rname, status, data)
+                else:
+                    tweet_error("Sorry, there was an unknown error while making the charts (cc @muneebalamcu)", data)
             except Exception as e:
                 print('Unexpected error')
                 print(time.time(), data['text'], e, e.args)
