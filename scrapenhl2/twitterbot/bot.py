@@ -7,7 +7,8 @@ import datetime
 from scrapenhl2.scrape import schedules, games, autoupdate, team_info
 from scrapenhl2.plot import game_timeline, game_h2h
 
-
+# Create this file on your own
+# See https://opensource.com/article/17/8/raspberry-pi-twitter-bot
 from auth import (
     consumer_key,
     consumer_secret,
@@ -22,13 +23,16 @@ twitter = Twython(
     access_token_secret
 )
 
+# Only update every 5 mins
 LAST_UPDATE = None
 
+# Message that bot is now active
 twitter.update_status(status="I'm active now ({0:s} ET)".format(
     datetime.datetime.now().strftime('%Y-%m-%d %H:%M')))
 
 def tweet_images(h2hfile, tlfile, hname, rname, status, tweetdata):
     """
+    Tweets @ user with H2H and TL charts
 
     :param h2hfile: filename for h2h chart
     :param tlfile: filename for tl chart
@@ -54,6 +58,7 @@ def tweet_images(h2hfile, tlfile, hname, rname, status, tweetdata):
                               media_ids=[response['media_id']],
                               in_reply_to_status_id = tweetdata['id_str'])
 
+# Gets info about the game from the tweet, updates data if necessary, and posts chart
 class MyStreamer(TwythonStreamer):
     def on_success(self, data):
         if 'text' in data:
@@ -129,6 +134,8 @@ class MyStreamer(TwythonStreamer):
                 print('Unexpected error')
                 print(time.time(), data['text'], e, e.args)
 
+# Use this try-catch to post an outgoing message
+# I'm using Pycharm, so pressing stop will create a KeyboardInterrupt
 try:
     stream = MyStreamer(
         consumer_key,
@@ -138,7 +145,7 @@ try:
     )
     stream.statuses.filter(track='@h2hbot')
 except KeyboardInterrupt:
-    twitter.update_status(status="I'm turning off ({0:s} ET)".format(
+    twitter.update_status(status="I'm turning off now ({0:s} ET)".format(
         datetime.datetime.now().strftime('%Y-%m-%d %H:%M')))
 
 
