@@ -4,7 +4,7 @@ import re
 import time
 import os
 import datetime
-from scrapenhl2.scrape import schedules, games, autoupdate, team_info
+from scrapenhl2.scrape import schedules, games, autoupdate, team_info, teams
 from scrapenhl2.plot import game_timeline, game_h2h, rolling_cf_gf
 
 if not os.path.exists('bot'):
@@ -283,6 +283,6 @@ try:
 except KeyboardInterrupt:
     twitter.update_status(status="I'm turning off now ({0:s})".format(
         datetime.datetime.now().strftime('%Y-%m-%d %-H:%M %p ET')))
-    pass
+    teams.update_team_logs()
 
 
