@@ -3,6 +3,7 @@ This module contains methods related to scraping games.
 """
 import os.path
 import re
+import datetime
 
 import scrapenhl2.scrape.organization as organization
 import scrapenhl2.scrape.schedules as schedules
@@ -35,7 +36,8 @@ def find_recent_games(team1, team2=None, limit=1, season=None):
     if season is None:
         season = schedules.get_current_season()
     sch = schedules.get_season_schedule(season)
-    sch = sch[sch.Status != "Scheduled"]
+    #sch = sch[sch.Status != "Scheduled"]  # doesn't work if data hasn't been updated
+    sch = sch[sch.Date <= datetime.datetime.now().strftime('%Y-%m-%d')]
 
     t1 = team_info.team_as_id(team1)
     sch = sch[(sch.Home == t1) | (sch.Road == t1)]

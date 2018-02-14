@@ -78,14 +78,14 @@ def tweet_images(h2hfile, tlfile, hname, rname, status, tweetdata):
     with open(h2hfile, 'rb') as photo:
         response = twitter.upload_media(media=photo)
         twitter.update_status(
-            status='@{3:s} H2H: {0:s} @ {1:s} ({2:s}){3:s}'.format(rname, hname, status,
+            status='@{3:s} H2H: {0:s} @ {1:s} ({2:s}){4:s}'.format(rname, hname, status,
                                                                    tweetdata['user']['screen_name'], suffix),
             media_ids=[response['media_id']],
             in_reply_to_status_id = tweetdata['id_str'])
     with open(tlfile, 'rb') as photo:
         response = twitter.upload_media(media=photo)
         twitter.update_status(
-            status='@{3:s} TL: {0:s} @ {1:s} ({2:s}){3:s}'.format(rname, hname, status,
+            status='@{3:s} TL: {0:s} @ {1:s} ({2:s}){4:s}'.format(rname, hname, status,
                                                                   tweetdata['user']['screen_name'],
                                                                   suffix),
             media_ids=[response['media_id']],
@@ -95,6 +95,7 @@ def tweet_images(h2hfile, tlfile, hname, rname, status, tweetdata):
 class MyStreamer(TwythonStreamer):
     def on_success(self, data):
         if 'text' in data:
+            print(data['text'])
             try:
                 try:
                     season, gameid = games.find_playoff_game(data['text'])
@@ -134,19 +135,25 @@ class MyStreamer(TwythonStreamer):
                     team1, team2 = teams[:2]
                     gameid = games.most_recent_game_id(team1, team2)
 
-                hname = schedules.get_home_team(season, gameid)
-                rname = schedules.get_road_team(season, gameid)
-                status = schedules.get_game_status(season, gameid)
-
                 h2hfile = 'bot/{0:d}0{1:d}h2h.png'.format(season, gameid)
                 tlfile = 'bot/{0:d}0{1:d}tl.png'.format(season, gameid)
 
+                # If game is in current season
                 # If game is today or in the past, and game listed as "scheduled," update schedule
                 # If game is in progress and it's been at least 5 min since last date update, then update
                 # TODO
-                if 'In Progress' in status and (LAST_UPDATE is None or time.time() - LAST_UPDATE >= 60 * 5):
-                    autoupdate.autoupdate(season)
-                    LAST_UPDATE = time.time()
+                if season == schedules.get_current_season():
+                    today = datetime.datetime.now().strftime('%Y-%m-%d')
+                    gdata = schedules.get_game_data_from_schedule(season, gameid)
+                    if (gdata['Date'] <= today and gdata['Status'] != 'Final') or \
+                            (gdata['Status'] == 'In Progress' and
+                                     (LAST_UPDATE is None or time.time() - LAST_UPDATE >= 60 * 5)):
+                        autoupdate.autoupdate(season)
+                        LAST_UPDATE = time.time()
+
+                hname = schedules.get_home_team(season, gameid)
+                rname = schedules.get_road_team(season, gameid)
+                status = schedules.get_game_status(season, gameid)
 
                 executed = True
                 if 'In Progress' in status or not os.path.exists(tlfile):
@@ -165,6 +172,7 @@ class MyStreamer(TwythonStreamer):
 
                 if executed:
                     tweet_images(h2hfile, tlfile, hname, rname, status, data)
+                    print('Success!')
                 else:
                     tweet_error("Sorry, there was an unknown error while making the charts (cc @muneebalamcu)", data)
             except Exception as e:
