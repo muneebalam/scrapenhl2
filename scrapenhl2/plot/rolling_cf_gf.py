@@ -3,10 +3,11 @@ This module creates rolling CF% and GF% charts
 """
 
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 import numpy as np  # standard scientific python stack
 import pandas as pd  # standard scientific python stack
 
-from scrapenhl2.scrape import players
+from scrapenhl2.scrape import players, schedules
 from scrapenhl2.plot import visualization_helper as vhelper
 
 def rolling_player_gf(player, **kwargs):
@@ -44,6 +45,7 @@ def _rolling_player_f(player, gfcf, **kwargs):
     :param player: str or int, player to generate for
     :param gfcf: str. Use 'G' for GF% and GF% Off and 'C' for CF% and CF% Off
     :param kwargs: other filters. See scrapenhl2.plot.visualization_helper.get_and_filter_5v5_log for more information.
+        Use x='Date' to index on date instead of game number
 
     :return: nothing, or figure
     """
@@ -58,7 +60,15 @@ def _rolling_player_f(player, gfcf, **kwargs):
 
     df.loc[:, 'Game Number'] = 1
     df.loc[:, 'Game Number'] = df['Game Number'].cumsum()
-    df.set_index('Game Number', inplace=True)
+    if 'x' in kwargs and kwargs['x'] == 'Date':
+        df = schedules.attach_game_dates_to_dateframe(df)
+        df = df.set_index(pd.DatetimeIndex(df['Date'])).drop('Date', axis=1)
+        plt.gca().xaxis_date()
+        plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%b\'%y'))
+        plt.xlabel('Date')
+    else:
+        df = df.set_index('Game Number')
+        plt.xlabel('Game')
 
     label = gfcf + 'F%'
     plt.plot(df.index, df[col_dict[label]], label=label)
@@ -69,10 +79,10 @@ def _rolling_player_f(player, gfcf, **kwargs):
     plt.title(_get_rolling_f_title(gfcf, **kwargs))
 
     # axes
-    plt.xlabel('Game')
+
     plt.ylabel(gfcf + 'F%')
     plt.ylim(0.3, 0.7)
-    plt.xlim(0, len(df))
+    plt.xlim(df.index.min(), df.index.max())
     ticks = list(np.arange(0.3, 0.71, 0.05))
     plt.yticks(ticks, ['{0:.0f}%'.format(100 * tick) for tick in ticks])
 

@@ -40,7 +40,7 @@ HASHTAGS = {'ANA': 'LetsGoDucks', 'ARI': 'Yotes', 'BOS': 'NHLBruins', 'BUF': 'Sa
 
 # Message that bot is now active
 twitter.update_status(status="I'm active now ({0:s} ET)".format(
-    datetime.datetime.now().strftime('%Y-%m-%d %H:%M')))
+    datetime.datetime.now().strftime('%Y-%m-%d %-H:%M %p ET')))
 
 
 def tweet_error(message, tweetdata):
@@ -143,11 +143,15 @@ def player_cf_graphs(tweetdata):
         pname = (tweetdata['text'] + ' ').replace(' cf ', '').replace('@h2hbot ', '').strip()
         fname = 'bot/' + pname.replace(' ', '_') + '_cf.png'
         fname2 = 'bot/' + pname.replace(' ', '_') + '_gf.png'
+        if ' dates ' in (tweetdata['text'] + ' '):
+            x = 'Date'
+        else:
+            x = 'Game Number'
         try:
-            rolling_cf_gf.rolling_player_cf(tweetdata['text'], save_file=fname)
+            rolling_cf_gf.rolling_player_cf(tweetdata['text'], x=x, save_file=fname)
             tweet_player_cf_graph(fname, pname, tweetdata)
 
-            rolling_cf_gf.rolling_player_gf(tweetdata['text'], save_file=fname2)
+            rolling_cf_gf.rolling_player_gf(tweetdata['text'], x=x, save_file=fname2)
             tweet_player_gf_graph(fname2, pname, tweetdata)
             print('Success!')
         except Exception as e:
@@ -277,8 +281,8 @@ try:
     )
     stream.statuses.filter(track='@h2hbot')
 except KeyboardInterrupt:
-    twitter.update_status(status="I'm turning off now ({0:s} ET)".format(
-        datetime.datetime.now().strftime('%Y-%m-%d %H:%M')))
+    twitter.update_status(status="I'm turning off now ({0:s})".format(
+        datetime.datetime.now().strftime('%Y-%m-%d %-H:%M %p ET')))
     pass
 
 
