@@ -10,3 +10,5 @@ include scrapenhl2/plot/*
 include scrapenhl2/docs/source/*
 include scrapenhl2/docs/Makefile
 include scrapenhl2/docs/make.bat
+include scrapenhl2/scrape/data/other/PLAYER_INFO.feather
+include scrapenhl2/scrape/data/other/TEAM_INFO.feather
