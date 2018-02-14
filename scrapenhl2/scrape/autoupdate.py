@@ -36,12 +36,13 @@ def delete_game_html(season, game):
             os.remove(filename)
 
 
-def autoupdate(season=None):
+def autoupdate(season=None, update_team_logs=True):
     """
     Run this method to update local data. It reads the schedule file for given season and scrapes and parses
     previously unscraped games that have gone final or are in progress. Use this for 2010 or later.
 
     :param season: int, the season. If None (default), will do current season
+    :param update_team_logs: bool, update team logs too? Faster if False.
 
     :return: nothing
     """
@@ -89,10 +90,11 @@ def autoupdate(season=None):
     print('Updating final games')
     read_final_games(games, season)
 
-    try:
-        teams.update_team_logs(season, force_overwrite=False)
-    except Exception as e:
-        pass  # ed.print_and_log("Error with team logs in {0:d}: {1:s}".format(season, str(e)), 'warn')
+    if update_team_logs:
+        try:
+            teams.update_team_logs(season, force_overwrite=False)
+        except Exception as e:
+            pass  # ed.print_and_log("Error with team logs in {0:d}: {1:s}".format(season, str(e)), 'warn')
 
 
 def read_final_games(games, season):

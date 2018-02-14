@@ -13,6 +13,9 @@ import pandas as pd
 import scrapenhl2.scrape.general_helpers as helpers
 import scrapenhl2.scrape.organization as organization
 
+VARIANTS = {'WAS': 'WSH', 'L.A': 'LAK', 'T.B': 'TBL', 'S.J': 'SJS', 'N.J': 'NJD', 'CAL': 'CGY',
+            'TB': 'TBL', 'LA': 'LAK', 'SJ': 'SJS', 'NJ': 'NJD', 'MON': 'MTL', 'LV': 'VGK', 'NAS': 'NSH'}
+
 
 def get_team_info_filename():
     """
@@ -159,6 +162,19 @@ def generate_team_ids_file(teamids=None):
     write_team_info_file(teaminfo)
 
 
+@functools.lru_cache(maxsize=10, typed=False)
+def fix_variants(team):
+    """
+    E.g. changes WAS to WSH
+
+    :param team: str
+    :return: str
+    """
+    if team in VARIANTS:
+        return VARIANTS[team]
+    return team
+
+
 @functools.lru_cache(maxsize=128, typed=False)
 def team_as_id(team):
     """
@@ -168,6 +184,7 @@ def team_as_id(team):
 
     :return: int, the team ID
     """
+    team = fix_variants(team)
     if helpers.check_number(team):
         return int(team)
     elif isinstance(team, str):
@@ -196,6 +213,7 @@ def team_as_str(team, abbreviation=True):
 
     :return: str, the team name
     """
+    team = fix_variants(team)
     col_to_access = 'Abbreviation' if abbreviation else 'Name'
 
     if isinstance(team, str):
