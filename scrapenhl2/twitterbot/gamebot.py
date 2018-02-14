@@ -5,7 +5,7 @@ import time
 import os
 import datetime
 from scrapenhl2.scrape import schedules, games, autoupdate, team_info
-from scrapenhl2.plot import game_timeline, game_h2h
+from scrapenhl2.plot import game_timeline, game_h2h, rolling_cf_gf
 
 if not os.path.exists('bot'):
     os.mkdir('bot')
@@ -39,9 +39,10 @@ HASHTAGS = {'ANA': 'LetsGoDucks', 'ARI': 'Yotes', 'BOS': 'NHLBruins', 'BUF': 'Sa
             'WSH': 'ALLCAPS', 'WPG': 'GoJetsGo'}
 
 # Message that bot is now active
-#twitter.update_status(status="I'm active now ({0:s} ET)".format(
-#    datetime.datetime.now().strftime('%Y-%m-%d %H:%M')))
+twitter.update_status(status="I'm active now ({0:s} ET)".format(
+    datetime.datetime.now().strftime('%Y-%m-%d %H:%M')))
 
+#autoupdate.autoupdate()
 
 def tweet_error(message, tweetdata):
     """
@@ -55,7 +56,39 @@ def tweet_error(message, tweetdata):
                           in_reply_to_status_id=tweetdata['id_str'])
 
 
-def tweet_images(h2hfile, tlfile, hname, rname, status, tweetdata):
+def tweet_player_cf_graph(file, pname, tweetdata):
+    """
+
+    :param file:
+    :param name:
+    :param tweetdata:
+    :return:
+    """
+    with open(file, 'rb') as photo:
+        response = twitter.upload_media(media=photo)
+        twitter.update_status(status='@{0:s} {1:s} rolling Corsi%'.format(tweetdata['user']['screen_name'],
+                                                                          pname),
+                              media_ids=[response['media_id']],
+                              in_reply_to_status_id=tweetdata['id_str'])
+
+
+def tweet_player_gf_graph(file, pname, tweetdata):
+    """
+
+    :param file:
+    :param name:
+    :param tweetdata:
+    :return:
+    """
+    with open(file, 'rb') as photo:
+        response = twitter.upload_media(media=photo)
+        twitter.update_status(status='@{0:s} {1:s} rolling GF%'.format(tweetdata['user']['screen_name'],
+                                                                          pname),
+                              media_ids=[response['media_id']],
+                              in_reply_to_status_id=tweetdata['id_str'])
+
+
+def tweet_game_images(h2hfile, tlfile, hname, rname, status, tweetdata):
     """
     Tweets @ user with H2H and TL charts
 
@@ -92,13 +125,37 @@ def tweet_images(h2hfile, tlfile, hname, rname, status, tweetdata):
             media_ids=[response['media_id']],
             in_reply_to_status_id = tweetdata['id_str'])
 
+
 # Gets info about the game from the tweet, updates data if necessary, and posts chart
 class MyStreamer(TwythonStreamer):
     def on_success(self, data):
         if 'text' in data:
             print(data['text'])
+
+            if r'https://t.co/' in data['text']:
+                # Image
+                return
+
             global LAST_UPDATE
             try:
+                if ' cf ' in (data['text'] + ' ') or ' cf% ' in (data['text'] + ' '):
+                    pname = (data['text'] + ' ').replace(' cf ', '').replace('@h2hbot ', '').strip()
+                    fname = 'bot/' + pname.replace(' ', '_') + '_cf.png'
+                    fname2 = 'bot/' + pname.replace(' ', '_') + '_gf.png'
+                    try:
+                        rolling_cf_gf.rolling_player_cf(data['text'], save_file=fname)
+                        tweet_player_cf_graph(fname, pname, data)
+
+                        rolling_cf_gf.rolling_player_gf(data['text'], save_file=fname2)
+                        tweet_player_gf_graph(fname2, pname, data)
+                        print('Success!')
+                    except Exception as e:
+                        tweet_error("Sorry, there was an unknown error while making the charts (cc @muneebalamcu). " 
+                                    "Might have had issues identifying the player",
+                                    data)
+                    return
+
+
                 try:
                     season, gameid = games.find_playoff_game(data['text'])
                 except ValueError:
@@ -128,7 +185,7 @@ class MyStreamer(TwythonStreamer):
 
                 if gameid is None:
                     # Get team names
-                    parts = data['text'].split(' ')
+                    parts = data['text'].replace('@h2hbot', '').strip().split(' ')
                     teams = []
                     for part in parts:
                         if re.match(r'[A-z]{3}', part.strip()):
@@ -175,27 +232,17 @@ class MyStreamer(TwythonStreamer):
                 rname = schedules.get_road_team(season, gameid)
                 status = schedules.get_game_status(season, gameid)
 
-                executed = True
-                if 'In Progress' in oldstatus or not os.path.exists(tlfile):
+                if 'In Progress' in oldstatus or status != oldstatus or not os.path.exists(tlfile):
                     try:
                         game_timeline.game_timeline(season, gameid, save_file=tlfile)
-                    except Exception as e:
-                        print(data['text'], time.time(), e, e.args)
-                        executed = False
-
-                if 'In Progress' in oldstatus or not os.path.exists(h2hfile):
-                    try:
                         game_h2h.game_h2h(season, gameid, save_file=h2hfile)
+                        tweet_game_images(h2hfile, tlfile, hname, rname, status, data)
+                        print('Success!')
                     except Exception as e:
                         print(data['text'], time.time(), e, e.args)
-                        executed = False
+                        tweet_error("Sorry, there was an unknown error while making the charts (cc @muneebalamcu)",
+                                    data)
 
-                if executed:
-                    tweet_images(h2hfile, tlfile, hname, rname, status, data)
-                    print('Success!')
-                else:
-                    tweet_error("Sorry, there was an unknown error while making the charts (cc @muneebalamcu)", data)
-                    return
             except Exception as e:
                 print('Unexpected error')
                 print(time.time(), data['text'], e, e.args)
@@ -211,8 +258,8 @@ try:
     )
     stream.statuses.filter(track='@h2hbot')
 except KeyboardInterrupt:
-    #twitter.update_status(status="I'm turning off now ({0:s} ET)".format(
-    #    datetime.datetime.now().strftime('%Y-%m-%d %H:%M')))
+    twitter.update_status(status="I'm turning off now ({0:s} ET)".format(
+        datetime.datetime.now().strftime('%Y-%m-%d %H:%M')))
     pass
 
 

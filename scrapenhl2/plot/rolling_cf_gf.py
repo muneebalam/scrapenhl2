@@ -54,7 +54,7 @@ def _rolling_player_f(player, gfcf, **kwargs):
     df = pd.concat([fa[['Season', 'Game']], _calculate_f_rates(fa, gfcf)], axis=1)
     col_dict = {col[col.index(' ') + 1:]: col for col in df.columns if '%' in col}
 
-    plt.clf()
+    plt.close('all')
 
     df.loc[:, 'Game Number'] = 1
     df.loc[:, 'Game Number'] = df['Game Number'].cumsum()

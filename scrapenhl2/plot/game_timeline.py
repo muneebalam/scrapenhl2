@@ -52,7 +52,7 @@ def game_timeline(season, game, save_file=None):
     darkercolors = {team: visualization_helper.make_color_darker(hex=col) for team, col in colors.items()}
 
     # Create two axes. Use bottom (mins) for labeling but top (secs) for plotting
-    plt.clf()
+    plt.close('all')
     ax = plt.gca()
     ax2 = ax.twiny()
 

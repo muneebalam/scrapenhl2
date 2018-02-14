@@ -73,6 +73,7 @@ def _game_h2h_chart(season, game, corsi, toi, orderh, orderr, numf_h=None, numf_
     rname = team_info.team_as_str(schedules.get_road_team(season, game), True)
     roadname = team_info.team_as_str(schedules.get_road_team(season, game), False)
 
+    plt.close('all')
     fig, ax = plt.subplots(1, figsize=[11, 7])
 
     # Convert dataframes to coordinates
