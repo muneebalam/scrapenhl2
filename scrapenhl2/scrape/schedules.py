@@ -152,7 +152,15 @@ def write_season_schedule(df, season, force_overwrite):
     schedule_setup()
 
 
-@functools.lru_cache(maxsize=128, typed=False)
+def clear_caches():
+    """
+    Clears caches for methods in this module.
+    :return:
+    """
+    get_game_data_from_schedule.cache_clear()
+
+
+@functools.lru_cache(maxsize=1024, typed=False)
 def get_game_data_from_schedule(season, game):
     """
     This is a helper method that uses the schedule file to isolate information for current game
@@ -312,6 +320,7 @@ def schedule_setup():
 
     :return: nothing
     """
+    clear_caches()
     global _SCHEDULES, _CURRENT_SEASON
     _CURRENT_SEASON = _get_current_season()
     for season in range(2005, get_current_season() + 1):
@@ -362,6 +371,7 @@ def generate_season_schedule_file(season, force_overwrite=True):
     # Last step: we fill in some info from the pbp. If current schedule already exists, fill in that info.
     df = _fill_in_schedule_from_pbp(df, season)
     write_season_schedule(df, season, force_overwrite)
+    clear_caches()
 
 
 def _create_schedule_dataframe_from_json(jsondict):

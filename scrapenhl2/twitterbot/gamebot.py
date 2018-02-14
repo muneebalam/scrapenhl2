@@ -42,7 +42,6 @@ HASHTAGS = {'ANA': 'LetsGoDucks', 'ARI': 'Yotes', 'BOS': 'NHLBruins', 'BUF': 'Sa
 twitter.update_status(status="I'm active now ({0:s} ET)".format(
     datetime.datetime.now().strftime('%Y-%m-%d %H:%M')))
 
-#autoupdate.autoupdate()
 
 def tweet_error(message, tweetdata):
     """
@@ -125,9 +124,44 @@ def tweet_game_images(h2hfile, tlfile, hname, rname, status, tweetdata):
             media_ids=[response['media_id']],
             in_reply_to_status_id = tweetdata['id_str'])
 
+def check_player_cf_graph_tweet_format(text):
+    """
+    Checks if tweet has cf or cf% in it
+    :param text: str
+    :return: bool
+    """
+    return ' cf ' in (text + ' ') or ' cf% ' in (text + ' ')
 
-# Gets info about the game from the tweet, updates data if necessary, and posts chart
+
+def player_cf_graphs(tweetdata):
+    """
+    If tweet fits
+    :param tweetdata:
+    :return:
+    """
+    if check_player_cf_graph_tweet_format(tweetdata['text']):
+        pname = (tweetdata['text'] + ' ').replace(' cf ', '').replace('@h2hbot ', '').strip()
+        fname = 'bot/' + pname.replace(' ', '_') + '_cf.png'
+        fname2 = 'bot/' + pname.replace(' ', '_') + '_gf.png'
+        try:
+            rolling_cf_gf.rolling_player_cf(tweetdata['text'], save_file=fname)
+            tweet_player_cf_graph(fname, pname, tweetdata)
+
+            rolling_cf_gf.rolling_player_gf(tweetdata['text'], save_file=fname2)
+            tweet_player_gf_graph(fname2, pname, tweetdata)
+            print('Success!')
+        except Exception as e:
+            tweet_error("Sorry, there was an unknown error while making the charts (cc @muneebalamcu). "
+                        "Might have had issues identifying the player", tweetdata)
+        return True
+    else:
+        return False
+
+
 class MyStreamer(TwythonStreamer):
+    """
+    Gets info about the game from the tweet, updates data if necessary, and posts chart
+    """
     def on_success(self, data):
         if 'text' in data:
             print(data['text'])
@@ -138,23 +172,8 @@ class MyStreamer(TwythonStreamer):
 
             global LAST_UPDATE
             try:
-                if ' cf ' in (data['text'] + ' ') or ' cf% ' in (data['text'] + ' '):
-                    pname = (data['text'] + ' ').replace(' cf ', '').replace('@h2hbot ', '').strip()
-                    fname = 'bot/' + pname.replace(' ', '_') + '_cf.png'
-                    fname2 = 'bot/' + pname.replace(' ', '_') + '_gf.png'
-                    try:
-                        rolling_cf_gf.rolling_player_cf(data['text'], save_file=fname)
-                        tweet_player_cf_graph(fname, pname, data)
-
-                        rolling_cf_gf.rolling_player_gf(data['text'], save_file=fname2)
-                        tweet_player_gf_graph(fname2, pname, data)
-                        print('Success!')
-                    except Exception as e:
-                        tweet_error("Sorry, there was an unknown error while making the charts (cc @muneebalamcu). " 
-                                    "Might have had issues identifying the player",
-                                    data)
+                if player_cf_graphs(data):
                     return
-
 
                 try:
                     season, gameid = games.find_playoff_game(data['text'])
@@ -217,14 +236,14 @@ class MyStreamer(TwythonStreamer):
                     gdata = schedules.get_game_data_from_schedule(season, gameid)
                     if gdata['Date'] == today:
                         if gdata['Status'] == 'Scheduled':
-                            autoupdate.autoupdate(season, update_team_logs=True)
+                            autoupdate.autoupdate(season, update_team_logs=False)
                             LAST_UPDATE = time.time()
                         elif gdata['Status'] != 'Final' and \
                                 (LAST_UPDATE is None or time.time() - LAST_UPDATE >= 60 * 5):
-                            autoupdate.autoupdate(season, update_team_logs=True)
+                            autoupdate.autoupdate(season, update_team_logs=False)
                             LAST_UPDATE = time.time()
                     elif gdata['Date'] < today and gdata['Status'] != 'Final':
-                        autoupdate.autoupdate(season, update_team_logs=True)
+                        autoupdate.autoupdate(season, update_team_logs=False)
                         LAST_UPDATE = time.time()
 
 
