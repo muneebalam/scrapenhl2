@@ -130,7 +130,7 @@ def check_player_cf_graph_tweet_format(text):
     :param text: str
     :return: bool
     """
-    return ' cf ' in (text + ' ') or ' cf% ' in (text + ' ')
+    return re.search(r'\scf%?\s', text.lower() + ' ') is not None
 
 
 def player_cf_graphs(tweetdata):
@@ -140,7 +140,11 @@ def player_cf_graphs(tweetdata):
     :return:
     """
     if check_player_cf_graph_tweet_format(tweetdata['text']):
-        pname = (tweetdata['text'] + ' ').replace(' cf ', '').replace('@h2hbot ', '').strip()
+        pname = (tweetdata['text'] + ' ') \
+            .replace(' cf ', '') \
+            .replace('@h2hbot ', '') \
+            .replace(' dates ', '') \
+            .restrip()
         fname = 'bot/' + pname.replace(' ', '_') + '_cf.png'
         fname2 = 'bot/' + pname.replace(' ', '_') + '_gf.png'
         if ' dates ' in (tweetdata['text'] + ' '):
