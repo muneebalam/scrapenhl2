@@ -4,7 +4,7 @@ import re
 import time
 import os
 import datetime
-from scrapenhl2.scrape import schedules, games, autoupdate, team_info
+from scrapenhl2.scrape import schedules, games, autoupdate, team_info, teams
 from scrapenhl2.plot import game_timeline, game_h2h, rolling_cf_gf
 
 if not os.path.exists('bot'):
@@ -137,11 +137,12 @@ def find_seasons_in_text(tweettext):
 
 def check_player_cf_graph_tweet_format(text):
     """
-    Checks if tweet has cf or cf% in it
+    Checks if tweet has cf or cf% in it, corsi also ok
     :param text: str
     :return: bool
     """
-    return ' cf ' in (text + ' ') or ' cf% ' in (text + ' ')
+    return re.search(r'\scf%?\s', text.lower() + ' ') is not None or \
+           re.search(r'\scorsi%?\s', text.lower() + ' ') is not None
 
 
 def player_cf_graphs(tweetdata):
@@ -151,7 +152,11 @@ def player_cf_graphs(tweetdata):
     :return:
     """
     if check_player_cf_graph_tweet_format(tweetdata['text']):
-        pname = (tweetdata['text'] + ' ').replace(' cf ', '').replace('@h2hbot ', '').strip()
+        pname = (tweetdata['text'] + ' ') \
+            .replace(' cf ', '') \
+            .replace('@h2hbot ', '') \
+            .replace(' dates ', '') \
+            .restrip()
         fname = 'bot/' + pname.replace(' ', '_') + '_cf.png'
         fname2 = 'bot/' + pname.replace(' ', '_') + '_gf.png'
 
@@ -246,10 +251,13 @@ class MyStreamer(TwythonStreamer):
 
                 oldstatus = schedules.get_game_status(season, gameid)
 
-                # If game is in current season
-                # If game is today or in the past, and game listed as "scheduled," update schedule
-                # If game is in progress and it's been at least 5 min since last date update, then update
-                # TODO
+                # Scrape only if:
+                # Game is in current season AND
+                # Game is today, and my schedule says it's "scheduled", OR
+                # Game is today, and my schedule doesn't say it's final yet, and it's been at least
+                #   5 min since last scrape, OR
+                # Game was before today and my schedule doesn't say "final"
+                # Update in these cases
                 if season == schedules.get_current_season():
                     today = datetime.datetime.now().strftime('%Y-%m-%d')
                     gdata = schedules.get_game_data_from_schedule(season, gameid)
@@ -298,6 +306,6 @@ try:
 except KeyboardInterrupt:
     twitter.update_status(status="I'm turning off now ({0:s})".format(
         datetime.datetime.now().strftime('%Y-%m-%d %-H:%M %p ET')))
-    pass
+    teams.update_team_logs()
 
 
