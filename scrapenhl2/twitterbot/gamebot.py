@@ -126,11 +126,12 @@ def tweet_game_images(h2hfile, tlfile, hname, rname, status, tweetdata):
 
 def check_player_cf_graph_tweet_format(text):
     """
-    Checks if tweet has cf or cf% in it
+    Checks if tweet has cf or cf% in it, corsi also ok
     :param text: str
     :return: bool
     """
-    return re.search(r'\scf%?\s', text.lower() + ' ') is not None
+    return re.search(r'\scf%?\s', text.lower() + ' ') is not None or \
+           re.search(r'\scorsi%?\s', text.lower() + ' ') is not None
 
 
 def player_cf_graphs(tweetdata):
@@ -235,10 +236,13 @@ class MyStreamer(TwythonStreamer):
 
                 oldstatus = schedules.get_game_status(season, gameid)
 
-                # If game is in current season
-                # If game is today or in the past, and game listed as "scheduled," update schedule
-                # If game is in progress and it's been at least 5 min since last date update, then update
-                # TODO
+                # Scrape only if:
+                # Game is in current season AND
+                # Game is today, and my schedule says it's "scheduled", OR
+                # Game is today, and my schedule doesn't say it's final yet, and it's been at least
+                #   5 min since last scrape, OR
+                # Game was before today and my schedule doesn't say "final"
+                # Update in these cases
                 if season == schedules.get_current_season():
                     today = datetime.datetime.now().strftime('%Y-%m-%d')
                     gdata = schedules.get_game_data_from_schedule(season, gameid)
