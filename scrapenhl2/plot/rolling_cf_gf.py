@@ -60,21 +60,49 @@ def _rolling_player_f(player, gfcf, **kwargs):
 
     df.loc[:, 'Game Number'] = 1
     df.loc[:, 'Game Number'] = df['Game Number'].cumsum()
+    df = df.set_index('Game Number', drop=False)
+
     if 'x' in kwargs and kwargs['x'] == 'Date':
         df = schedules.attach_game_dates_to_dateframe(df)
-        df = df.set_index(pd.DatetimeIndex(df['Date'])).drop('Date', axis=1)
+        df.loc[:, 'Date'] = pd.to_datetime(df.Date)
+        #df.loc[:, 'Date'] = pd.to_datetime(df.Date).dt.strftime('%b/%y')
+        df = df.set_index(pd.DatetimeIndex(df['Date']))
         plt.gca().xaxis_date()
         plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%b\'%y'))
         plt.xlabel('Date')
     else:
-        df = df.set_index('Game Number')
         plt.xlabel('Game')
+        kwargs['x'] = 'Game Number'
 
-    label = gfcf + 'F%'
-    plt.plot(df.index, df[col_dict[label]], label=label)
-    label = gfcf + 'F% Off'
-    plt.plot(df.index, df[col_dict[label]], label=label, ls='--')
+    series = gfcf + 'F%'
+    series2 = gfcf + 'F% Off'
+
+    # Avoid the long lines in offseason by setting first value in each season to None
+    df.loc[:, 'PrevSeason'] = df.Season.shift(1)
+    df.loc[:, 'PrevSeason'] = df.PrevSeason.fillna(df.Season - 1)
+    df.loc[df.Season != df.PrevSeason, col_dict[series]] = None
+    df.loc[df.Season != df.PrevSeason, col_dict[series2]] = None
+
+    # Add YY-YY for top axis
+    df.loc[:, 'TopLabel'] = df.Season.apply(lambda x: '{0:d}-{1:s} -->'.format(x, str(x+1)[2:]))
+
+    plt.plot(df.index, df[col_dict[series]].values, label=series)
+    plt.plot(df.index, df[col_dict[series2]].values, label=series2, ls='--')
+
     plt.legend(loc=1, fontsize=10)
+
+    # Add seasons at top
+    ax1 = plt.gca()
+    ax2 = ax1.twiny()
+    ax2.set_xlim(*ax1.get_xlim())
+    temp = df[df.Season != df.PrevSeason][[kwargs['x'], 'TopLabel']]
+    ax2.tick_params(length=0, labelsize=8)
+    ax2.set_xticks(temp.iloc[:, 0].values)
+    ax2.set_xticklabels(temp.iloc[:, 1].values)
+    for label in ax2.xaxis.get_majorticklabels():
+        label.set_horizontalalignment('left')
+    for tick in ax2.xaxis.get_major_ticks():
+        tick.set_pad(-10)
 
     plt.title(_get_rolling_f_title(gfcf, **kwargs))
 

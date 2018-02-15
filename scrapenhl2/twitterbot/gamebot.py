@@ -124,6 +124,17 @@ def tweet_game_images(h2hfile, tlfile, hname, rname, status, tweetdata):
             media_ids=[response['media_id']],
             in_reply_to_status_id = tweetdata['id_str'])
 
+
+def find_seasons_in_text(tweettext):
+    """
+    Searches for regex pattern \d{4}
+    :param text: str
+    :return: list of int
+    """
+    text = tweettext + ' '
+    return [int(x) for x in re.findall(r'\s\d{4}\s', text)]
+
+
 def check_player_cf_graph_tweet_format(text):
     """
     Checks if tweet has cf or cf% in it
@@ -143,15 +154,19 @@ def player_cf_graphs(tweetdata):
         pname = (tweetdata['text'] + ' ').replace(' cf ', '').replace('@h2hbot ', '').strip()
         fname = 'bot/' + pname.replace(' ', '_') + '_cf.png'
         fname2 = 'bot/' + pname.replace(' ', '_') + '_gf.png'
-        if ' dates ' in (tweetdata['text'] + ' '):
-            x = 'Date'
-        else:
-            x = 'Game Number'
+
+        kwargs = {}
+        for i, season in enumerate(find_seasons_in_text(tweetdata['text'])):
+            if i == 0:
+                kwargs['startseason'] = season
+            else:
+                kwargs['endseason'] = season
+
         try:
-            rolling_cf_gf.rolling_player_cf(tweetdata['text'], x=x, save_file=fname)
+            rolling_cf_gf.rolling_player_cf(tweetdata['text'], save_file=fname, **kwargs)
             tweet_player_cf_graph(fname, pname, tweetdata)
 
-            rolling_cf_gf.rolling_player_gf(tweetdata['text'], x=x, save_file=fname2)
+            rolling_cf_gf.rolling_player_gf(tweetdata['text'], save_file=fname2, **kwargs)
             tweet_player_gf_graph(fname2, pname, tweetdata)
             print('Success!')
         except Exception as e:
