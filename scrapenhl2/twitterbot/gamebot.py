@@ -29,6 +29,10 @@ twitter = Twython(
 # Only update every 5 mins
 LAST_UPDATE = None
 
+SILENT = True
+
+SCRAPED_NEW = False
+
 # Add team hashtags
 HASHTAGS = {'ANA': 'LetsGoDucks', 'ARI': 'Yotes', 'BOS': 'NHLBruins', 'BUF': 'Sabres', 'CGY': 'CofRed',
             'CAR': 'Redvolution', 'CHI': 'Hawks', 'COL': 'GoAvsGo', 'CBJ': 'CBJ', 'DAL': 'GoStars',
@@ -39,8 +43,9 @@ HASHTAGS = {'ANA': 'LetsGoDucks', 'ARI': 'Yotes', 'BOS': 'NHLBruins', 'BUF': 'Sa
             'WSH': 'ALLCAPS', 'WPG': 'GoJetsGo'}
 
 # Message that bot is now active
-twitter.update_status(status="I'm active now ({0:s} ET)".format(
-    datetime.datetime.now().strftime('%Y-%m-%d %-H:%M %p ET')))
+if not SILENT:
+    twitter.update_status(status="I'm active now ({0:s} ET)".format(
+        datetime.datetime.now().strftime('%Y-%m-%d %-H:%M ET')))
 
 
 def tweet_error(message, tweetdata):
@@ -151,35 +156,36 @@ def player_cf_graphs(tweetdata):
     :param tweetdata:
     :return:
     """
-    if check_player_cf_graph_tweet_format(tweetdata['text']):
-        pname = (tweetdata['text'] + ' ') \
-            .replace(' cf ', '') \
-            .replace('@h2hbot ', '') \
-            .replace(' dates ', '') \
-            .restrip()
-        fname = 'bot/' + pname.replace(' ', '_') + '_cf.png'
-        fname2 = 'bot/' + pname.replace(' ', '_') + '_gf.png'
-
-        kwargs = {}
-        for i, season in enumerate(find_seasons_in_text(tweetdata['text'])):
-            if i == 0:
-                kwargs['startseason'] = season
-            else:
-                kwargs['endseason'] = season
-
-        try:
-            rolling_cf_gf.rolling_player_cf(tweetdata['text'], save_file=fname, **kwargs)
-            tweet_player_cf_graph(fname, pname, tweetdata)
-
-            rolling_cf_gf.rolling_player_gf(tweetdata['text'], save_file=fname2, **kwargs)
-            tweet_player_gf_graph(fname2, pname, tweetdata)
-            print('Success!')
-        except Exception as e:
-            tweet_error("Sorry, there was an unknown error while making the charts (cc @muneebalamcu). "
-                        "Might have had issues identifying the player", tweetdata)
-        return True
-    else:
+    if not check_player_cf_graph_tweet_format(tweetdata['text']):
         return False
+
+    pname = (tweetdata['text'] + ' ') \
+        .replace(' cf ', '') \
+        .replace('@h2hbot ', '') \
+        .replace(' dates ', '') \
+        .strip()
+    fname = 'bot/' + pname.replace(' ', '_') + '_cf.png'
+    fname2 = 'bot/' + pname.replace(' ', '_') + '_gf.png'
+
+    kwargs = {}
+    for i, season in enumerate(find_seasons_in_text(tweetdata['text'])):
+        if i == 0:
+            kwargs['startseason'] = season
+        else:
+            kwargs['endseason'] = season
+
+    try:
+        rolling_cf_gf.rolling_player_cf(tweetdata['text'], save_file=fname, **kwargs)
+        tweet_player_cf_graph(fname, pname, tweetdata)
+
+        rolling_cf_gf.rolling_player_gf(tweetdata['text'], save_file=fname2, **kwargs)
+        tweet_player_gf_graph(fname2, pname, tweetdata)
+        print('Success!')
+    except Exception as e:
+        tweet_error("Sorry, there was an unknown error while making the charts (cc @muneebalamcu). "
+                    "Might have had issues identifying the player", tweetdata)
+
+    return True
 
 
 class MyStreamer(TwythonStreamer):
@@ -191,10 +197,13 @@ class MyStreamer(TwythonStreamer):
             print(data['text'])
 
             if r'https://t.co/' in data['text']:
-                # Image
+                print('This looks like an image')
+                return
+            if data['text'][:3] == 'RT ':
+                print('This looks like a retweet')
                 return
 
-            global LAST_UPDATE
+            global LAST_UPDATE, SCRAPED_NEW
             try:
                 if player_cf_graphs(data):
                     return
@@ -212,6 +221,7 @@ class MyStreamer(TwythonStreamer):
                         season = int(re.search(r'\s\d{4}\s', text).group(0))
                         if season < 2015 or season > schedules.get_current_season():
                             tweet_error("Sorry, I don't have data for this season yet", data)
+                            print('Invalid season')
                             return
                     else:
                         season = schedules.get_current_season()
@@ -222,6 +232,7 @@ class MyStreamer(TwythonStreamer):
                         gameid = int(re.search(r'\s\d{5}\s', text).group(0))
                         if not schedules.check_valid_game(season, gameid):
                             tweet_error("Sorry, this game ID doesn't look right", data)
+                            print('Game ID not right')
                             return
                     else:
                         pass
@@ -236,7 +247,7 @@ class MyStreamer(TwythonStreamer):
                             if team_info.team_as_id(part) is not None:
                                 teams.append(part)
                     if len(teams) == 0:
-                        # Assume this was just a tagging, e.g. follow this account, or thread discussion
+                        print('Think this was a tagged discussion')
                         return
                     elif len(teams) != 2:
                         tweet_error("Sorry, I need 2 teams. Found {0:d}. Make sure abbreviations are correct"
@@ -258,21 +269,22 @@ class MyStreamer(TwythonStreamer):
                 #   5 min since last scrape, OR
                 # Game was before today and my schedule doesn't say "final"
                 # Update in these cases
+                scrapeagain = False
                 if season == schedules.get_current_season():
                     today = datetime.datetime.now().strftime('%Y-%m-%d')
                     gdata = schedules.get_game_data_from_schedule(season, gameid)
                     if gdata['Date'] == today:
                         if gdata['Status'] == 'Scheduled':
-                            autoupdate.autoupdate(season, update_team_logs=False)
-                            LAST_UPDATE = time.time()
+                            scrapeagain = True
                         elif gdata['Status'] != 'Final' and \
                                 (LAST_UPDATE is None or time.time() - LAST_UPDATE >= 60 * 5):
-                            autoupdate.autoupdate(season, update_team_logs=False)
-                            LAST_UPDATE = time.time()
+                            scrapeagain = True
                     elif gdata['Date'] < today and gdata['Status'] != 'Final':
-                        autoupdate.autoupdate(season, update_team_logs=False)
-                        LAST_UPDATE = time.time()
-
+                        scrapeagain = True
+                if scrapeagain:
+                    autoupdate.autoupdate(season, update_team_logs=False)
+                    LAST_UPDATE = time.time()
+                    SCRAPED_NEW = True
 
                 hname = schedules.get_home_team(season, gameid)
                 rname = schedules.get_road_team(season, gameid)
@@ -304,8 +316,10 @@ try:
     )
     stream.statuses.filter(track='@h2hbot')
 except KeyboardInterrupt:
-    twitter.update_status(status="I'm turning off now ({0:s})".format(
-        datetime.datetime.now().strftime('%Y-%m-%d %-H:%M %p ET')))
-    teams.update_team_logs()
+    if not SILENT:
+        twitter.update_status(status="I'm turning off now ({0:s})".format(
+            datetime.datetime.now().strftime('%Y-%m-%d %-H:%M ET')))
+    if SCRAPED_NEW:
+        teams.update_team_logs(schedules.get_current_season())
 
 

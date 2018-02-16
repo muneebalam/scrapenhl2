@@ -1,0 +1,17 @@
+Game charts
+------------
+Most recent game this season: @h2hbot WSH PIT
+Specific game: @h2hbot 2017 20001
+Playoff game: @h2hbot 2016 TOR WSH game 6
+
+Player Corsi charts
+--------------------
+@h2hbot Alex Ovechkin cf
+
+Team abbreviations
+------------------
+Metropolitan: CAR CBJ NJD NYI NYR PHI PIT WSH
+Atlantic: BOS BUF DET FLA MTL OTT TBL TOR
+Central: CHI COL DAL MIN NSH STL WPG
+Pacific: ANA ARI CGY EDM LAK SJS VAN VGK
+
