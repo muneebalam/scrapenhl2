@@ -60,7 +60,7 @@ def tweet_error(message, tweetdata):
                           in_reply_to_status_id=tweetdata['id_str'])
 
 
-def tweet_player_cf_graph(file, pname, tweetdata):
+def tweet_player_graphs(cffile, gffile, pname, tweetdata):
     """
 
     :param file:
@@ -68,27 +68,12 @@ def tweet_player_cf_graph(file, pname, tweetdata):
     :param tweetdata:
     :return:
     """
-    with open(file, 'rb') as photo:
-        response = twitter.upload_media(media=photo)
-        twitter.update_status(status='@{0:s} {1:s} rolling Corsi%'.format(tweetdata['user']['screen_name'],
-                                                                          pname),
-                              media_ids=[response['media_id']],
-                              in_reply_to_status_id=tweetdata['id_str'])
-
-
-def tweet_player_gf_graph(file, pname, tweetdata):
-    """
-
-    :param file:
-    :param name:
-    :param tweetdata:
-    :return:
-    """
-    with open(file, 'rb') as photo:
-        response = twitter.upload_media(media=photo)
-        twitter.update_status(status='@{0:s} {1:s} rolling GF%'.format(tweetdata['user']['screen_name'],
-                                                                          pname),
-                              media_ids=[response['media_id']],
+    with open(cffile, 'rb') as cfphoto, open(gffile, 'rb') as gfphoto:
+        cfresponse = twitter.upload_media(media=cfphoto)
+        gfresponse = twitter.upload_media(media=gfphoto)
+        twitter.update_status(status='@{0:s} {1:s} rolling CF% and GF%'.format(tweetdata['user']['screen_name'],
+                                                                               pname),
+                              media_ids=[cfresponse['media_id'], gfresponse['media_id']],
                               in_reply_to_status_id=tweetdata['id_str'])
 
 
@@ -113,20 +98,14 @@ def tweet_game_images(h2hfile, tlfile, hname, rname, status, tweetdata):
     if hname in HASHTAGS:
         suffix += ' #' + HASHTAGS[hname]
 
-    with open(h2hfile, 'rb') as photo:
-        response = twitter.upload_media(media=photo)
+    with open(h2hfile, 'rb') as h2hphoto, open(tlfile, 'rb') as tlphoto:
+        h2hresponse = twitter.upload_media(media=h2hphoto)
+        tlresponse = twitter.upload_media(media=tlphoto)
+
         twitter.update_status(
-            status='@{3:s} H2H: {0:s} @ {1:s} ({2:s}){4:s}'.format(rname, hname, status,
-                                                                   tweetdata['user']['screen_name'], suffix),
-            media_ids=[response['media_id']],
-            in_reply_to_status_id = tweetdata['id_str'])
-    with open(tlfile, 'rb') as photo:
-        response = twitter.upload_media(media=photo)
-        twitter.update_status(
-            status='@{3:s} TL: {0:s} @ {1:s} ({2:s}){4:s}'.format(rname, hname, status,
-                                                                  tweetdata['user']['screen_name'],
-                                                                  suffix),
-            media_ids=[response['media_id']],
+            status='@{3:s} H2H and TL: {0:s} @ {1:s} ({2:s}){4:s}'.format(rname, hname, status,
+                                                                          tweetdata['user']['screen_name'], suffix),
+            media_ids=[h2hresponse['media_id'], tlresponse['media_id']],
             in_reply_to_status_id = tweetdata['id_str'])
 
 
@@ -176,10 +155,8 @@ def player_cf_graphs(tweetdata):
 
     try:
         rolling_cf_gf.rolling_player_cf(tweetdata['text'], save_file=fname, **kwargs)
-        tweet_player_cf_graph(fname, pname, tweetdata)
-
         rolling_cf_gf.rolling_player_gf(tweetdata['text'], save_file=fname2, **kwargs)
-        tweet_player_gf_graph(fname2, pname, tweetdata)
+        tweet_player_graphs(fname, fname2, pname, tweetdata)
         print('Success!')
     except Exception as e:
         tweet_error("Sorry, there was an unknown error while making the charts (cc @muneebalamcu). "
@@ -257,9 +234,6 @@ class MyStreamer(TwythonStreamer):
                     team1, team2 = teams[:2]
                     gameid = games.most_recent_game_id(team1, team2)
 
-                h2hfile = 'bot/{0:d}0{1:d}h2h.png'.format(season, gameid)
-                tlfile = 'bot/{0:d}0{1:d}tl.png'.format(season, gameid)
-
                 oldstatus = schedules.get_game_status(season, gameid)
 
                 # Scrape only if:
@@ -290,16 +264,20 @@ class MyStreamer(TwythonStreamer):
                 rname = schedules.get_road_team(season, gameid)
                 status = schedules.get_game_status(season, gameid)
 
-                if 'In Progress' in oldstatus or status != oldstatus or not os.path.exists(tlfile):
-                    try:
+                h2hfile = 'bot/{0:d}0{1:d}h2h_{2:s}.png'.format(season, gameid, status[:5].lower())
+                tlfile = 'bot/{0:d}0{1:d}tl_{2:s}.png'.format(season, gameid, status[:5].lower())
+
+                try:
+                    if not (status == 'Final' and os.path.exists(tlfile)):
                         game_timeline.game_timeline(season, gameid, save_file=tlfile)
+                    if not (status == 'Fina' and os.path.exists(h2hfile)):
                         game_h2h.game_h2h(season, gameid, save_file=h2hfile)
-                        tweet_game_images(h2hfile, tlfile, hname, rname, status, data)
-                        print('Success!')
-                    except Exception as e:
-                        print(data['text'], time.time(), e, e.args)
-                        tweet_error("Sorry, there was an unknown error while making the charts (cc @muneebalamcu)",
-                                    data)
+                    tweet_game_images(h2hfile, tlfile, hname, rname, status, data)
+                    print('Success!')
+                except Exception as e:
+                    print(data['text'], time.time(), e, e.args)
+                    tweet_error("Sorry, there was an unknown error while making the charts (cc @muneebalamcu)",
+                                data)
 
             except Exception as e:
                 print('Unexpected error')
