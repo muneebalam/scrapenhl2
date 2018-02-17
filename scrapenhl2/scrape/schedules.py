@@ -9,7 +9,6 @@ import json
 import os.path
 import urllib.request
 
-import feather
 import pandas as pd
 import sqlite3
 
@@ -53,7 +52,7 @@ def get_schedule_connection():
     """
     Get connection and cursor for schedule
 
-    :return: cursor
+    :return: connection
     """
     return sqlite3.connect(get_schedule_filename())
 
@@ -457,26 +456,30 @@ def _add_schedule_from_json(season, jsondict):
         try:
             date = datejson.get('date', None)
             for gamejson in datejson['games']:
-                game = int(str(helpers.try_to_access_dict(gamejson, 'gamePk'))[-5:])
-                gametype = helpers.try_to_access_dict(gamejson, 'gameType')
-                status = helpers.try_to_access_dict(gamejson, 'status', 'detailedState')
-                vid = helpers.try_to_access_dict(gamejson, 'teams', 'away', 'team', 'id')
-                vscore = int(helpers.try_to_access_dict(gamejson, 'teams', 'away', 'score'))
-                hid = helpers.try_to_access_dict(gamejson, 'teams', 'home', 'team', 'id')
-                hscore = int(helpers.try_to_access_dict(gamejson, 'teams', 'home', 'score'))
-                venue = helpers.try_to_access_dict(gamejson, 'venue', 'name')
-
-                cols = ', '.join(['Season', 'Date', 'Game', 'Home', 'HomeScore', 'Road', 'RoadScore', 'Status'])
-                vals = ', '.join(['"{0:s}"'.format(x) if isinstance(x, str) else str(x) \
-                                  for x in [season, date, game, hid, hscore, vid, vscore, status]])
-                query = 'REPLACE INTO Schedule ({0:s})\nVALUES ({1:s})'.format(cols, vals)
-
-                _SCH_CURSOR.execute(query)
+                _update_schedule(Season=season, Date=date,
+                                 Game=int(str(helpers.try_to_access_dict(gamejson, 'gamePk'))[-5:]),
+                                 Type=helpers.try_to_access_dict(gamejson, 'gameType'),
+                                 Home=helpers.try_to_access_dict(gamejson, 'teams', 'home', 'team', 'id'),
+                                 Road=helpers.try_to_access_dict(gamejson, 'teams', 'away', 'team', 'id'),
+                                 HomeScore=int(helpers.try_to_access_dict(gamejson, 'teams', 'home', 'score')),
+                                 RoadScore=int(helpers.try_to_access_dict(gamejson, 'teams', 'away', 'score')),
+                                 Status=helpers.try_to_access_dict(gamejson, 'status', 'detailedState'),
+                                 Venue=helpers.try_to_access_dict(gamejson, 'venue', 'name'))
 
         except KeyError:
             pass
 
     _SCH_CONN.commit()
+
+
+def _update_schedule(**kwargs):
+    """
+    Updates schedule using REPLACE INTO. DOES NOT COMMIT.
+
+    :param kwargs:
+    :return:
+    """
+    helpers._update_table(_SCH_CURSOR, 'Schedule', **kwargs)
 
 
 def attach_game_dates_to_dateframe(df):

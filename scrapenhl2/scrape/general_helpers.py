@@ -10,6 +10,7 @@ import pickle
 import re
 import time
 import requests
+import sqlite3
 
 import numpy as np
 import pandas as pd
@@ -423,4 +424,18 @@ def fill_join(df1, df2, **kwargs):
             df1.loc[:, col] = df1[col].fillna(tmp[col + '_drop'])
 
     return df1
+
+
+def _update_table(cursor, tblname, **kwargs):
+    """
+    Updates tblname using replace into. DOES NOT COMMIT.
+    :param cursor:
+    :param tblname: str
+    :param kwargs:
+    :return:
+    """
+    cols = ', '.join([key for key, val in kwargs.items()])
+    vals = ', '.join(['"{0:s}"'.format(val) if isinstance(val, str) else str(val) for key, val in kwargs.items()])
+    query = 'REPLACE INTO {2:s} ({0:s})\nVALUES ({1:s})'.format(cols, vals, tblname)
+    cursor.execute(query)
 

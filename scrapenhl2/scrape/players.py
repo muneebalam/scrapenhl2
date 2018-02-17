@@ -7,6 +7,7 @@ import json
 import os.path
 import urllib.request
 from tqdm import tqdm
+import sqlite3
 
 import feather
 import pandas as pd
@@ -16,68 +17,48 @@ import scrapenhl2.scrape.organization as organization
 import scrapenhl2.scrape.schedules as schedules
 import scrapenhl2.scrape.team_info as team_info
 
-_PLAYERS = None
-_PLAYER_LOG = None
 
-def get_player_log_file():
+def get_player_info_filename():
     """
-    Returns the player log file from memory.
-
-    :return: dataframe, the log
+    Returns other data / playerlog.sqlite
+    :return:
     """
-    return _PLAYER_LOG
+    return os.path.join(organization.get_other_data_folder(), "playerlog.sqlite")
 
 
-def _get_player_log_file():
+def get_player_info_connection():
     """
-    Returns the player log file, reading from file. This is stored as a feather file for fast read/write.
-
-    :return: dataframe from /scrape/data/other/PLAYER_LOG.feather
+    Returns connection to player info file
+    :return:
     """
-    return feather.read_dataframe(get_player_log_filename())
+    return sqlite3.connect(get_player_info_filename())
 
 
-def get_player_ids_file():
+def _create_player_info_table():
+    """Creates Info DOB, Hand, Height, PlayerID, Name, Nationality, Pos, Weight"""
+    cols = ',\n'.join(['PlayerID CHAR', 'DOB Date', 'Hand CHAR(1)', 'Weight INT',
+                       'Height CHAR', 'Name CHAR', 'Nationality CHAR', 'Pos CHAR(1)'])
+    query = 'CREATE TABLE Info (\n{0:s},\nPRIMARY KEY ({1:s}))'.format(cols, 'PlayerID')
+    _PLAYER_CURSOR.execute(query)
+    _PLAYER_CONN.commit()
+
+
+def _create_player_status_table():
+    """Creates Status, Season, Game, PlayerID, Status"""
+    cols = ',\n'.join(['Season INT', 'Game INT', 'PlayerID CHAR', 'Status CHAR(1)'])
+    query = 'CREATE TABLE Status (\n{0:s},\nPRIMARY KEY ({1:s}, {2:s}, {3:s}))'.format(cols, 'Season', 'Game',
+                                                                                       'PlayerID')
+    _PLAYER_CURSOR.execute(query)
+    _PLAYER_CONN.commit()
+
+
+def get_player_info_file():
     """
-    Returns the player information file. This is stored as a feather file for fast read/write.
+    Returns the player information file (SELECT * FROM info)
 
-    :return: /scrape/data/other/PLAYER_INFO.feather
+    :return: df
     """
-    return _PLAYERS
-
-
-def _get_player_ids_file():
-    """
-    Runs at startup to read the player information file. This is stored as a feather file for fast read/write.
-
-    :return: /scrape/data/other/PLAYER_INFO.feather
-    """
-    return feather.read_dataframe(get_player_ids_filename())
-
-
-def write_player_log_file(df):
-    """
-    Writes the given dataframe to file as the player log filename
-
-    :param df: pandas dataframe
-
-    :return: nothing
-    """
-    feather.write_dataframe(df.drop_duplicates(), get_player_log_filename())
-    player_setup()
-
-
-def get_player_log_filename():
-    """
-    Returns the player log filename.
-
-    :return: str, /scrape/data/other/PLAYER_LOG.feather
-    """
-    return os.path.join(organization.get_other_data_folder(), 'PLAYER_LOG.feather')
-
-
-def get_player_ids_filename():
-    return os.path.join(organization.get_other_data_folder(), 'PLAYER_INFO.feather')
+    return pd.read_sql_query('SELECT * FROM Info', _PLAYER_CONN)
 
 
 def check_default_player_id(playername):
@@ -108,40 +89,10 @@ def player_setup():
 
     :return: nothing
     """
-    global _PLAYERS, _PLAYER_LOG
-
-    if not os.path.exists(get_player_ids_filename()):
-        generate_player_ids_file()
-
-    if not os.path.exists(get_player_log_filename()):
-        generate_player_log_file()
-
-    _PLAYERS = _get_player_ids_file()
-    _PLAYER_LOG = _get_player_log_file()
-
-
-def rescrape_player(playerid):
-    """
-    If you notice that a player name, position, etc, is outdated, call this method on their ID. It will
-    re-scrape their data from the NHL API.
-
-    :param playerid: int, their ID. Also accepts str, their name.
-
-    :return: nothing
-    """
-    playerid = player_as_id(playerid)
-    update_player_ids_file(playerid, True)
-
-
-def write_player_ids_file(df):
-    """
-    Writes the given dataframe to disk as the player ids mapping.
-
-    :param df: pandas dataframe, player ids file
-
-    :return: nothing
-    """
-    feather.write_dataframe(df.drop_duplicates(), get_player_ids_filename())
+    try:
+        _ = get_player_info_file()
+    except pd.io.sql.DatabaseError:
+        _create_player_info_table()
 
 
 def get_player_url(playerid):
@@ -153,6 +104,10 @@ def get_player_url(playerid):
     :return: str, https://statsapi.web.nhl.com/api/v1/people/[playerid]
     """
     return 'https://statsapi.web.nhl.com/api/v1/people/{0:s}'.format(str(playerid))
+
+
+def _update_player_info(**kwargs):
+    helpers._update_table(_PLAYER_CURSOR, 'Info', **kwargs)
 
 
 def update_player_ids_file(playerids, force_overwrite=False):
@@ -168,44 +123,20 @@ def update_player_ids_file(playerids, force_overwrite=False):
     if isinstance(playerids, int):
         playerids = [playerids]
 
-    ids = []
-    names = []
-    hands = []
-    pos = []
-    dobs = []
-    heights = []
-    weights = []
-    nationalities = []
-
-    current_players = get_player_ids_file()
-
     if not force_overwrite:
         # Pull only ones we don't have already
-        newdf = pd.DataFrame({'ID': [int(x) for x in playerids]})
-        to_scrape = set(newdf.ID).difference(current_players.ID)
+        newdf = pd.DataFrame({'PlayerID': [str(x) for x in playerids]})
+        to_scrape = set(newdf.PlayerID).difference(get_player_info_file().PlayerID)
     else:
         to_scrape = playerids
-        current_players = current_players.merge(pd.DataFrame({'ID': playerids}),
-                                                how='outer',
-                                                on='ID')
-        current_players = current_players.query('_merge == "left_only"').drop('_merge', axis=1)
+
     if len(to_scrape) == 0:
         return
     for playerid in tqdm(to_scrape, desc="Parsing players in play by play"):
         playerinfo = get_player_info_from_url(playerid)
-        ids.append(playerinfo['ID'])
-        names.append(playerinfo['Name'])
-        hands.append(playerinfo['Hand'])
-        pos.append(playerinfo['Pos'])
-        dobs.append(playerinfo['DOB'])
-        weights.append(playerinfo['Weight'])
-        heights.append(playerinfo['Height'])
-        nationalities.append(playerinfo['Nationality'])
-    df = pd.DataFrame({'ID': ids, 'Name': names, 'DOB': dobs, 'Hand': hands, 'Pos': pos,
-                       'Weight': weights, 'Height': heights, 'Nationality': nationalities})
-    df.loc[:, 'ID'] = pd.to_numeric(df.ID).astype(int)
-    write_player_ids_file(pd.concat([df, current_players]))
-    # print(len(_PLAYERS.groupby('ID').count().query('Name >= 2'))) # not getting duplicates, so I think we're okay
+        _update_player_info(PlayerID=playerinfo['ID'], Name=playerinfo['Name'], Hand=playerinfo['Hand'],
+                            Pos=playerinfo['Pos'], DOB=playerinfo['DOB'], Weight=playerinfo['Weight'],
+                            Height=playerinfo['Height'], Nationality=playerinfo['Nationality'])
 
 
 def update_player_log_file(playerids, seasons, games, teams, statuses):
@@ -545,4 +476,6 @@ def update_player_logs_from_page(pbp, season, game):
 
     # TODO: One issue is we do not see goalies (and maybe skaters) who dressed but did not play. How can this be fixed?
 
+_PLAYER_CONN = get_player_info_connection()
+_PLAYER_CURSOR = _PLAYER_CONN.cursor()
 player_setup()
