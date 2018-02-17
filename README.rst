@@ -136,6 +136,8 @@ If you do make a donation, make me happy `and leave a record here <https://goo.g
 Change log
 ----------
 
+2/17/18: Major speed increases with SQL backend.
+
 1/13/18: Various bug fixes, some charts added.
 
 11/10/17: Switched from Flask to Dash, bug fixes.

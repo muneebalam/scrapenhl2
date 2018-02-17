@@ -172,11 +172,12 @@ def fix_variants(team):
 
 
 @functools.lru_cache(maxsize=128, typed=False)
-def team_as_id(team):
+def team_as_id(team, silent=False):
     """
     A helper method. If team entered is int, returns that. If team is str, returns integer id of that team.
 
     :param team: int, or str
+    :param silent: bool
 
     :return: int, the team ID
     """
@@ -187,21 +188,25 @@ def team_as_id(team):
     result = pd.read_sql_query('SELECT * FROM Teams WHERE Name = "{0:s}" OR Abbrevation = "{0:s}"'.format(
         team), _TEAM_CONN)
     if len(result) == 0:
-        warnings.warn('No results for ' + team)
+        if not silent:
+            warnings.warn('No results for ' + team)
         return None
     elif len(result) == 1:
         return result.Team.iloc[0]
     else:
-        warnings.warn('Multiple results for ' + team + '\nPlease use the long name')
+        if not silent:
+            warnings.warn('Multiple results for ' + team + '\nPlease use the long name')
+        return None
 
 
 @functools.lru_cache(maxsize=128, typed=False)
-def team_as_str(team, abbreviation=True):
+def team_as_str(team, abbreviation=True, silent=False):
     """
     A helper method. If team entered is str, returns that. If team is int, returns string name of that team.
 
     :param team: int, or str
     :param abbreviation: bool, whether to return 3-letter abbreviation or full name
+    :param silent: bool
 
     :return: str, the team name
     """
@@ -212,12 +217,15 @@ def team_as_str(team, abbreviation=True):
     col_to_access = 'Abbreviation' if abbreviation else 'Name'
     result = pd.read_sql_query('SELECT * FROM Teams WHERE Team = {0:d}'.format(team), _TEAM_CONN)
     if len(result) == 0:
-        warnings.warn('No results for ' + team)
+        if not silent:
+            warnings.warn('No results for ' + team)
         return None
     elif len(result) == 1:
         return result[col_to_access].iloc[0]
     else:
-        warnings.warn('Multiple results for ' + team + '...???')
+        if not silent:
+            warnings.warn('Multiple results for ' + team + '...???')
+        return None
 
 
 def get_team_colordict():
