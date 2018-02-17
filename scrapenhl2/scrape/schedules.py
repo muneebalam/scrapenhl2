@@ -460,8 +460,8 @@ def _add_schedule_from_json(season, jsondict):
                 game = int(str(helpers.try_to_access_dict(gamejson, 'gamePk'))[-5:])
                 if game < 20001:
                     continue
-                update_schedule(Season=season, Date=date,
-                                Game=game,
+                update_schedule(update_or_replace='replace',
+                                Season=season, Date=date, Game=game,
                                 Type=helpers.try_to_access_dict(gamejson, 'gameType'),
                                 Home=helpers.try_to_access_dict(gamejson, 'teams', 'home', 'team', 'id'),
                                 Road=helpers.try_to_access_dict(gamejson, 'teams', 'away', 'team', 'id'),
@@ -476,14 +476,23 @@ def _add_schedule_from_json(season, jsondict):
     _SCH_CONN.commit()
 
 
-def update_schedule(**kwargs):
+def update_schedule(update_or_replace, **kwargs):
     """
-    Updates schedule using REPLACE INTO. DOES NOT COMMIT.
+    Updates schedule using REPLACE INTO or UPDATE. REPLACE INTO deletes previous record, UPDATE just overwrites
+    specified kwargs. DOES NOT COMMIT.
 
+    :param update_or_replace:str, 'replace' or 'update'.
     :param kwargs:
     :return:
     """
-    helpers._update_table(_SCH_CURSOR, 'Schedule', **kwargs)
+    assert update_or_replace in {'update', 'replace'}
+    if update_or_replace == 'update':
+        pkeys = {k: v for k, v in kwargs.items() if k in {'Season', 'Game'}}
+        for key in pkeys:
+            kwargs.pop(key)
+        helpers._update_table(_SCH_CURSOR, 'Schedule', pkeys, **kwargs)
+    else:
+        helpers._replace_into_table(_SCH_CURSOR, 'Schedule', **kwargs)
 
 
 def attach_game_dates_to_dateframe(df):

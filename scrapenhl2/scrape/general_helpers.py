@@ -366,10 +366,10 @@ def try_url_n_times(url, timeout=5, n=5):
                 print('HTTP error with', url, httpe, httpe.args)
         except requests.exceptions.ReadTimeout as rt:
             print(rt)
-            print('Failed on try {} on url {}'.format(tries, url))
+            print('Failed on try {} on url {}'.format(tries+1, url))
         except Exception as e:  # timeout
             print(e)
-            print('Could not access {0:s}; try {1:d} of {2:d}'.format(url, tries, n))
+            print('Could not access {0:s}; try {1:d} of {2:d}'.format(url, tries+1, n))
     return page
 
 def melt_helper(df, **kwargs):
@@ -428,9 +428,9 @@ def fill_join(df1, df2, **kwargs):
     return df1
 
 
-def _update_table(cursor, tblname, **kwargs):
+def _replace_into_table(cursor, tblname, **kwargs):
     """
-    Updates tblname using replace into. DOES NOT COMMIT.
+    Replaces into tblname. DOES NOT COMMIT.
     :param cursor:
     :param tblname: str
     :param kwargs:
@@ -441,3 +441,45 @@ def _update_table(cursor, tblname, **kwargs):
     query = 'REPLACE INTO {2:s} ({0:s})\nVALUES ({1:s})'.format(cols, vals, tblname)
     cursor.execute(query)
 
+
+def _update_table(cursor, tblname, primarykeydict, **kwargs):
+    """
+    Updates tblname based on primary keys. Does not commit.
+    
+    :param cursor: 
+    :param tblname: str
+    :param primarykeydict: dict
+    :param kwargs: 
+    :return: 
+    """
+
+    colval = dict_to_sql_format(sep=', ', **kwargs)
+    cond = dict_to_sql_format(sep=' AND ', **primarykeydict)
+    query = 'UPDATE {0:s}\nSET {1:s}\nWHERE {2:s}'.format(tblname, colval, cond)
+    cursor.execute(query)
+
+
+def list_to_sql_format(*args):
+    """
+    Returns str(x) for non-string values, and "x" for string x
+
+    :param args:
+    :return:
+    """
+
+    return ['"{0:s}"'.format(val) if isinstance(val, str) else str(val) for val in args]
+
+
+def dict_to_sql_format(sep=', ', **kwargs):
+    """
+    Returns k = v, k2 = v2, ..., adding quotes around string values
+
+    :param sep: e.g. ', ' yields k=v, k2=v2 etc. Might want to use AND to get k=v AND k2=v2 etc
+    :param kwargs: key value pairs
+    :return:
+    """
+
+    cols = [key for key, val in kwargs.items()]
+    vals = ['"{0:s}"'.format(val) if isinstance(val, str) else str(val) for key, val in kwargs.items()]
+    cond = sep.join(['{0:s} = {1:s}'.format(k, v) for k, v in zip(cols, vals)])
+    return cond

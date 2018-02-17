@@ -121,10 +121,10 @@ def get_player_url(playerid):
 
 
 def update_player_info(**kwargs):
-    helpers._update_table(_PLAYER_CURSOR, 'Info', **kwargs)
+    helpers._replace_into_table(_PLAYER_CURSOR, 'Info', **kwargs)
 
 def update_player_status(**kwargs):
-    helpers._update_table(_PLAYER_CURSOR, 'Status', **kwargs)
+    helpers._replace_into_table(_PLAYER_CURSOR, 'Status', **kwargs)
 
 
 def update_player_ids_file(playerids, force_overwrite=False):

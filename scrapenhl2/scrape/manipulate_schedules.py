@@ -21,12 +21,7 @@ def update_schedule_with_result(season, game, result):
     if result is None:
         result = 'N/A'
 
-    # Edit relevant schedule files
-    df = schedules.get_season_schedule(season)
-    df.loc[df.Game == game, 'Result'] = result
-
-    # Write to file and refresh schedule in memory
-    schedules.write_season_schedule(df, season, True)
+    schedules.update_schedule(update_or_replace='update', Season=season, Game=game, Result=result)
 
 
 def _update_schedule_with_coaches(season, game, homecoach, roadcoach):
@@ -48,12 +43,8 @@ def _update_schedule_with_coaches(season, game, homecoach, roadcoach):
         roadcoach = 'N/A'
 
     # Edit relevant schedule files
-    df = schedules.get_season_schedule(season)
-    df.loc[df.Game == game, 'HomeCoach'] = homecoach
-    df.loc[df.Game == game, 'RoadCoach'] = roadcoach
-
-    # Write to file and refresh schedule in memory
-    schedules.write_season_schedule(df, season, True)
+    schedules.update_schedule(update_or_replace='update', Season=season, Game=game,
+                              HomeCoach=homecoach, RoadCoach=roadcoach)
 
 
 def update_schedule_with_pbp_scrape(season, game):
@@ -68,7 +59,7 @@ def update_schedule_with_pbp_scrape(season, game):
     if not isinstance(game, list) and not isinstance(game, set):
         game = [game]
     for g in game:
-        schedules.update_schedule(Season=season, Game=g, PBPStatus='Scraped')
+        schedules.update_schedule(update_or_replace='update', Season=season, Game=g, PBPStatus='Scraped')
 
 
 def update_schedule_with_toi_scrape(season, game):
@@ -83,7 +74,7 @@ def update_schedule_with_toi_scrape(season, game):
     if not isinstance(game, list) and not isinstance(game, set):
         game = [game]
     for g in game:
-        schedules.update_schedule(Season=season, Game=g, TOIStatus='Scraped')
+        schedules.update_schedule(update_or_replace='update', Season=season, Game=g, TOIStatus='Scraped')
 
 
 def update_schedule_with_result_using_pbp(pbp, season, game):
