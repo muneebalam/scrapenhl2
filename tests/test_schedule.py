@@ -17,17 +17,14 @@ def test__get_current_season(mocker):
     assert schedules._get_current_season() == 2017
     date_mock.month = 10
 
-
 def test_get_current_season(mocker):
     """Trivial, will not test"""
-
 
 def test_get_schedule_filename(mocker):
     """Method returns filename of schedule SQL"""
     organization_mock = mocker.patch("scrapenhl2.scrape.schedules.organization")
     organization_mock.get_other_data_folder.return_value = "/tmp"
     assert schedules.get_schedule_filename() == "/tmp/schedule.sqlite"
-
 
 def test_get_schedule_connection(mocker):
     """Trivial, will not test"""
@@ -59,8 +56,57 @@ def test_get_team_games(mocker):
     team_sch_mock = mocker.patch('schedules.get_team_schedule')
     team_sch_mock.return_value = pd.DataFrame({'Col1': [1, 2, 3], 'Game': [2, 3, 4]})
 
-    assert schedules.get_team_schedule().equals(pd.Series([2, 3, 4]))
+    assert schedules.get_team_schedule(2017, 'WSH').equals(pd.Series([2, 3, 4]))
 
 def test_clear_caches(mocker):
     """Trivial, will not test"""
+
+def test_get_game_data_from_schedule(mocker):
+    """Method gets values for game in dict form"""
+
+    sql_mock = mocker.patch('pd.read_sql_query')
+    sql_mock.return_value = pd.DataFrame({'A': [0], 'B': [1], 'C': [2]})
+    assert schedules.get_game_data_from_schedule(2017, 20001) == {'A': 0, 'B': 1, 'C': 2}
+
+def test_get_game_date(mocker):
+    """Trivial, will not test"""
+
+def test_get_home_team(mocker):
+    """Trivial, will not test"""
+
+def test_get_road_team(season, game, returntype='id'):
+    """Trivial, will not test"""
+
+def test_get_home_score(season, game):
+    """Trivial, will not test"""
+
+def test_get_road_score(season, game):
+    """Trivial, will not test"""
+
+def test_get_game_status(season, game):
+    """Trivial, will not test"""
+
+def test_get_game_result(season, game):
+    """Trivial, will not test"""
+
+def test_get_season_schedule_url(season):
+    """Trivial, will not test"""
+
+def test_get_teams_in_season(season):
+    """Trivial, will not test"""
+
+def test_check_valid_game(season, game):
+    """Trivial, will not test"""
+
+def test_schedule_setup():
+    """Trivial, will not test"""
+
+def test_generate_season_schedule_file(season):
+    """Not tested"""
+
+def test__add_schedule_from_json(season, jsondict):
+    """Not tested"""
+
+def test_attach_game_dates_to_dateframe(df):
+    """Not tested"""
 

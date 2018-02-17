@@ -98,7 +98,7 @@ def get_season_schedule(season):
     return pd.read_sql_query(query, _SCH_CONN)
 
 
-def get_schedule():
+def get_schedule(*colnames):
     """
     Gets the schedule file from SQL.
     
@@ -120,9 +120,14 @@ def get_schedule():
     - PBPStatus: str, 'Not scraped' when this function is run (edited accordingly later)
     - TOIStatus: str, 'Not scraped' when this function is run (edited accordingly later)
 
+    :param colnames: str, column names
+
     :return: dataframe
     """
-    return pd.read_sql_query('SELECT * FROM Schedule', _SCH_CONN)
+    if len(colnames) == 0:
+        colnames = ['*']
+    colnames2 = ', '.join(colnames)
+    return pd.read_sql_query('SELECT {0:s} FROM Schedule'.format(colnames2), _SCH_CONN)
 
 
 def _get_schedule_table_colnames_coltypes():
@@ -280,7 +285,7 @@ def get_game_date(season, game):
 
     :return: str
     """
-    return get_game_data_from_schedule(season, game, 'Date').iloc[0, 2]
+    return get_game_data_from_schedule(season, game, 'Date')['Date']
 
 
 def get_home_team(season, game, returntype='id'):
@@ -293,7 +298,7 @@ def get_home_team(season, game, returntype='id'):
 
     :return: float or str, depending on returntype
     """
-    home = get_game_data_from_schedule(season, game, 'Home').iloc[0, 2]
+    home = get_game_data_from_schedule(season, game, 'Home')['Home']
     if returntype.lower() == 'id':
         return team_info.team_as_id(home)
     else:
@@ -310,7 +315,7 @@ def get_road_team(season, game, returntype='id'):
 
     :return: float or str, depending on returntype
     """
-    road = get_game_data_from_schedule(season, game, 'Road').iloc[0, 2]
+    road = get_game_data_from_schedule(season, game, 'Road')['Road']
     if returntype.lower() == 'id':
         return team_info.team_as_id(road)
     else:
@@ -326,7 +331,7 @@ def get_home_score(season, game):
 
     :return: int, the score
     """
-    return get_game_data_from_schedule(season, game, 'HomeScore').iloc[0, 2]
+    return get_game_data_from_schedule(season, game, 'HomeScore')['HomeScore']
 
 
 def get_road_score(season, game):
@@ -338,7 +343,7 @@ def get_road_score(season, game):
 
     :return: int, the score
     """
-    return get_game_data_from_schedule(season, game, 'RoadScore').iloc[0, 2]
+    return get_game_data_from_schedule(season, game, 'RoadScore')['RoadScore']
 
 
 def get_game_status(season, game):
@@ -350,7 +355,7 @@ def get_game_status(season, game):
 
     :return: int, the score
     """
-    return get_game_data_from_schedule(season, game, 'Status').iloc[0, 2]
+    return get_game_data_from_schedule(season, game, 'Status')['Status']
 
 
 def get_game_result(season, game):
@@ -362,7 +367,7 @@ def get_game_result(season, game):
 
     :return: int, the score
     """
-    return get_game_data_from_schedule(season, game, 'Result').iloc[0, 2]
+    return get_game_data_from_schedule(season, game, 'Result')['Result']
 
 
 def get_season_schedule_url(season):
@@ -393,18 +398,15 @@ def get_teams_in_season(season):
 
 def check_valid_game(season, game):
     """
-    Checks if gameid in season schedule.
+    Checks if gameid in schedule.
 
     :param season: int, season
     :param game: int, game
     :return: bool
     """
 
-    try:
-        get_game_status(season, game)
-        return True
-    except IndexError:
-        return False
+    return len(pd.read_sql_query('SELECT * FROM Schedule WHERE Season = {0:d} AND Game = {1:d}'.format(season, game),
+                                 _SCH_CONN)) == 1
 
 
 def schedule_setup():
@@ -485,13 +487,7 @@ def attach_game_dates_to_dateframe(df):
 
     :return: dataframe with one more column
     """
-    dflst = []
-    for season in df.Season.unique():
-        temp = df.query("Season == {0:d}".format(int(season))) \
-            .merge(get_season_schedule(season)[['Game', 'Date']], how='left', on='Game')
-        dflst.append(temp)
-    df2 = pd.concat(dflst)
-    return df2
+    return df.merge(get_schedule('Season', 'Game', 'Date'), how='left', on=['Season', 'Game'])
 
 
 _CURRENT_SEASON = None
