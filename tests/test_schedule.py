@@ -1,107 +1,66 @@
 #! /usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from scrapenhl2.scrape.schedules import (
-    _get_current_season,
-    schedule_setup,
-    get_season_schedule_filename,
-    get_season_schedule,
-    get_team_schedule,
-    write_season_schedule,
-    get_game_data_from_schedule,
-    _CURRENT_SEASON,
-    _SCHEDULES,
-)
-from unittest.mock import call, MagicMock
-from pytest_mock import mocker
+import pandas as pd
+from scrapenhl2.scrape import schedules
 
-def test_get_current_season(mocker):
+def test__get_current_season(mocker):
+    """Method detects season based on today's date"""
 
     now_mock = mocker.patch("arrow.now")
-
     date_mock = now_mock.return_value
     date_mock.year = 2017
     date_mock.month = 8
 
-    assert _get_current_season() == 2016
+    assert schedules._get_current_season() == 2016
     date_mock.month = 9
-    assert _get_current_season() == 2017
+    assert schedules._get_current_season() == 2017
     date_mock.month = 10
-    assert _get_current_season() == 2017
 
 
-def test_get_season_schedule_filename(mocker):
+def test_get_current_season(mocker):
+    """Trivial, will not test"""
 
-    organization_mock = mocker.patch(
-        "scrapenhl2.scrape.schedules.organization"
-    )
+
+def test_get_schedule_filename(mocker):
+    """Method returns filename of schedule SQL"""
+    organization_mock = mocker.patch("scrapenhl2.scrape.schedules.organization")
     organization_mock.get_other_data_folder.return_value = "/tmp"
-
-    assert get_season_schedule_filename(2017) == "/tmp/2017_schedule.feather"
-
-
-def test_schedule_setup(mocker):
-
-    current_season_mock = mocker.patch(
-        "scrapenhl2.scrape.schedules._get_current_season"
-    )
-    current_season_mock.return_value = 2006
-    get_season_schedule_mock = mocker.patch(
-        "scrapenhl2.scrape.schedules.get_season_schedule_filename"
-    )
-    get_season_schedule_mock.side_effect = ["tmp/2005", "tmp/2006"]
-    path_exists_mock = mocker.patch(
-        "os.path.exists"
-    )
-    path_exists_mock.side_effect = [True, False]
-    gen_schedule_file_mock = mocker.patch(
-        "scrapenhl2.scrape.schedules.generate_season_schedule_file"
-    )
-    season_schedule_mock = mocker.patch(
-        "scrapenhl2.scrape.schedules._get_season_schedule"
-    )
-
-    schedule_setup()
-    get_season_schedule_mock.assert_has_calls([call(2005), call(2006)])
-    path_exists_mock.assert_has_calls(get_season_schedule_mock.return_value)
-    gen_schedule_file_mock.assert_has_calls([call(2006)])
-    season_schedule_mock.assert_has_calls([call(2005), call(2006)])
+    assert schedules.get_schedule_filename() == "/tmp/schedule.sqlite"
 
 
-def test_write_season_schedule(mocker):
+def test_get_schedule_connection(mocker):
+    """Trivial, will not test"""
 
-    feather_mock = mocker.patch("scrapenhl2.scrape.schedules.feather")
-    dataframe_mock = MagicMock()
+def test_close_schedule_cursor(mocker):
+    """Trivial, will not test"""
 
-    ret = write_season_schedule(dataframe_mock, 2017, True)
+def test_get_season_schedule(mocker):
+    """Not tested"""
 
-    feather_mock.write_dataframe.assert_called_once_with(
-        dataframe_mock, get_season_schedule_filename(2017)
-    )
+def test_get_schedule(mocker):
+    """Not tested"""
 
-    get_season_schedule_mock = mocker.patch(
-        "scrapenhl2.scrape.schedules.get_season_schedule"
-    )
-    panda_mock = mocker.patch("scrapenhl2.scrape.schedules.pd")
+def test_get_schedule_table_colnames_coltypes(mocker):
+    """Trivial, will not test"""
 
-    ret = write_season_schedule(dataframe_mock, 2017, False)
+def test__create_schedule_table(mocker):
+    """Not tested"""
 
-    assert get_season_schedule_mock().query.called_once_with("Status != Final")
-    assert panda_mock.concat.called_once_with(
-        get_season_schedule_mock().query()
-    )
+def test_write_schedules(mocker):
+    """Not tested"""
 
-def test_get_game_data_from_schedule(mocker):
+def test_get_team_schedule(mocker):
+    """Not tested"""
 
-    get_season_schedule_mock = mocker.patch(
-        "scrapenhl2.scrape.schedules.get_season_schedule"
-    )
+def test_get_team_games(mocker):
+    """Method gets team games subject to args"""
 
-    get_game_data_from_schedule(2017, 1234)
-    get_season_schedule_mock.assert_called_once_with(2017)
-    get_season_schedule_mock().query.assert_called_once_with('Game == 1234')
-    get_season_schedule_mock().query().to_dict.assert_called_once_with(orient='series')
+    team_sch_mock = mocker.patch('schedules.get_team_schedule')
+    team_sch_mock.return_value = pd.DataFrame({'Col1': [1, 2, 3], 'Game': [2, 3, 4]})
 
+    assert schedules.get_team_schedule().equals(pd.Series([2, 3, 4]))
 
-
+def test_clear_caches(mocker):
+    """Trivial, will not test"""
 

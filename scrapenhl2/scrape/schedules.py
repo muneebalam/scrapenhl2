@@ -129,6 +129,22 @@ def _get_schedule_table_colnames_coltypes():
     """
     Returns schedule column names and types (hard coded)
 
+    - Season INT PRIMARY KEY
+    - Date DATE
+    - Game INT PRIMARY KEY
+    - Home INT
+    - HomeScore INT
+    - Road INT
+    - RoadScore INT
+    - Status CHAR
+    - Type CHAR
+    - Venue CHAR
+    - HomeCoach CHAR DEFAULT N/A
+    - RoadCoach CHAR DEFAULT N/A
+    - Result CHAR DEFAULT N/A
+    - PBPStatus CHAR DEFAULT Not scraped
+    - TOIStatus CHAR DEFAULT Not scraped
+
     :return: list
     """
 
@@ -139,7 +155,21 @@ def _get_schedule_table_colnames_coltypes():
             ('RoadCoach', 'CHAR', 'DEFAULT', '"N/A"'),
             ('Result', 'CHAR', 'DEFAULT', '"N/A"'),
             ('PBPStatus', 'CHAR', 'DEFAULT', '"Not scraped"'),
-            ('TOIStatus', 'CHAR', 'DEFAULT', '"N/A"')]
+            ('TOIStatus', 'CHAR', 'DEFAULT', '"Not scraped"')]
+
+
+def _create_schedule_table():
+    """
+    Creates table with primary keys Season and Game, and columns Date, Home, HomeScore, Road, RoadScore,
+    Status, Type, Venue, HomeCoach, RoadCoach, Result, PBPStatus, and TOIStatus
+
+    :return:
+    """
+    cols = _get_schedule_table_colnames_coltypes()
+    cols = ',\n'.join([' '.join(row) for row in cols])
+    query = 'CREATE TABLE Schedule (\n{0:s},\nPRIMARY KEY ({1:s}, {2:s}))'.format(cols, 'Season', 'Game')
+    _SCH_CURSOR.execute(query)
+    _SCH_CONN.commit()
 
 
 def write_schedules():
@@ -152,24 +182,12 @@ def write_schedules():
     try:
         sch = get_season_schedule(get_current_season())
     except pd.io.sql.DatabaseError:
-        # Create the table
-        # feather.read_dataframe('/Volumes/My Passport for Mac/scrapenhl2/scrapenhl2/data/other/2017_schedule.feather').head()
-        cols = _get_schedule_table_colnames_coltypes()
-        cols = ',\n'.join([' '.join(row) for row in cols])
-        query = 'CREATE TABLE Schedule (\n{0:s},\nPRIMARY KEY ({1:s}, {2:s}))'.format(cols, 'Season', 'Game')
-        _SCH_CURSOR.execute(query)
-        _SCH_CONN.commit()
+        _create_schedule_table()
 
     for season in range(2005, get_current_season()):
         sch = get_season_schedule(season)
         if len(sch) == 0:
-            page = helpers.try_url_n_times(get_season_schedule_url(season))
-            if page is None:
-                print('Schedule for {0:d}-{1:s} was None'.format(season, str(season+1)[2:]))
-                continue
-            page2 = json.loads(page)
-            _add_schedule_from_json(season, page2)
-            print('Wrote {0:d}-{1:s} schedule to file'.format(season, str(season+1)[2:]))
+            generate_season_schedule_file(season)
 
 
 def get_team_schedule(season=None, team=None, startdate=None, enddate=None):
@@ -402,23 +420,23 @@ def schedule_setup():
     _SCH_CURSOR = _SCH_CONN.cursor()
 
 
-def generate_season_schedule_file(season, force_overwrite=True):
+def generate_season_schedule_file(season):
     """
-    Reads season schedule from NHL API and writes to file.
+    Reads season schedule from NHL API and writes to db.
 
     :param season: int, the season
-
-    :param force_overwrite: bool. If True, generates entire file from scratch.
-        If False, only redoes when not Final previously.
 
     :return: Nothing
     """
 
-    df.loc[:, 'Season'] = season
+    page = helpers.try_url_n_times(get_season_schedule_url(season))
+    if page is None:
+        print('Schedule for {0:d}-{1:s} was None'.format(season, str(season + 1)[2:]))
+        return
 
-    # Last step: we fill in some info from the pbp. If current schedule already exists, fill in that info.
-    df = _fill_in_schedule_from_pbp(df, season)
-    write_season_schedule(df, season, force_overwrite)
+    page2 = json.loads(page)
+    _add_schedule_from_json(season, page2)
+    print('Wrote {0:d}-{1:s} schedule to file'.format(season, str(season + 1)[2:]))
     clear_caches()
 
 
@@ -433,15 +451,6 @@ def _add_schedule_from_json(season, jsondict):
 
     :return:
     """
-    dates = []
-    games = []
-    gametypes = []
-    statuses = []
-    vids = []
-    vscores = []
-    hids = []
-    hscores = []
-    venues = []
     for datejson in jsondict['dates']:
         try:
             date = datejson.get('date', None)
