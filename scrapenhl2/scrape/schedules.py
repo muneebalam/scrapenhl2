@@ -65,19 +65,64 @@ def close_schedule_cursor():
     :return:
     """
 
-    _CONNECTION.close()
+    _SCH_CONN.close()
 
 
 def get_season_schedule(season):
     """
-    Gets the the season's schedule file from SQL.
+    Gets the season's schedule file from SQL.
+    
+    The output contains the following columns:
+
+    - Season: int, the season
+    - Date: str, the dates
+    - Game: int, the game id
+    - Type: str, the game type (for preseason vs regular season, etc)
+    - Status: str, e.g. Final
+    - Road: int, the road team ID
+    - RoadScore: int, number of road team goals
+    - RoadCoach str, 'N/A' when this function is run (edited later with road coach name)
+    - Home: int, the home team ID
+    - HomeScore: int, number of home team goals
+    - HomeCoach: str, 'N/A' when this function is run (edited later with home coach name)
+    - Venue: str, the name of the arena
+    - Result: str, 'N/A' when this function is run (edited accordingly later from PoV of home team: W, OTW, SOL, etc)
+    - PBPStatus: str, 'Not scraped' when this function is run (edited accordingly later)
+    - TOIStatus: str, 'Not scraped' when this function is run (edited accordingly later)
 
     :param season: int, the season
 
-    :return: dataframe (originally from /scrape/data/other/[season]_schedule.feather)
+    :return: dataframe 
     """
     query = 'SELECT * FROM Schedule WHERE Season = {0:d}'.format(season)
-    return pd.read_sql_query(query, _CONNECTION)
+    return pd.read_sql_query(query, _SCH_CONN)
+
+
+def get_schedule():
+    """
+    Gets the schedule file from SQL.
+    
+    The output contains the following columns:
+
+    - Season: int, the season
+    - Date: str, the dates
+    - Game: int, the game id
+    - Type: str, the game type (for preseason vs regular season, etc)
+    - Status: str, e.g. Final
+    - Road: int, the road team ID
+    - RoadScore: int, number of road team goals
+    - RoadCoach str, 'N/A' when this function is run (edited later with road coach name)
+    - Home: int, the home team ID
+    - HomeScore: int, number of home team goals
+    - HomeCoach: str, 'N/A' when this function is run (edited later with home coach name)
+    - Venue: str, the name of the arena
+    - Result: str, 'N/A' when this function is run (edited accordingly later from PoV of home team: W, OTW, SOL, etc)
+    - PBPStatus: str, 'Not scraped' when this function is run (edited accordingly later)
+    - TOIStatus: str, 'Not scraped' when this function is run (edited accordingly later)
+
+    :return: dataframe
+    """
+    return pd.read_sql_query('SELECT * FROM Schedule', _SCH_CONN)
 
 
 def _get_schedule_table_colnames_coltypes():
@@ -112,8 +157,8 @@ def write_schedules():
         cols = _get_schedule_table_colnames_coltypes()
         cols = ',\n'.join([' '.join(row) for row in cols])
         query = 'CREATE TABLE Schedule (\n{0:s},\nPRIMARY KEY ({1:s}, {2:s}))'.format(cols, 'Season', 'Game')
-        _CURSOR.execute(query)
-        _CONNECTION.commit()
+        _SCH_CURSOR.execute(query)
+        _SCH_CONN.commit()
 
     for season in range(2005, get_current_season()):
         sch = get_season_schedule(season)
@@ -139,30 +184,24 @@ def get_team_schedule(season=None, team=None, startdate=None, enddate=None):
 
     :return: dataframe
     """
-    # TODO handle case when only team and startdate, or only team and enddate, are given
+    
+    query = 'SELECT * FROM Schedule'
+    
+    filters = []
     if season is not None:
-        df = get_season_schedule(season).query('Status != "Scheduled"')
-        if startdate is not None:
-            df = df.query('Date >= "{0:s}"'.format(startdate))
-        if enddate is not None:
-            df = df.query('Date <= "{0:s}"'.format(enddate))
-        tid = team_info.team_as_id(team)
-        return df[(df.Home == tid) | (df.Road == tid)]
-    if startdate is not None and enddate is not None:
-        dflst = []
-        startseason = helpers.infer_season_from_date(startdate)
-        endseason = helpers.infer_season_from_date(enddate)
-        for season in range(startseason, endseason + 1):
-            df = get_team_schedule(season, team) \
-                .query('Status != "Scheduled"') \
-                .assign(Season=season)
-            if season == startseason:
-                df = df.query('Date >= "{0:s}"'.format(startdate))
-            if season == endseason:
-                df = df.query('Date <= "{0:s}"'.format(enddate))
-            dflst.append(df)
-        df = pd.concat(dflst)
-        return df
+        filters.append('Season = {0:d}'.format(season))
+    if team is not None:
+        filters.append('Team = {0:d}'.format(int(team_info.team_as_id(team))))
+    if startdate is not None:
+        filters.append('Date >= {0:s}'.format(startdate))
+    if enddate is not None:
+        filters.append('Date <= {0:s}'.format(enddate))
+        
+    filters = ' AND '.join(filters)
+    if len(filters) > 0:
+        query = '{0:s} WHERE {1:s}'.format(query, filters)
+    
+    return pd.read_sql_query(query, _SCH_CONN)
 
 
 def get_team_games(season=None, team=None, startdate=None, enddate=None):
@@ -190,18 +229,25 @@ def clear_caches():
 
 
 @functools.lru_cache(maxsize=1024, typed=False)
-def get_game_data_from_schedule(season, game):
+def get_game_data_from_schedule(season, game, *colnames):
     """
     This is a helper method that uses the schedule file to isolate information for current game
     (e.g. teams involved, coaches, venue, score, etc.)
 
     :param season: int, the season
     :param game: int, the game
+    :param colnames: str, column names. If none, gets all
 
     :return: dict of game data
     """
 
-    schedule_item = get_season_schedule(season).query('Game == {0:d}'.format(game)).to_dict(orient='series')
+    if len(colnames) == 0:
+        cols = '*'
+    else:
+        cols = ', '.join(list(colnames))
+
+    query = 'SELECT {0:s} FROM Schedule WHERE Season = {1:d} AND Game = {2:d}'.format(cols, season, game)
+    schedule_item = pd.read_sql_query(query, _SCH_CONN).to_dict(orient='series')
     # The output format of above was {colname: np.array[vals]}. Change to {colname: val}
     schedule_item = {k: v.values[0] for k, v in schedule_item.items()}
     return schedule_item
@@ -216,7 +262,7 @@ def get_game_date(season, game):
 
     :return: str
     """
-    return get_game_data_from_schedule(season, game)['Date']
+    return get_game_data_from_schedule(season, game, 'Date').iloc[0, 2]
 
 
 def get_home_team(season, game, returntype='id'):
@@ -229,7 +275,7 @@ def get_home_team(season, game, returntype='id'):
 
     :return: float or str, depending on returntype
     """
-    home = get_game_data_from_schedule(season, game)['Home']
+    home = get_game_data_from_schedule(season, game, 'Home').iloc[0, 2]
     if returntype.lower() == 'id':
         return team_info.team_as_id(home)
     else:
@@ -246,7 +292,7 @@ def get_road_team(season, game, returntype='id'):
 
     :return: float or str, depending on returntype
     """
-    road = get_game_data_from_schedule(season, game)['Road']
+    road = get_game_data_from_schedule(season, game, 'Road').iloc[0, 2]
     if returntype.lower() == 'id':
         return team_info.team_as_id(road)
     else:
@@ -262,7 +308,7 @@ def get_home_score(season, game):
 
     :return: int, the score
     """
-    return int(get_game_data_from_schedule(season, game)['HomeScore'])
+    return get_game_data_from_schedule(season, game, 'HomeScore').iloc[0, 2]
 
 
 def get_road_score(season, game):
@@ -274,7 +320,7 @@ def get_road_score(season, game):
 
     :return: int, the score
     """
-    return int(get_game_data_from_schedule(season, game)['RoadScore'])
+    return get_game_data_from_schedule(season, game, 'RoadScore').iloc[0, 2]
 
 
 def get_game_status(season, game):
@@ -286,7 +332,7 @@ def get_game_status(season, game):
 
     :return: int, the score
     """
-    return get_game_data_from_schedule(season, game)['Status']
+    return get_game_data_from_schedule(season, game, 'Status').iloc[0, 2]
 
 
 def get_game_result(season, game):
@@ -298,7 +344,7 @@ def get_game_result(season, game):
 
     :return: int, the score
     """
-    return get_game_data_from_schedule(season, game)['Result']
+    return get_game_data_from_schedule(season, game, 'Result').iloc[0, 2]
 
 
 def get_season_schedule_url(season):
@@ -350,41 +396,15 @@ def schedule_setup():
     :return: nothing
     """
     clear_caches()
-    global _CURSOR, _CONNECTION, _CURRENT_SEASON
+    global _SCH_CURSOR, _SCH_CONN, _CURRENT_SEASON
     _CURRENT_SEASON = _get_current_season()
-    _CONNECTION = get_schedule_connection()
-    _CURSOR = _CONNECTION.cursor()
-    #for season in range(2005, get_current_season() + 1):
-    #    if not os.path.exists(get_season_schedule_filename(season)):
-    #        generate_season_schedule_file(season)  # season schedule
-            # There is a potential issue here for current season.
-            # For current season, we'll update this as we go along.
-            # But original creation first time you start up in a new season is automatic, here.
-            # When we autoupdate season date, we need to make sure to re-access this file and add in new entries
-    #_SCHEDULES = {season: _get_season_schedule(season) for season in range(2005, _CURRENT_SEASON + 1)}
+    _SCH_CONN = get_schedule_connection()
+    _SCH_CURSOR = _SCH_CONN.cursor()
 
 
 def generate_season_schedule_file(season, force_overwrite=True):
     """
     Reads season schedule from NHL API and writes to file.
-
-    The output contains the following columns:
-
-    - Season: int, the season
-    - Date: str, the dates
-    - Game: int, the game id
-    - Type: str, the game type (for preseason vs regular season, etc)
-    - Status: str, e.g. Final
-    - Road: int, the road team ID
-    - RoadScore: int, number of road team goals
-    - RoadCoach str, 'N/A' when this function is run (edited later with road coach name)
-    - Home: int, the home team ID
-    - HomeScore: int, number of home team goals
-    - HomeCoach: str, 'N/A' when this function is run (edited later with home coach name)
-    - Venue: str, the name of the arena
-    - Result: str, 'N/A' when this function is run (edited accordingly later from PoV of home team: W, OTW, SOL, etc)
-    - PBPStatus: str, 'Not scraped' when this function is run (edited accordingly later)
-    - TOIStatus: str, 'Not scraped' when this function is run (edited accordingly later)
 
     :param season: int, the season
 
@@ -438,14 +458,14 @@ def _add_schedule_from_json(season, jsondict):
                 cols = ', '.join(['Season', 'Date', 'Game', 'Home', 'HomeScore', 'Road', 'RoadScore', 'Status'])
                 vals = ', '.join(['"{0:s}"'.format(x) if isinstance(x, str) else str(x) \
                                   for x in [season, date, game, hid, hscore, vid, vscore, status]])
-                query = 'INSERT INTO Schedule ({0:s})\nVALUES ({1:s})'.format(cols, vals)
+                query = 'REPLACE INTO Schedule ({0:s})\nVALUES ({1:s})'.format(cols, vals)
 
-                _CURSOR.execute(query)
+                _SCH_CURSOR.execute(query)
 
         except KeyError:
             pass
 
-    _CONNECTION.commit()
+    _SCH_CONN.commit()
 
 
 def attach_game_dates_to_dateframe(df):
@@ -466,6 +486,6 @@ def attach_game_dates_to_dateframe(df):
 
 
 _CURRENT_SEASON = None
-_CONNECTION = None
-_CURSOR = None
+_SCH_CONN = None
+_SCH_CURSOR = None
 schedule_setup()
