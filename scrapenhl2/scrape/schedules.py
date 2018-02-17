@@ -11,6 +11,7 @@ import urllib.request
 
 import feather
 import pandas as pd
+import sqlite3
 
 import scrapenhl2.scrape.general_helpers as helpers
 import scrapenhl2.scrape.organization as organization
@@ -39,26 +40,91 @@ def get_current_season():
     return _CURRENT_SEASON
 
 
-def get_season_schedule_filename(season):
+def get_schedule_filename():
     """
-    Gets the filename for the season's schedule file
+    Returns SQL filename for schedule
 
-    :param season: int, the season
-
-    :return: str, /scrape/data/other/[season]_schedule.feather
+    :return: str
     """
-    return os.path.join(organization.get_other_data_folder(), '{0:d}_schedule.feather'.format(season))
+    return os.path.join(organization.get_other_data_folder(), "schedule.sqlite")
+
+
+def get_schedule_connection():
+    """
+    Get connection and cursor for schedule
+
+    :return: cursor
+    """
+    return sqlite3.connect(get_schedule_filename())
+
+
+def close_schedule_cursor():
+    """
+    Close cursor for schedule
+
+    :return:
+    """
+
+    _CONNECTION.close()
 
 
 def get_season_schedule(season):
     """
-    Gets the the season's schedule file from memory.
+    Gets the the season's schedule file from SQL.
 
     :param season: int, the season
 
     :return: dataframe (originally from /scrape/data/other/[season]_schedule.feather)
     """
-    return _SCHEDULES[season]
+    query = 'SELECT * FROM Schedule WHERE Season = {0:d}'.format(season)
+    return pd.read_sql_query(query, _CONNECTION)
+
+
+def _get_schedule_table_colnames_coltypes():
+    """
+    Returns schedule column names and types (hard coded)
+
+    :return: list
+    """
+
+    return [('Season', 'INT'), ('Date', 'DATE'), ('Game', 'INT'),
+            ('Home', 'INT'), ('HomeScore', 'INT'), ('Road', 'INT'), ('RoadScore', 'INT'),
+            ('Status', 'CHAR'), ('Type', 'CHAR(2)'), ('Venue', 'CHAR'),
+            ('HomeCoach', 'CHAR', 'DEFAULT', '"N/A"'),
+            ('RoadCoach', 'CHAR', 'DEFAULT', '"N/A"'),
+            ('Result', 'CHAR', 'DEFAULT', '"N/A"'),
+            ('PBPStatus', 'CHAR', 'DEFAULT', '"Not scraped"'),
+            ('TOIStatus', 'CHAR', 'DEFAULT', '"N/A"')]
+
+
+def write_schedules():
+    """
+    Writes all season schedules to DB
+
+    :return:
+    """
+    fname = get_schedule_filename()
+    try:
+        sch = get_season_schedule(get_current_season())
+    except pd.io.sql.DatabaseError:
+        # Create the table
+        # feather.read_dataframe('/Volumes/My Passport for Mac/scrapenhl2/scrapenhl2/data/other/2017_schedule.feather').head()
+        cols = _get_schedule_table_colnames_coltypes()
+        cols = ',\n'.join([' '.join(row) for row in cols])
+        query = 'CREATE TABLE Schedule (\n{0:s},\nPRIMARY KEY ({1:s}, {2:s}))'.format(cols, 'Season', 'Game')
+        _CURSOR.execute(query)
+        _CONNECTION.commit()
+
+    for season in range(2005, get_current_season()):
+        sch = get_season_schedule(season)
+        if len(sch) == 0:
+            page = helpers.try_url_n_times(get_season_schedule_url(season))
+            if page is None:
+                print('Schedule for {0:d}-{1:s} was None'.format(season, str(season+1)[2:]))
+                continue
+            page2 = json.loads(page)
+            _add_schedule_from_json(season, page2)
+            print('Wrote {0:d}-{1:s} schedule to file'.format(season, str(season+1)[2:]))
 
 
 def get_team_schedule(season=None, team=None, startdate=None, enddate=None):
@@ -113,43 +179,6 @@ def get_team_games(season=None, team=None, startdate=None, enddate=None):
     :return: series of games
     """
     return get_team_schedule(season, team, startdate, enddate).Game
-
-
-def _get_season_schedule(season):
-    """
-    Gets the the season's schedule file. Stored as a feather file for fast read/write
-
-    :param season: int, the season
-
-    :return: dataframe from /scrape/data/other/[season]_schedule.feather
-    """
-    return feather.read_dataframe(get_season_schedule_filename(season))
-
-
-def write_season_schedule(df, season, force_overwrite):
-    """
-    A helper method that writes the season schedule file to disk (in feather format for fast read/write)
-
-    :param df: the season schedule datafraome
-    :param season: the season
-    :param force_overwrite: bool. If True, overwrites entire file. If False, only redoes when not Final previously.
-
-    :return: Nothing
-    """
-    if force_overwrite:  # Easy--just write it
-        feather.write_dataframe(df, get_season_schedule_filename(season))
-    else:  # Only write new games/previously unfinished games
-        olddf = get_season_schedule(season)
-        olddf = olddf.query('Status != "Final"')
-
-        # TODO: Maybe in the future set status for games partially scraped as "partial" or something
-
-        game_diff = set(df.Game).difference(olddf.Game)
-        where_diff = df.Key.isin(game_diff)
-        newdf = pd.concat(olddf, df[where_diff], ignore_index=True)
-
-        feather.write_dataframe(newdf, get_season_schedule_filename(season))
-    schedule_setup()
 
 
 def clear_caches():
@@ -321,16 +350,18 @@ def schedule_setup():
     :return: nothing
     """
     clear_caches()
-    global _SCHEDULES, _CURRENT_SEASON
+    global _CURSOR, _CONNECTION, _CURRENT_SEASON
     _CURRENT_SEASON = _get_current_season()
-    for season in range(2005, get_current_season() + 1):
-        if not os.path.exists(get_season_schedule_filename(season)):
-            generate_season_schedule_file(season)  # season schedule
+    _CONNECTION = get_schedule_connection()
+    _CURSOR = _CONNECTION.cursor()
+    #for season in range(2005, get_current_season() + 1):
+    #    if not os.path.exists(get_season_schedule_filename(season)):
+    #        generate_season_schedule_file(season)  # season schedule
             # There is a potential issue here for current season.
             # For current season, we'll update this as we go along.
             # But original creation first time you start up in a new season is automatic, here.
             # When we autoupdate season date, we need to make sure to re-access this file and add in new entries
-    _SCHEDULES = {season: _get_season_schedule(season) for season in range(2005, _CURRENT_SEASON + 1)}
+    #_SCHEDULES = {season: _get_season_schedule(season) for season in range(2005, _CURRENT_SEASON + 1)}
 
 
 def generate_season_schedule_file(season, force_overwrite=True):
@@ -362,10 +393,7 @@ def generate_season_schedule_file(season, force_overwrite=True):
 
     :return: Nothing
     """
-    page = helpers.try_url_n_times(get_season_schedule_url(season))
 
-    page2 = json.loads(page)
-    df = _create_schedule_dataframe_from_json(page2)
     df.loc[:, 'Season'] = season
 
     # Last step: we fill in some info from the pbp. If current schedule already exists, fill in that info.
@@ -374,13 +402,16 @@ def generate_season_schedule_file(season, force_overwrite=True):
     clear_caches()
 
 
-def _create_schedule_dataframe_from_json(jsondict):
+def _add_schedule_from_json(season, jsondict):
     """
-    Reads game, game type, status, visitor ID, home ID, visitor score, and home score for each game in this dict
+    Reads game, game type, status, visitor ID, home ID, visitor score, and home score for each game in this dict.
 
+    Adds to SQL
+
+    :param season: int
     :param jsondict: a dictionary formed from season schedule json
 
-    :return: pandas dataframe
+    :return:
     """
     dates = []
     games = []
@@ -404,60 +435,17 @@ def _create_schedule_dataframe_from_json(jsondict):
                 hscore = int(helpers.try_to_access_dict(gamejson, 'teams', 'home', 'score'))
                 venue = helpers.try_to_access_dict(gamejson, 'venue', 'name')
 
-                dates.append(date)
-                games.append(game)
-                gametypes.append(gametype)
-                statuses.append(status)
-                vids.append(vid)
-                vscores.append(vscore)
-                hids.append(hid)
-                hscores.append(hscore)
-                venues.append(venue)
+                cols = ', '.join(['Season', 'Date', 'Game', 'Home', 'HomeScore', 'Road', 'RoadScore', 'Status'])
+                vals = ', '.join(['"{0:s}"'.format(x) if isinstance(x, str) else str(x) \
+                                  for x in [season, date, game, hid, hscore, vid, vscore, status]])
+                query = 'INSERT INTO Schedule ({0:s})\nVALUES ({1:s})'.format(cols, vals)
+
+                _CURSOR.execute(query)
+
         except KeyError:
             pass
-    df = pd.DataFrame({'Date': dates,
-                       'Game': games,
-                       'Type': gametypes,
-                       'Status': statuses,
-                       'Road': vids,
-                       'RoadScore': vscores,
-                       'Home': hids,
-                       'HomeScore': hscores,
-                       'Venue': venues}).sort_values('Game')
-    return df
 
-
-def _fill_in_schedule_from_pbp(df, season):
-    """
-    Fills in columns for coaches, result, pbp status, and toi status as N/A, not scraped, etc.
-    Use methods prefixed with update_schedule to actually fill in with correct values.
-
-    :param df: dataframe, season schedule dataframe as created by _create_schedule_dataframe_from_json
-    :param season: int, the season
-
-    :return: df, with coaches, result, and status filled in
-    """
-
-    if os.path.exists(get_season_schedule_filename(season)):
-        # only final games--this way pbp status and toistatus will be ok.
-        cur_season = get_season_schedule(season).query('Status == "Final"')
-        cur_season = cur_season[['Season', 'Game', 'HomeCoach', 'RoadCoach', 'Result', 'PBPStatus', 'TOIStatus']]
-        df = df.merge(cur_season, how='left', on=['Season', 'Game'])
-
-        # Fill in NAs
-        df.loc[:, 'Season'] = df.Season.fillna(season)
-        df.loc[:, 'HomeCoach'] = df.HomeCoach.fillna('N/A')
-        df.loc[:, 'RoadCoach'] = df.RoadCoach.fillna('N/A')
-        df.loc[:, 'Result'] = df.Result.fillna('N/A')
-        df.loc[:, 'PBPStatus'] = df.PBPStatus.fillna('Not scraped')
-        df.loc[:, 'TOIStatus'] = df.TOIStatus.fillna('Not scraped')
-    else:
-        df.loc[:, 'HomeCoach'] = 'N/A'  # Tried to set this to None earlier, but Arrow couldn't handle it, so 'N/A'
-        df.loc[:, 'RoadCoach'] = 'N/A'
-        df.loc[:, 'Result'] = 'N/A'
-        df.loc[:, 'PBPStatus'] = 'Not scraped'
-        df.loc[:, 'TOIStatus'] = 'Not scraped'
-    return df
+    _CONNECTION.commit()
 
 
 def attach_game_dates_to_dateframe(df):
@@ -478,5 +466,6 @@ def attach_game_dates_to_dateframe(df):
 
 
 _CURRENT_SEASON = None
-_SCHEDULES = None
+_CONNECTION = None
+_CURSOR = None
 schedule_setup()
