@@ -44,10 +44,10 @@ def _create_player_info_table():
 
 
 def _create_player_status_table():
-    """Creates Status, Season, Game, PlayerID, Status"""
-    cols = ',\n'.join(['Season INT', 'Game INT', 'PlayerID CHAR', 'Status CHAR(1)'])
-    query = 'CREATE TABLE Status (\n{0:s},\nPRIMARY KEY ({1:s}, {2:s}, {3:s}))'.format(cols, 'Season', 'Game',
-                                                                                       'PlayerID')
+    """Creates Status, Season, Game, PlayerID, Team, Status"""
+    cols = ',\n'.join(['Season INT', 'Game INT', 'PlayerID CHAR', 'Team INT', 'Status CHAR(1)'])
+    query = 'CREATE TABLE Status (\n{0:s},\nPRIMARY KEY ({1:s}, {2:s}, {3:s}, {4:s}))'.format(cols, 'Season', 'Game',
+                                                                                       'PlayerID', 'Team')
     _PLAYER_CURSOR.execute(query)
     _PLAYER_CONN.commit()
 
@@ -59,6 +59,15 @@ def get_player_info_file():
     :return: df
     """
     return pd.read_sql_query('SELECT * FROM Info', _PLAYER_CONN)
+
+
+def get_player_status_file():
+    """
+    Returns player status file
+
+    :return:
+    """
+    return pd.read_sql_query('SELECT * FROM Status', _PLAYER_CONN)
 
 
 def check_default_player_id(playername):
@@ -94,6 +103,11 @@ def player_setup():
     except pd.io.sql.DatabaseError:
         _create_player_info_table()
 
+    try:
+        _ = get_player_status_file()
+    except pd.io.sql.DatabaseError:
+        _create_player_status_table()
+
 
 def get_player_url(playerid):
     """
@@ -106,8 +120,11 @@ def get_player_url(playerid):
     return 'https://statsapi.web.nhl.com/api/v1/people/{0:s}'.format(str(playerid))
 
 
-def _update_player_info(**kwargs):
+def update_player_info(**kwargs):
     helpers._update_table(_PLAYER_CURSOR, 'Info', **kwargs)
+
+def update_player_status(**kwargs):
+    helpers._update_table(_PLAYER_CURSOR, 'Status', **kwargs)
 
 
 def update_player_ids_file(playerids, force_overwrite=False):
@@ -134,9 +151,15 @@ def update_player_ids_file(playerids, force_overwrite=False):
         return
     for playerid in tqdm(to_scrape, desc="Parsing players in play by play"):
         playerinfo = get_player_info_from_url(playerid)
-        _update_player_info(PlayerID=playerinfo['ID'], Name=playerinfo['Name'], Hand=playerinfo['Hand'],
-                            Pos=playerinfo['Pos'], DOB=playerinfo['DOB'], Weight=playerinfo['Weight'],
-                            Height=playerinfo['Height'], Nationality=playerinfo['Nationality'])
+        update_player_info(PlayerID=str(helpers.try_to_access_dict(playerinfo, 'ID')),
+                           Name=helpers.try_to_access_dict(playerinfo, 'Name'),
+                           Hand=helpers.try_to_access_dict(playerinfo, 'Hand', default_return=''),
+                           Pos=helpers.try_to_access_dict(playerinfo, 'Pos', default_return=''),
+                           DOB=helpers.try_to_access_dict(playerinfo, 'DOB'),
+                           Weight=helpers.try_to_access_dict(playerinfo, 'Weight', default_return=0),
+                           Height=helpers.try_to_access_dict(playerinfo, 'Height', default_return='') \
+                                      .replace("'", '-').replace('"', ''),
+                           Nationality=helpers.try_to_access_dict(playerinfo, 'Nationality', default_return=''))
 
 
 def update_player_log_file(playerids, seasons, games, teams, statuses):
@@ -167,16 +190,8 @@ def update_player_log_file(playerids, seasons, games, teams, statuses):
     if isinstance(statuses, str):
         statuses = [statuses for _ in range(len(playerids))]
 
-    df = pd.DataFrame({'ID': playerids,  # Player ID
-                       'Team': teams,  # Team
-                       'Status': statuses,  # P for played, S for scratch.
-                       'Season': seasons,  # Season
-                       'Game': games})  # Game
-    if len(get_player_log_file()) == 1:
-        # In this case, the only entry is our original entry for Ovi, that sets the datatypes properly
-        write_player_log_file(df)
-    else:
-        write_player_log_file(pd.concat([get_player_log_file(), df]))
+    for season, game, team, playerid, status in zip(seasons, games, teams, playerids, statuses):
+        update_player_status(Season=season, Game=game, Team=team, PlayerID=playerid, Status=status)
 
 
 @functools.lru_cache(maxsize=128, typed=False)
@@ -454,12 +469,12 @@ def update_player_logs_from_page(pbp, season, game):
     # Get players who played, and scratches, from boxscore
     home_played = helpers.try_to_access_dict(pbp, 'liveData', 'boxscore', 'teams', 'home', 'players')
     road_played = helpers.try_to_access_dict(pbp, 'liveData', 'boxscore', 'teams', 'away', 'players')
-    home_scratches = helpers.try_to_access_dict(pbp, 'liveData', 'boxscore', 'teams', 'home', 'scratches')
-    road_scratches = helpers.try_to_access_dict(pbp, 'liveData', 'boxscore', 'teams', 'away', 'scratches')
+    home_scratches = str(helpers.try_to_access_dict(pbp, 'liveData', 'boxscore', 'teams', 'home', 'scratches'))
+    road_scratches = str(helpers.try_to_access_dict(pbp, 'liveData', 'boxscore', 'teams', 'away', 'scratches'))
 
     # Played are both dicts, so make them lists
-    home_played = [int(pid[2:]) for pid in home_played]
-    road_played = [int(pid[2:]) for pid in road_played]
+    home_played = [pid[2:] for pid in home_played]
+    road_played = [pid[2:] for pid in road_played]
 
     # Played may include scratches, so make sure to remove them
     home_played = list(set(home_played).difference(set(home_scratches)))
@@ -469,10 +484,14 @@ def update_player_logs_from_page(pbp, season, game):
     gameinfo = schedules.get_game_data_from_schedule(season, game)
 
     # Update player logs
-    update_player_log_file(home_played, season, game, gameinfo['Home'], 'P')
-    update_player_log_file(home_scratches, season, game, gameinfo['Home'], 'S')
-    update_player_log_file(road_played, season, game, gameinfo['Road'], 'P')
-    update_player_log_file(road_scratches, season, game, gameinfo['Road'], 'S')
+    for p in home_played:
+        update_player_status(PlayerID=p, Season=season, Game=game, Team=gameinfo['Home'], Status='P')
+    for p in home_scratches:
+        update_player_status(PlayerID=p, Season=season, Game=game, Team=gameinfo['Home'], Status='S')
+    for p in road_played:
+        update_player_status(PlayerID=p, Season=season, Game=game, Team=gameinfo['Road'], Status='P')
+    for p in road_scratches:
+        update_player_status(PlayerID=p, Season=season, Game=game, Team=gameinfo['Road'], Status='S')
 
     # TODO: One issue is we do not see goalies (and maybe skaters) who dressed but did not play. How can this be fixed?
 

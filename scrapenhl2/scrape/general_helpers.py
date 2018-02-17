@@ -194,19 +194,21 @@ def try_to_access_dict(base_dct, *keys, **kwargs):
     """
     temp = base_dct
     default_return = None
-    for k, v in kwargs.items():
-        default_return = v
+    if 'default_return' not in kwargs:
+        kwargs['default_return'] = None
 
     try:
         for key in keys:
             temp = temp[key]
+        if temp is None:
+            raise TypeError
         return temp
     except KeyError:  # for string keys
-        return default_return
+        return kwargs['default_return']
     except IndexError:  # for array indices
-        return default_return
-    except TypeError:  # might not be a dictionary or list
-        return default_return
+        return kwargs['default_return']
+    except TypeError:  # might not be a dictionary or list, or None
+        return kwargs['default_return']
 
 
 def add_sim_scores(df, name):

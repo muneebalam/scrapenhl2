@@ -188,7 +188,7 @@ def write_schedules():
     except pd.io.sql.DatabaseError:
         _create_schedule_table()
 
-    for season in range(2005, get_current_season()):
+    for season in range(2005, get_current_season()+1):
         sch = get_season_schedule(season)
         if len(sch) == 0:
             generate_season_schedule_file(season)
@@ -419,6 +419,7 @@ def schedule_setup():
     _CURRENT_SEASON = _get_current_season()
     _SCH_CONN = get_schedule_connection()
     _SCH_CURSOR = _SCH_CONN.cursor()
+    write_schedules()
 
 
 def generate_season_schedule_file(season):
@@ -456,15 +457,18 @@ def _add_schedule_from_json(season, jsondict):
         try:
             date = datejson.get('date', None)
             for gamejson in datejson['games']:
-                _update_schedule(Season=season, Date=date,
-                                 Game=int(str(helpers.try_to_access_dict(gamejson, 'gamePk'))[-5:]),
-                                 Type=helpers.try_to_access_dict(gamejson, 'gameType'),
-                                 Home=helpers.try_to_access_dict(gamejson, 'teams', 'home', 'team', 'id'),
-                                 Road=helpers.try_to_access_dict(gamejson, 'teams', 'away', 'team', 'id'),
-                                 HomeScore=int(helpers.try_to_access_dict(gamejson, 'teams', 'home', 'score')),
-                                 RoadScore=int(helpers.try_to_access_dict(gamejson, 'teams', 'away', 'score')),
-                                 Status=helpers.try_to_access_dict(gamejson, 'status', 'detailedState'),
-                                 Venue=helpers.try_to_access_dict(gamejson, 'venue', 'name'))
+                game = int(str(helpers.try_to_access_dict(gamejson, 'gamePk'))[-5:])
+                if game < 20001:
+                    continue
+                update_schedule(Season=season, Date=date,
+                                Game=game,
+                                Type=helpers.try_to_access_dict(gamejson, 'gameType'),
+                                Home=helpers.try_to_access_dict(gamejson, 'teams', 'home', 'team', 'id'),
+                                Road=helpers.try_to_access_dict(gamejson, 'teams', 'away', 'team', 'id'),
+                                HomeScore=int(helpers.try_to_access_dict(gamejson, 'teams', 'home', 'score')),
+                                RoadScore=int(helpers.try_to_access_dict(gamejson, 'teams', 'away', 'score')),
+                                Status=helpers.try_to_access_dict(gamejson, 'status', 'detailedState'),
+                                Venue=helpers.try_to_access_dict(gamejson, 'venue', 'name'))
 
         except KeyError:
             pass
@@ -472,7 +476,7 @@ def _add_schedule_from_json(season, jsondict):
     _SCH_CONN.commit()
 
 
-def _update_schedule(**kwargs):
+def update_schedule(**kwargs):
     """
     Updates schedule using REPLACE INTO. DOES NOT COMMIT.
 

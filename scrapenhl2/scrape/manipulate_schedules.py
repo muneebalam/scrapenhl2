@@ -63,15 +63,12 @@ def update_schedule_with_pbp_scrape(season, game):
     :param season: int, the season
     :param game: int, the game, or list of ints
 
-    :return: updated schedule
+    :return:
     """
-    df = schedules.get_season_schedule(season)
-    if helpers.check_types(game):
-        df.loc[df.Game == game, "PBPStatus"] = "Scraped"
-    else:
-        df.loc[df.Game.isin(game), "PBPStatus"] = "Scraped"
-    schedules.write_season_schedule(df, season, True)
-    return schedules.get_season_schedule(season)
+    if not isinstance(game, list) and not isinstance(game, set):
+        game = [game]
+    for g in game:
+        schedules.update_schedule(Season=season, Game=g, PBPStatus='Scraped')
 
 
 def update_schedule_with_toi_scrape(season, game):
@@ -83,13 +80,10 @@ def update_schedule_with_toi_scrape(season, game):
 
     :return: nothing
     """
-    df = schedules.get_season_schedule(season)
-    if helpers.check_types(game):
-        df.loc[df.Game == game, "TOIStatus"] = "Scraped"
-    else:
-        df.loc[df.Game.isin(game), "TOIStatus"] = "Scraped"
-    schedules.write_season_schedule(df, season, True)
-    return schedules.get_season_schedule(season)
+    if not isinstance(game, list) and not isinstance(game, set):
+        game = [game]
+    for g in game:
+        schedules.update_schedule(Season=season, Game=g, TOIStatus='Scraped')
 
 
 def update_schedule_with_result_using_pbp(pbp, season, game):

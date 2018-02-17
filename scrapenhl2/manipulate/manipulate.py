@@ -1,8 +1,8 @@
 import functools
 import os
 import os.path
+import sqlite3
 
-import feather
 import pandas as pd
 
 from scrapenhl2.scrape import general_helpers as helpers
@@ -417,30 +417,6 @@ def get_5v5_player_season_toi(season, team):
     toi_by_player = get_5v5_player_game_toi(season, team)
     toi_indiv = toi_by_player[['PlayerID', 'TOION', 'TOIOFF']].groupby('PlayerID').sum().reset_index()
     return toi_indiv
-
-
-def generate_player_toion_toioff(season):
-    """
-    Generates TOION and TOIOFF at 5v5 for each player in this season.
-    :param season: int, the season
-    :return: df with columns Player, TOION, TOIOFF, and TOI60.
-    """
-
-    team_by_team = []
-    allteams = schedules.get_teams_in_season(season)
-    for i, team in enumerate(allteams):
-        if os.path.exists(teams.get_team_toi_filename(season, team)):
-            print('Generating TOI60 for {0:d} {1:s} ({2:d}/{3:d})'.format(
-                season, team_info.team_as_str(team), i + 1, len(allteams)))
-            toi_indiv = get_5v5_player_season_toi(season, team)
-            team_by_team.append(toi_indiv)
-
-    toi60 = pd.concat(team_by_team)
-    toi60 = toi60.groupby('PlayerID').sum().reset_index()
-    toi60.loc[:, 'TOI%'] = toi60.TOION / (toi60.TOION + toi60.TOIOFF)
-    toi60.loc[:, 'TOI60'] = toi60['TOI%'] * 60
-
-    return toi60
 
 
 def get_player_positions():
