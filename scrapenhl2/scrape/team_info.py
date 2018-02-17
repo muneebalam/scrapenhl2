@@ -108,7 +108,7 @@ def _create_team_table():
     """
 
     cols = ',\n'.join(['Team INT', 'Name CHAR', 'Abbreviation CHAR(3)'])
-    query = 'CREATE TABLE Teams (\n{0:s},\nPRIMARY KEY ({1:s}))'.format(cols, 'Team')
+    query = 'CREATE TABLE Teams (\n{0:s},\nPRIMARY KEY (Team))'.format(cols)
     _TEAM_CURSOR.execute(query)
     _TEAM_CONN.commit()
 

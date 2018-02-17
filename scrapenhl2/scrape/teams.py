@@ -42,7 +42,7 @@ def _get_team_pbp_log_colnames_coltypes():
     :return: list
     """
 
-    return [('Season', 'INT'), ('Game', 'INT'), ('Index', 'INT'),
+    return [('Season', 'INT'), ('Game', 'INT'), ('EventIndex', 'INT'),
             ('Period', 'INT'), ('MinSec', 'CHAR'), ('Event', 'CHAR'), ('Team', 'INT'),
             ('Actor', 'INT'), ('ActorRole', 'CHAR'), ('Recipient', 'INT'), ('RecipientRole', 'CHAR',),
             ('FocusTeam', 'INT'), ('Home', 'INT'), ('Road', 'INT'), ('Note', 'CHAR'),
@@ -60,7 +60,7 @@ def _create_team_pbp_table(team):
     team = team_info.team_as_id(team)
     cols = _get_team_pbp_log_colnames_coltypes()
     cols = ',\n'.join([' '.join(row) for row in cols])
-    query = 'CREATE TABLE Pbp (\n{0:s},\nPRIMARY KEY ({1:s}, {2:s}, {3:s}))'.format(cols, 'Season', 'Game', 'Index')
+    query = 'CREATE TABLE Pbp (\n{0:s},\nPRIMARY KEY (Season, Game, EventIndex))'.format(cols)
     _TL_CURSORS[team].execute(query)
     _TL_CONNS[team].commit()
 

@@ -40,7 +40,7 @@ def _create_player_info_table():
     """Creates Info DOB, Hand, Height, PlayerID, Name, Nationality, Pos, Weight"""
     cols = ',\n'.join(['PlayerID CHAR', 'Team INT', 'DOB Date', 'Hand CHAR(1)', 'Weight INT',
                        'Height CHAR', 'Name CHAR', 'Nationality CHAR', 'Pos CHAR(1)'])
-    query = 'CREATE TABLE Info (\n{0:s},\nPRIMARY KEY ({1:s}, {2:s}))'.format(cols, 'PlayerID', 'Team')
+    query = 'CREATE TABLE Info (\n{0:s},\nPRIMARY KEY (PlayerID, Team))'.format(cols)
     _PLAYER_CURSOR.execute(query)
     _PLAYER_CONN.commit()
 
@@ -48,8 +48,7 @@ def _create_player_info_table():
 def _create_player_status_table():
     """Creates Status, Season, Game, PlayerID, Team, Status"""
     cols = ',\n'.join(['Season INT', 'Game INT', 'PlayerID CHAR', 'Team INT', 'Status CHAR(1)'])
-    query = 'CREATE TABLE Status (\n{0:s},\nPRIMARY KEY ({1:s}, {2:s}, {3:s}, {4:s}))'.format(cols, 'Season', 'Game',
-                                                                                       'PlayerID', 'Team')
+    query = 'CREATE TABLE Status (\n{0:s},\nPRIMARY KEY (Season, Game, PlayerID, Team))'.format(cols)
     _PLAYER_CURSOR.execute(query)
     _PLAYER_CONN.commit()
 
