@@ -105,7 +105,7 @@ def read_final_games(games, season):
 
     :return:
     """
-    for game in tqdm(games, desc="Parsing Games"):
+    for game in tqdm(games, desc="Scraping/parsing PBP"):
         try:
             scrape_pbp.scrape_game_pbp(season, game, True)
             manipulate_schedules.update_schedule_with_pbp_scrape(season, game)
@@ -118,17 +118,11 @@ def read_final_games(games, season):
             print(str(ue))
         except Exception as e:
             print(str(e))
+    for game in tqdm(games, desc="Scraping/parsing TOI"):
         try:
-            # TODO update only a couple of days later from json and delete html and don't update with toi scrape until then
-            if season < 2010:
-                scrape_toi.scrape_game_toi_from_html(season, game, True)
-                manipulate_schedules.update_schedule_with_toi_scrape(season, game)
-                parse_toi.parse_game_toi_from_html(season, game, True)
-            else:
-                scrape_toi.scrape_game_toi(season, game, True)
-                manipulate_schedules.update_schedule_with_toi_scrape(season, game)
-                scrape_toi.scrape_game_toi_from_html(season, game, True)
-                parse_toi.parse_game_toi_from_html(season, game, True)
+            scrape_toi.scrape_game_toi_from_html(season, game, True)
+            manipulate_schedules.update_schedule_with_toi_scrape(season, game)
+            parse_toi.parse_game_toi_from_html(season, game, True)
 
         except (
             requests.exceptions.HTTPError,

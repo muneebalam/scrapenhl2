@@ -184,7 +184,7 @@ def read_shifts_from_html_pages(rawtoi1, rawtoi2, teamid1, teamid2, season, game
             if len(tables[i]) == 8 and helpers.check_number_last_first_format(tables[i][0]):
                 pname = helpers.remove_leading_number(tables[i][0])
                 pname = helpers.flip_first_last(pname)
-                pid = players.player_as_id(pname)
+                pid = players.player_as_id(pname, teamid)
                 i += 2  # skip the header row
                 while re.match('\d{1,2}', tables[i][0]):  # First entry is shift number
                     # print(tables[i])
@@ -309,7 +309,7 @@ def _finish_toidf_manipulations(df, season, game):
 
     # Let's filter out goalies for now. We can add them back in later.
     # This will make it easier to get the strength later
-    pids = players.get_player_ids_file()
+    pids = players.get_player_info_file()
     tempdf = tempdf.merge(pids[['ID', 'Pos']], how='left', left_on='PlayerID', right_on='ID')
 
     # toi = pd.DataFrame({'Time': [i for i in range(0, max(df.End) + 1)]})

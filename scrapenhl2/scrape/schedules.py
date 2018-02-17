@@ -57,16 +57,6 @@ def get_schedule_connection():
     return sqlite3.connect(get_schedule_filename())
 
 
-def close_schedule_cursor():
-    """
-    Close cursor for schedule
-
-    :return:
-    """
-
-    _SCH_CONN.close()
-
-
 def get_season_schedule(season):
     """
     Gets the season's schedule file from SQL.
@@ -184,7 +174,7 @@ def write_schedules():
     """
     fname = get_schedule_filename()
     try:
-        sch = get_season_schedule(get_current_season())
+        _ = get_season_schedule(get_current_season())
     except pd.io.sql.DatabaseError:
         _create_schedule_table()
 

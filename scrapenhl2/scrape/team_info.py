@@ -6,9 +6,11 @@ import functools
 import json
 import os.path
 import requests
+import re
 
-import feather
 import pandas as pd
+import sqlite3
+import warnings
 
 import scrapenhl2.scrape.general_helpers as helpers
 import scrapenhl2.scrape.organization as organization
@@ -23,16 +25,7 @@ def get_team_info_filename():
 
     :return: str, /scrape/data/other/TEAM_INFO.feather
     """
-    return os.path.join(organization.get_other_data_folder(), 'TEAM_INFO.feather')
-
-
-def _get_team_info_file():
-    """
-    Returns the team information dataframe from file. This is stored as a feather file for fast read/write.
-
-    :return: dataframe from /scrape/data/other/TEAM_INFO.feather
-    """
-    return feather.read_dataframe(get_team_info_filename())
+    return os.path.join(organization.get_other_data_folder(), 'teams.sqlite')
 
 
 def get_team_info_file():
@@ -41,19 +34,16 @@ def get_team_info_file():
 
     :return: dataframe from /scrape/data/other/TEAM_INFO.feather
     """
-    return _TEAMS
+    return pd.read_sql_query('SELECT * FROM Teams', _TEAM_CONN)
 
 
-def write_team_info_file(df):
+def get_team_connection():
     """
-    Writes the team information file. This is stored as a feather file for fast read/write.
+    Get connection and cursor for schedule
 
-    :param df: the (team information) dataframe to write to file
-
-    :returns: nothing
+    :return: connection
     """
-    feather.write_dataframe(df, get_team_info_filename())
-    team_setup()
+    return sqlite3.connect(get_team_info_filename())
 
 
 def get_team_info_url(teamid):
@@ -111,7 +101,30 @@ def add_team_to_info_file(teamid):
     return info
 
 
-def generate_team_ids_file(teamids=None):
+def _create_team_table():
+    """
+    Creates team table
+    :return:
+    """
+
+    cols = ',\n'.join(['Team INT', 'Name CHAR', 'Abbreviation CHAR(3)'])
+    query = 'CREATE TABLE Teams (\n{0:s},\nPRIMARY KEY ({1:s}))'.format(cols, 'Team')
+    _TEAM_CURSOR.execute(query)
+    _TEAM_CONN.commit()
+
+
+def update_team_info(**kwargs):
+    """
+    Updates team info table. Does not Commit
+
+    :param kwargs: keyword, value arguments for SQL row
+
+    :return:
+    """
+    helpers._replace_into_table(_TEAM_CURSOR, 'Teams', **kwargs)
+
+
+def write_team_ids_file(teamids=None):
     """
     Reads all team id URLs and stores information to disk. Has the following information:
 
@@ -123,43 +136,26 @@ def generate_team_ids_file(teamids=None):
 
     :return: nothing
     """
-    # TODO how about teams like 5460? Or Olympic teams? Read data automatically from game files in some cases
-    # Maybe create a file with the list of teams
-    # ed.print_and_log('Creating team IDs file', print_and_log=False)
-
-    print('Creating team IDs file')
-
-    ids = []
-    abbrevs = []
-    names = []
 
     default_limit = 110
     if teamids is None:
         # Read from current team ids file, if it exists
-        try:
-            teamids = set(get_team_info_file().ID.values)
-        except Exception as e:
-            print('Using default IDs')
-            print(e, e.args)
-            teamids = list(range(1, default_limit + 1))
+        teamids = set(get_team_info_file().Team.values).union(set(range(1, default_limit + 1)))
 
     for i in teamids:
         try:
             tid, tabbrev, tname = get_team_info_from_url(i)
             if tid is None:
                 continue
-            ids.append(tid)
-            abbrevs.append(tabbrev)
-            names.append(tname)
-
-            # ed.print_and_log('Done with ID # {0:d}: {1:s}'.format(tid, tname))
+            update_team_info(Team=tid, Name=tname, Abbreviation=tabbrev)
         except requests.exceptions.HTTPError:
+            pass
+        except KeyError:
             pass
         except Exception as e:
             print(e, e.args)
 
-    teaminfo = pd.DataFrame({'ID': ids, 'Abbreviation': abbrevs, 'Name': names})
-    write_team_info_file(teaminfo)
+    _TEAM_CONN.commit()
 
 
 @functools.lru_cache(maxsize=10, typed=False)
@@ -184,23 +180,19 @@ def team_as_id(team):
 
     :return: int, the team ID
     """
+
+    if re.match(r'^\d+\.?\d?$', team) is not None:
+        return team
     team = fix_variants(team)
-    if helpers.check_number(team):
-        return int(team)
-    elif isinstance(team, str):
-        df = get_team_info_file().query('Name == "{0:s}" | Abbreviation == "{0:s}"'.format(team))
-        if len(df) == 0:
-            print('Could not find ID for {0:s}'.format(team))
-            return None
-        elif len(df) == 1:
-            return df.ID.iloc[0]
-        else:
-            print('Multiple results when searching for {0:s}; returning first result'.format(team))
-            print(df.to_string())
-            return df.ID.iloc[0]
-    else:
-        print('Specified wrong type for team: {0:s}'.format(type(team)))
+    result = pd.read_sql_query('SELECT * FROM Teams WHERE Name = "{0:s}" OR Abbrevation = "{0:s}"'.format(
+        team), _TEAM_CONN)
+    if len(result) == 0:
+        warnings.warn('No results for ' + team)
         return None
+    elif len(result) == 1:
+        return result.Team.iloc[0]
+    else:
+        warnings.warn('Multiple results for ' + team + '\nPlease use the long name')
 
 
 @functools.lru_cache(maxsize=128, typed=False)
@@ -213,32 +205,19 @@ def team_as_str(team, abbreviation=True):
 
     :return: str, the team name
     """
+
+    if re.match(r'^\d+\.?\d?$', team) is None:
+        return team
     team = fix_variants(team)
     col_to_access = 'Abbreviation' if abbreviation else 'Name'
-
-    if isinstance(team, str):
-        return team
-    elif helpers.check_number(team):
-        df = get_team_info_file().query('ID == {0:d}'.format(team))
-        if len(df) == 0:
-            try:
-                result = add_team_to_info_file(team)
-                if abbreviation:
-                    return result[1]
-                else:
-                    return result[2]
-            except Exception as e:
-                print('Could not find name for {0:d} {1:s}'.format(team, str(e)))
-                return None
-        elif len(df) == 1:
-            return df[col_to_access].iloc[0]
-        else:
-            print('Multiple results when searching for {0:d}; returning first result'.format(team))
-            print(df.to_string())
-            return df[col_to_access].iloc[0]
-    else:
-        print('Specified wrong type for team: {0:s}'.format(type(team)))
+    result = pd.read_sql_query('SELECT * FROM Teams WHERE Team = {0:d}'.format(team), _TEAM_CONN)
+    if len(result) == 0:
+        warnings.warn('No results for ' + team)
         return None
+    elif len(result) == 1:
+        return result[col_to_access].iloc[0]
+    else:
+        warnings.warn('Multiple results for ' + team + '...???')
 
 
 def get_team_colordict():
@@ -291,13 +270,16 @@ def team_setup():
 
     :return: nothing
     """
-    global _TEAMS, _TEAM_COLORS
-    if not os.path.exists(get_team_info_filename()):
-        generate_team_ids_file()  # team IDs file
-    _TEAMS = _get_team_info_file()
+    global _TEAM_COLORS
+    try:
+        _ = get_team_info_file()
+    except pd.io.sql.DatabaseError:
+        _create_team_table()
+        write_team_ids_file()
     _TEAM_COLORS = _get_team_colordict()
 
 
-_TEAMS = None
+_TEAM_CONN = get_team_connection()
+_TEAM_CURSOR = _TEAM_CONN.cursor()
 _TEAM_COLORS = None
 team_setup()

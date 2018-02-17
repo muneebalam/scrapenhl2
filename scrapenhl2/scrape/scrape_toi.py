@@ -7,6 +7,7 @@ import os.path
 import urllib.request
 import zlib
 from time import sleep
+from tqdm import tqdm
 
 from scrapenhl2.scrape import organization, schedules, manipulate_schedules, general_helpers as helpers, parse_toi
 
@@ -79,7 +80,7 @@ def scrape_game_toi_from_html(season, game, force_overwrite=True):
         page = helpers.try_url_n_times(urls[i])
         save_raw_toi_from_html(page, season, game, filetypes[i])
         sleep(1)  # Don't want to overload NHL servers
-        print('Scraped html toi for {0:d} {1:d}'.format(season, game))
+        #print('Scraped html toi for {0:d} {1:d}'.format(season, game))
 
 
 def save_raw_toi(page, season, game):
@@ -221,23 +222,15 @@ def scrape_season_toi(season, force_overwrite=False):
     sch = schedules.get_season_schedule(season)
     games = sch[sch.Status == "Final"].Game.values
     games.sort()
-    intervals = helpers.intervals(games)
-    interval_j = 0
-    for i, game in enumerate(games):
+    for game in tqdm(games):
         try:
             scrape_game_toi(season, game, force_overwrite)
             manipulate_schedules.update_schedule_with_pbp_scrape(season, game)
             parse_toi.parse_game_pbp(season, game, True)
-            if len(parse_toi.get_parsed_toi(season, game)) < 3600:
-                scrape_game_toi_from_html(season, game, True)
-                parse_toi.parse_game_toi_from_html(season, game, True)
+            scrape_game_toi_from_html(season, game, True)
+            parse_toi.parse_game_toi_from_html(season, game, True)
         except Exception as e:
             pass  # ed.print_and_log('{0:d} {1:d} {2:s}'.format(season, game, str(e)), 'warn')
-        if interval_j < len(intervals):
-            if i == intervals[interval_j][0]:
-                print('Done scraping through {0:d} {1:d} ({2:d}%)'.format(
-                    season, game, round(intervals[interval_j][0] / len(games) * 100)))
-                interval_j += 1
 
 
 def scrape_toi_setup():

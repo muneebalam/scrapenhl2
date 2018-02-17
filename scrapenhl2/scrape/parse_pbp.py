@@ -276,7 +276,6 @@ def parse_game_pbp(season, game, force_overwrite=False):
 
     # Looks like 2010-11 is the first year where this feed supplies more than just boxscore data
     rawpbp = scrape_pbp.get_raw_pbp(season, game)
-    players.update_player_ids_from_page(rawpbp)
     players.update_player_logs_from_page(rawpbp, season, game)
     manipulate_schedules.update_schedule_with_coaches(rawpbp, season, game)
     manipulate_schedules.update_schedule_with_result_using_pbp(rawpbp, season, game)
@@ -304,7 +303,6 @@ def parse_game_pbp_from_html(season, game, force_overwrite=False):
         return False
 
     rawpbp = scrape_pbp.save(season, game)
-    players.update_player_ids_from_page(rawpbp)
     manipulate_schedules.update_player_logs_from_page(rawpbp, season, game)
     manipulate_schedules.update_schedule_with_coaches(rawpbp, season, game)
     manipulate_schedules.update_schedule_with_result(rawpbp, season, game)

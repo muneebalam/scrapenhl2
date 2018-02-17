@@ -8,6 +8,8 @@ import os.path
 import urllib.request
 from tqdm import tqdm
 import sqlite3
+import re
+import warnings
 
 import feather
 import pandas as pd
@@ -36,9 +38,9 @@ def get_player_info_connection():
 
 def _create_player_info_table():
     """Creates Info DOB, Hand, Height, PlayerID, Name, Nationality, Pos, Weight"""
-    cols = ',\n'.join(['PlayerID CHAR', 'DOB Date', 'Hand CHAR(1)', 'Weight INT',
+    cols = ',\n'.join(['PlayerID CHAR', 'Team INT', 'DOB Date', 'Hand CHAR(1)', 'Weight INT',
                        'Height CHAR', 'Name CHAR', 'Nationality CHAR', 'Pos CHAR(1)'])
-    query = 'CREATE TABLE Info (\n{0:s},\nPRIMARY KEY ({1:s}))'.format(cols, 'PlayerID')
+    query = 'CREATE TABLE Info (\n{0:s},\nPRIMARY KEY ({1:s}, {2:s}))'.format(cols, 'PlayerID', 'Team')
     _PLAYER_CURSOR.execute(query)
     _PLAYER_CONN.commit()
 
@@ -127,11 +129,12 @@ def update_player_status(**kwargs):
     helpers._replace_into_table(_PLAYER_CURSOR, 'Status', **kwargs)
 
 
-def update_player_ids_file(playerids, force_overwrite=False):
+def update_player_ids_file(playerids, team, force_overwrite=False):
     """
     Adds these entries to player IDs file if need be.
 
     :param playerids: a list of IDs
+    :param team: int, just one at a time
     :param force_overwrite: bool. If True, will re-scrape data for all player ids. If False, only new ones.
 
     :return: nothing
@@ -149,9 +152,13 @@ def update_player_ids_file(playerids, force_overwrite=False):
 
     if len(to_scrape) == 0:
         return
-    for playerid in tqdm(to_scrape, desc="Parsing players in play by play"):
+    #for playerid in tqdm(to_scrape, desc="Parsing players in play by play"):
+    for playerid in playerids:
+        if player_as_str(playerid) is not None and not force_overwrite:
+            continue
         playerinfo = get_player_info_from_url(playerid)
         update_player_info(PlayerID=str(helpers.try_to_access_dict(playerinfo, 'ID')),
+                           Team=team,
                            Name=helpers.try_to_access_dict(playerinfo, 'Name'),
                            Hand=helpers.try_to_access_dict(playerinfo, 'Hand', default_return=''),
                            Pos=helpers.try_to_access_dict(playerinfo, 'Pos', default_return=''),
@@ -160,6 +167,7 @@ def update_player_ids_file(playerids, force_overwrite=False):
                            Height=helpers.try_to_access_dict(playerinfo, 'Height', default_return='') \
                                       .replace("'", '-').replace('"', ''),
                            Nationality=helpers.try_to_access_dict(playerinfo, 'Nationality', default_return=''))
+    _PLAYER_CONN.commit()
 
 
 def update_player_log_file(playerids, seasons, games, teams, statuses):
@@ -233,60 +241,43 @@ def get_player_handedness(player):
 
 
 @functools.lru_cache(maxsize=128, typed=False)
-def player_as_id(playername, filterids=None, dob=None):
+def player_as_id(playername, team=None, dob=None):
     """
     A helper method. If player entered is int, returns that. If player is str, returns integer id of that player.
 
     :param playername: int, or str, the player whose names you want to retrieve
-    :param filterids: a tuple of players to choose from. Needs to be tuple else caching won't work.
+    :param team: int
     :param dob: yyyy-mm-dd, use to help when multiple players have the same name
 
     :return: int, the player ID
     """
-    filterdf = get_player_ids_file()
-    if filterids is None:
-        pass
-    else:
-        filterdf = filterdf.merge(pd.DataFrame({'ID': filterids}), how='inner', on='ID')
-    pids = filterdf
+
+    # If playerid is an int or float, return it
+    if re.match(r'^\d+\.?\d?$', playername) is not None:
+        return playername
+
+    query = 'SELECT * FROM Info WHERE Name LIKE "%{0:s}"'.format(playername)  # matches full or last name
+    if team is not None:
+        query += ' AND Team = {0:d}'.format(team_info.team_as_id(team))
     if dob is not None:
-        pids = pids.query('DOB == "{0:s}"'.format(dob))
-    if helpers.check_number(playername):
-        return int(playername)
-    elif isinstance(playername, str):
-        df = pids.query('Name == "{0:s}"'.format(playername))
-        if len(df) == 0:
-            # ed.print_and_log('Could not find exact match for for {0:s}; trying exact substring match'.format(player))
-            df = pids
-            df = df[df.Name.str.contains(playername)]
-            if len(df) == 0:
-                # ed.print_and_log('Could not find exact substring match; trying fuzzy matching')
-                name = helpers.fuzzy_match_player(playername, pids.Name)
-                return player_as_id(name, tuple(filterdf.ID.values))
-                # return player_as_id(name)
-            elif len(df) == 1:
-                return df.ID.iloc[0]
-            else:
-                print('Multiple results when searching for {0:s}; returning first result'.format(playername))
-                print('You can specify a tuple of acceptable IDs to scrapenhl2.scrape.players.player_as_id')
-                print(df.to_string())
-                return df.ID.iloc[0]
-        elif len(df) == 1:
-            return df.ID.iloc[0]
+        query += ' AND DOB = "{0:s}"'.format(dob)
+    result = pd.read_sql_query(query, _PLAYER_CONN)
+
+    if len(result) == 0:
+        # Fuzzy match
+        result = helpers.fuzzy_match_player(playername, get_player_info_file())
+        if len(result) == 0:
+            warnings.warn('No results for ' + playername)
+            return None
+        elif len(result) == 1:
+            return result.Name.iloc[0]
         else:
-            default = check_default_player_id(playername)
-            if default is None:
-                print('Multiple results when searching for {0:s}; returning first result'.format(playername))
-                print('You can specify a tuple of acceptable IDs to scrapenhl2.scrape.players.player_as_id')
-                print(df.to_string())
-                return df.ID.iloc[0]
-            else:
-                print('Multiple results when searching for {0:s}; returning default'.format(playername))
-                print('You can specify a tuple of acceptable IDs to scrapenhl2.scrape.players.player_as_id')
-                print(df.to_string())
-                return default
+            warnings.warn('Multiple results for ' + playername + '\nPlease specify a team')
+            return None
+    if len(result) == 1:
+        return result.Name.iloc[0]
     else:
-        print('Specified wrong type for player: {0:s}'.format(type(playername)))
+        warnings.warn('Multiple results for ' + playername + '\nPlease specify a team')
         return None
 
 
@@ -299,14 +290,7 @@ def playerlst_as_str(players, filterdf=None):
 
     :return: a list of str
     """
-    if filterdf is None:
-        filterdf = get_player_ids_file()
-    df = pd.DataFrame({'ID': players})
-    if df.ID.dtype == 'str' or df.ID.dtype == 'O':
-        return df.ID
-    else:
-        df = df.merge(filterdf, how='left', on='ID')
-        return df.Name
+    raise TypeError
 
 
 def playerlst_as_id(playerlst, exact=False, filterdf=None):
@@ -319,54 +303,34 @@ def playerlst_as_id(playerlst, exact=False, filterdf=None):
 
     :return: a list of int/float
     """
-    if filterdf is None:
-        filterdf = get_player_ids_file()
-    df = pd.DataFrame({'Name': playerlst})
-    if not (df.Name.dtype == 'str' or df.Name.dtype == 'O'):
-        return df.Name
-    elif exact is True:
-        return df.merge(filterdf, on='Name', how='left').PlayerID
-    else:
-        df.loc[:, 'ID'] = df.Name.apply(lambda x: player_as_id(x, tuple(filterdf.ID.values)))
-        return df.ID
+    raise TypeError
 
 
 @functools.lru_cache(maxsize=128, typed=False)
-def player_as_str(playerid, filterids=None):
+def player_as_str(playerid, team=None):
     """
     A helper method. If player is int, returns string name of that player. Else returns standardized name.
 
     :param playerid: int, or str, player whose name you want to retrieve
-    :param filterids: a tuple of players to choose from. Needs to be tuple else caching won't work.
-        Probably not needed but you can use this method to go from part of the name to full name, in which case
-        it may be helpful.
+    :param team: a team. In case there are multiple matches (e.g. Sebastian Aho), can separate them.
 
     :return: str, the player name
     """
-    filterdf = get_player_ids_file()
-    if filterids is None:
-        pass
+
+    # If playerid is not an int or float, return it
+    if re.match(r'^\d+\.?\d?$', playerid) is None:
+        return playerid
+
+    query = 'SELECT * FROM Info WHERE PlayerID = "{0:s}"'.format(playerid)
+    result = pd.read_sql_query(query, _PLAYER_CONN)
+
+    if len(result) == 0:
+        warnings.warn('No results for ' + playerid)
+        return None
+    if len(result) == 1:
+        return result.Name.iloc[0]
     else:
-        filterdf = filterdf.merge(pd.DataFrame({'ID': filterids}), how='inner', on='ID')
-    if isinstance(playerid, str):
-        # full name
-        newfilterdf = filterdf
-        realid = player_as_id(playerid)
-        return player_as_str(realid)
-    elif helpers.check_number(playerid):
-        player = int(playerid)
-        df = filterdf.query('ID == {0:.0f}'.format(playerid))
-        if len(df) == 0:
-            print('Could not find name for {0:.0f}'.format(playerid))
-            return None
-        elif len(df) == 1:
-            return df.Name.iloc[0]
-        else:
-            print('Multiple results when searching for {0:d}; returning first result'.format(playerid))
-            print(df.to_string())
-            return df.Name.iloc[0]
-    else:
-        print('Specified wrong type for player: {0:d}'.format(type(playerid)))
+        warnings.warn('Multiple results for ' + playerid + '\nPlease specify a team')
         return None
 
 
@@ -399,65 +363,12 @@ def get_player_info_from_url(playerid):
     return info
 
 
-def generate_player_ids_file():
-    """
-    Creates a dataframe with these columns:
-
-    - ID: int, player ID
-    - Name: str, player name
-    - DOB: str, date of birth
-    - Hand: char, R or L
-    - Pos: char, one of C/R/L/D/G
-
-    It will be populated with Alex Ovechkin to start.
-    :return: nothing
-    """
-    df = pd.DataFrame({'ID': [8471214],
-                       'Name': ['Alex Ovechkin'],
-                       'DOB': ['1985-09-17'],
-                       'Hand': ['R'],
-                       'Pos': ['L'],
-                       'Height': ["6'3\""],
-                       'Weight': [235],
-                       'Nationality': ['RUS']})
-    write_player_ids_file(df)
-    player_setup()
-
-
-def generate_player_log_file():
-    """
-    Run this when no player log file exists already. This is for getting the datatypes right. Adds Alex Ovechkin
-    in Game 1 vs Pittsburgh in 2016-2017.
-
-    :return: nothing
-    """
-    df = pd.DataFrame({'ID': [8471214],  # Player ID (Ovi)
-                       'Team': [15],  # Team (WSH)
-                       'Status': ['P'],  # P for played, S for scratch.  # TODO can I do healthy vs injured?
-                       'Season': [2016],  # Season (2016-17)
-                       'Game': [30221]})  # Game (G1 vs PIT)
-    if os.path.exists(get_player_log_filename()):
-        pass  # ed.print_and_log('Warning: overwriting existing player log with default, one-line df!', 'warn')
-    write_player_log_file(df)
-
-
-def update_player_ids_from_page(pbp):
-    """
-    Reads the list of players listed in the game file and adds to the player IDs file if they are not there already.
-
-    :param pbp: json, the raw pbp
-
-    :return: nothing
-    """
-    playerdict = pbp['gameData']['players']  # yields the subdictionary with players
-    ids = [key[2:] for key in playerdict]  # keys are format "ID[PlayerID]"; pull that PlayerID part
-    update_player_ids_file(ids)
-
-
 def update_player_logs_from_page(pbp, season, game):
     """
     Takes the game play by play and adds players to the master player log file, noting that they were on the roster
     for this game, which team they played for, and their status (P for played, S for scratch).
+
+    Also updates player IDS file.
 
     :param season: int, the season
     :param game: int, the game
@@ -469,8 +380,10 @@ def update_player_logs_from_page(pbp, season, game):
     # Get players who played, and scratches, from boxscore
     home_played = helpers.try_to_access_dict(pbp, 'liveData', 'boxscore', 'teams', 'home', 'players')
     road_played = helpers.try_to_access_dict(pbp, 'liveData', 'boxscore', 'teams', 'away', 'players')
-    home_scratches = str(helpers.try_to_access_dict(pbp, 'liveData', 'boxscore', 'teams', 'home', 'scratches'))
-    road_scratches = str(helpers.try_to_access_dict(pbp, 'liveData', 'boxscore', 'teams', 'away', 'scratches'))
+    home_scratches = [str(x) for x in helpers.try_to_access_dict(pbp, 'liveData', 'boxscore', 'teams', 'home',
+                                                                 'scratches')]
+    road_scratches = [str(x) for x in helpers.try_to_access_dict(pbp, 'liveData', 'boxscore', 'teams', 'away',
+                                                                 'scratches')]
 
     # Played are both dicts, so make them lists
     home_played = [pid[2:] for pid in home_played]
@@ -488,10 +401,13 @@ def update_player_logs_from_page(pbp, season, game):
         update_player_status(PlayerID=p, Season=season, Game=game, Team=gameinfo['Home'], Status='P')
     for p in home_scratches:
         update_player_status(PlayerID=p, Season=season, Game=game, Team=gameinfo['Home'], Status='S')
+    update_player_ids_file([*home_played, *home_scratches], team=gameinfo['Home'])
+
     for p in road_played:
         update_player_status(PlayerID=p, Season=season, Game=game, Team=gameinfo['Road'], Status='P')
     for p in road_scratches:
         update_player_status(PlayerID=p, Season=season, Game=game, Team=gameinfo['Road'], Status='S')
+    update_player_ids_file([*road_played, *road_scratches], team=gameinfo['Road'])
 
     # TODO: One issue is we do not see goalies (and maybe skaters) who dressed but did not play. How can this be fixed?
 
