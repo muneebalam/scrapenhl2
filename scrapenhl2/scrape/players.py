@@ -252,10 +252,10 @@ def player_as_id(playername, team=None, dob=None, silent=False):
 
     :return: int, the player ID
     """
-
-    # If playerid is an int or float, return it
+    playername = str(playername)
+    # If playerid is an int or float (i.e. 1 or 1.0), return it
     if re.match(r'^\d+\.?\d?$', playername) is not None:
-        return playername
+        return int(float(playername))
 
     query = 'SELECT * FROM Info WHERE Name LIKE "%{0:s}"'.format(playername)  # matches full or last name
     if team is not None:
@@ -272,7 +272,7 @@ def player_as_id(playername, team=None, dob=None, silent=False):
                 warnings.warn('No results for ' + playername)
             return None
         elif len(result) == 1:
-            return result.Name.iloc[0]
+            return int(result.Name.iloc[0])
         else:
             if not silent:
                 warnings.warn('Multiple results for ' + playername + '\nPlease specify a team')
@@ -321,7 +321,7 @@ def player_as_str(playerid, team=None, silent=False):
 
     :return: str, the player name
     """
-
+    playerid = str(playerid)
     # If playerid is not an int or float, return it
     if re.match(r'^\d+\.?\d?$', playerid) is None:
         return playerid

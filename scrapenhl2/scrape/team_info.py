@@ -181,9 +181,9 @@ def team_as_id(team, silent=False):
 
     :return: int, the team ID
     """
-
+    team = str(team)
     if re.match(r'^\d+\.?\d?$', team) is not None:
-        return team
+        return int(float(team))
     team = fix_variants(team)
     result = pd.read_sql_query('SELECT * FROM Teams WHERE Name = "{0:s}" OR Abbrevation = "{0:s}"'.format(
         team), _TEAM_CONN)
@@ -192,7 +192,7 @@ def team_as_id(team, silent=False):
             warnings.warn('No results for ' + team)
         return None
     elif len(result) == 1:
-        return result.Team.iloc[0]
+        return int(result.Team.iloc[0])
     else:
         if not silent:
             warnings.warn('Multiple results for ' + team + '\nPlease use the long name')
@@ -210,12 +210,12 @@ def team_as_str(team, abbreviation=True, silent=False):
 
     :return: str, the team name
     """
-
+    team = str(team)
     if re.match(r'^\d+\.?\d?$', team) is None:
         return team
     team = fix_variants(team)
     col_to_access = 'Abbreviation' if abbreviation else 'Name'
-    result = pd.read_sql_query('SELECT * FROM Teams WHERE Team = {0:d}'.format(team), _TEAM_CONN)
+    result = pd.read_sql_query('SELECT * FROM Teams WHERE Team = {0:s}'.format(team), _TEAM_CONN)
     if len(result) == 0:
         if not silent:
             warnings.warn('No results for ' + team)

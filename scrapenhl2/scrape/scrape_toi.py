@@ -75,7 +75,7 @@ def scrape_game_toi_from_html(season, game, force_overwrite=True):
     for i in range(2):
         filename = filenames[i]
         if not force_overwrite and os.path.exists(filename):
-            pass
+            continue
 
         page = helpers.try_url_n_times(urls[i])
         save_raw_toi_from_html(page, season, game, filetypes[i])

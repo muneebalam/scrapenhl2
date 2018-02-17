@@ -36,19 +36,16 @@ def delete_game_html(season, game):
             os.remove(filename)
 
 
-def autoupdate(season=None, update_team_logs=True):
+def autoupdate(season=None, update_logs=True):
     """
     Run this method to update local data. It reads the schedule file for given season and scrapes and parses
     previously unscraped games that have gone final or are in progress. Use this for 2010 or later.
 
     :param season: int, the season. If None (default), will do current season
-    :param update_team_logs: bool, update team logs too? Faster if False.
+    :param update__logs: bool, update team and player logs too? Faster if False.
 
     :return: nothing
     """
-    # TODO: why does sometimes the schedule have the wrong game-team pairs, but when I regenerate, it's all ok?
-    # TODO: this does not work quite right. Doesn't seem to know it needs to re-scrape TOI for previously scraped
-    # TODO: in-progress games after they go final
 
     if season is None:
         season = schedules.get_current_season()
@@ -90,9 +87,9 @@ def autoupdate(season=None, update_team_logs=True):
     print('Updating final games')
     read_final_games(games, season)
 
-    if update_team_logs:
+    if update_logs:
         try:
-            teams.update_team_logs(season, force_overwrite=False)
+            teams.update_team_logs(season, games, force_overwrite=False)
         except Exception as e:
             pass  # ed.print_and_log("Error with team logs in {0:d}: {1:s}".format(season, str(e)), 'warn')
 
@@ -105,11 +102,13 @@ def read_final_games(games, season):
 
     :return:
     """
+    overwrite = season == schedules.get_current_season()
+
     for game in tqdm(games, desc="Scraping/parsing PBP"):
         try:
-            scrape_pbp.scrape_game_pbp(season, game, True)
+            scrape_pbp.scrape_game_pbp(season, game, overwrite)
             manipulate_schedules.update_schedule_with_pbp_scrape(season, game)
-            parse_pbp.parse_game_pbp(season, game, True)
+            parse_pbp.parse_game_pbp(season, game, overwrite)
         except requests.exceptions.HTTPError as he:
             print('Could not access pbp url for {0:d} {1:d}'.format(season, game))
             print(str(he))
@@ -118,11 +117,13 @@ def read_final_games(games, season):
             print(str(ue))
         except Exception as e:
             print(str(e))
+    schedules._SCH_CONN.commit()
+
     for game in tqdm(games, desc="Scraping/parsing TOI"):
         try:
-            scrape_toi.scrape_game_toi_from_html(season, game, True)
+            scrape_toi.scrape_game_toi_from_html(season, game, overwrite)
             manipulate_schedules.update_schedule_with_toi_scrape(season, game)
-            parse_toi.parse_game_toi_from_html(season, game, True)
+            parse_toi.parse_game_toi_from_html(season, game, overwrite)
 
         except (
             requests.exceptions.HTTPError,
@@ -132,8 +133,7 @@ def read_final_games(games, season):
             print(str(he))
         except Exception as e:
             print(str(e))
-
-        print('Done with {0:d} {1:d} (final)'.format(season, game))
+    schedules._SCH_CONN.commit()
 
 
 def read_inprogress_games(inprogressgames, season):

@@ -4,130 +4,177 @@ This module contains method related to team logs.
 
 import os.path
 
-import feather
 import pandas as pd
-import pyarrow
 from tqdm import tqdm
+import sqlite3
 
 from scrapenhl2.scrape import organization, parse_pbp, parse_toi, schedules, team_info, general_helpers as helpers, \
     scrape_toi, manipulate_schedules
 
 
+def _get_team_pbp_log_colnames_coltypes():
+    """
+    Returns schedule column names and types (hard coded)
+
+    - Season INT PRIMARY KEY
+    - Game INT PRIMARY KEY
+    - Index INT PRIMARY KEY
+    - Period INT
+    - MinSec CHAR
+    - Event CHAR
+    - Team INT
+    - Actor INT
+    - ActorRole CHAR
+    - Recipient INT
+    - RecipientRole CHAR
+    - FocusTeam INT
+    - Home INT
+    - Road INT
+    - Note CHAR
+    - TeamScore INT
+    - TeamStrength CHAR
+    - OppScore INT
+    - OppStrength CHAR
+    - Time INT
+    - X INT
+    - Y INT
+
+    :return: list
+    """
+
+    return [('Season', 'INT'), ('Game', 'INT'), ('Index', 'INT'),
+            ('Period', 'INT'), ('MinSec', 'CHAR'), ('Event', 'CHAR'), ('Team', 'INT'),
+            ('Actor', 'INT'), ('ActorRole', 'CHAR'), ('Recipient', 'INT'), ('RecipientRole', 'CHAR',),
+            ('FocusTeam', 'INT'), ('Home', 'INT'), ('Road', 'INT'), ('Note', 'CHAR'),
+            ('TeamScore', 'INT'), ('OppScore', 'INT'), ('TeamStrength', 'CHAR'), ('OppStrength', 'CHAR'),
+            ('Time', 'INT'), ('X', 'INT'), ('Y', 'INT')]
+
+
+def _create_team_pbp_table(team):
+    """
+    Creates team pbp table
+
+    :param team: int or str
+    :return:
+    """
+    team = team_info.team_as_id(team)
+    cols = _get_team_pbp_log_colnames_coltypes()
+    cols = ',\n'.join([' '.join(row) for row in cols])
+    query = 'CREATE TABLE Pbp (\n{0:s},\nPRIMARY KEY ({1:s}, {2:s}, {3:s}))'.format(cols, 'Season', 'Game', 'Index')
+    _TL_CURSORS[team].execute(query)
+    _TL_CONNS[team].commit()
+
+
 def get_team_pbp(season, team):
     """
-    Returns the pbp of given team in given season across all games.
+    Gets team pbp.
 
-    :param season: int, the season
-    :param team: int or str, the team abbreviation.
-
-    :return: df, the pbp of given team in given season
+    :param season: int
+    :param team: int or str
+    :return:
     """
-    return feather.read_dataframe(get_team_pbp_filename(season, team_info.team_as_str(team, True)))
+    return pd.read_sql_query('SELECT * FROM Pbp WHERE Season = {0:d}'.format(season),
+                             _TL_CONNS[team_info.team_as_id(team)])
+
+
+def _get_team_toi_log_colnames_coltypes():
+    """
+    Returns schedule column names and types (hard coded)
+
+    - Season INT PRIMARY KEY
+    - Game INT PRIMARY KEY
+    - Time INT PRIMARY KEY
+    - Home INT
+    - Road INT
+    - Team1 INT
+    - Team2 INT
+    - Team3 INT
+    - Team4 INT
+    - Team5 INT
+    - Team6 INT
+    - TeamG INT
+    - Opp1 INT
+    - Opp2 INT
+    - Opp3 INT
+    - Opp4 INT
+    - Opp5 INT
+    - Opp6 INT
+    - OppG INT
+    - TeamScore INT
+    - TeamStrength CHAR
+    - OppScore INT
+    - OppStrength CHAR
+
+
+    :return: list
+    """
+
+    return [('Season', 'INT'), ('Game', 'INT'), ('Time', 'INT'), ('Home', 'INT'), ('Road', 'OMT'),
+            ('Team1', 'INT'), ('Team2', 'INT'), ('Team3', 'INT'), ('Team4', 'INT'), ('Team5', 'INT'),
+            ('Team6', 'INT'), ('TeamG', 'INT'), ('TeamScore', 'INT'), ('TeamStrength', 'CHAR'),
+            ('Opp1', 'INT'), ('Opp2', 'INT'), ('Opp3', 'INT'), ('Opp4', 'INT'), ('Opp5', 'INT'),
+            ('Opp6', 'INT'), ('OppG', 'INT'), ('OppScore', 'INT'), ('OppStrength', 'CHAR')]
+
+
+def _create_team_toi_table(team):
+    """
+    Creates team pbp table
+
+    :param team: int or str
+    :return:
+    """
+    team = team_info.team_as_id(team)
+    cols = _get_team_toi_log_colnames_coltypes()
+    cols = ',\n'.join([' '.join(row) for row in cols])
+    query = 'CREATE TABLE Toi (\n{0:s},\nPRIMARY KEY ({1:s}, {2:s}, {3:s}))'.format(cols, 'Season', 'Game', 'Time')
+    _TL_CURSORS[team].execute(query)
+    _TL_CONNS[team].commit()
 
 
 def get_team_toi(season, team):
     """
-    Returns the toi of given team in given season across all games.
+    Gets team toi.
 
-    :param season: int, the season
-    :param team: int or str, the team abbreviation.
-
-    :return: df, the toi of given team in given season
-    """
-    return feather.read_dataframe(get_team_toi_filename(season, team_info.team_as_str(team, True)))
-
-
-def write_team_pbp(pbp, season, team):
-    """
-    Writes the given pbp dataframe to file.
-
-    :param pbp: df, the pbp of given team in given season
-    :param season: int, the season
-    :param team: int or str, the team abbreviation.
-
-    :return: nothing
-    """
-    if pbp is None:
-        print('PBP df is None, will not write team log')
-        return
-    feather.write_dataframe(pbp, get_team_pbp_filename(season, team_info.team_as_str(team, True)))
-
-
-def write_team_toi(toi, season, team):
-    """
-    Writes team TOI log to file
-
-    :param toi: df, team toi for this season
-    :param season: int, the season
-    :param team: int or str, the team abbreviation.
-
+    :param season: int
+    :param team: int or str
     :return:
     """
-    if toi is None:
-        print('TOI df is None, will not write team log')
-        return
-    try:
-        feather.write_dataframe(toi, get_team_toi_filename(season, team_info.team_as_str(team, True)))
-    except ValueError:
-        # Need dtypes to be numbers or strings. Sometimes get objs instead
-        for col in toi:
-            try:
-                toi.loc[:, col] = pd.to_numeric(toi[col])
-            except ValueError:
-                toi.loc[:, col] = toi[col].astype(str)
-        feather.write_dataframe(toi, get_team_toi_filename(season, team_info.team_as_str(team, True)))
+    return pd.read_sql_query('SELECT * FROM Toi WHERE Season = {0:d}'.format(season),
+                             _TL_CONNS[team_info.team_as_id(team)])
 
 
-def get_team_pbp_filename(season, team):
-    """
-    Returns filename of the PBP log for this team and season
-
-    :param season: int, the season
-    :param team: int or str, the team abbreviation.
-
-    :return:
-    """
-    return os.path.join(organization.get_season_team_pbp_folder(season),
-                        "{0:s}.feather".format(team_info.team_as_str(team, abbreviation=True)))
-
-
-def get_team_toi_filename(season, team):
-    """
-    Returns filename of the TOI log for this team and season
-
-    :param season: int, the season
-    :param team: int or str, the team abbreviation.
-
-    :return:
-    """
-    return os.path.join(organization.get_season_team_toi_folder(season),
-                        "{0:s}.feather".format(team_info.team_as_str(team, abbreviation=True)))
-
-
-def update_team_logs(season, force_overwrite=False, force_games=None):
+def update_team_logs(season, games, force_overwrite=False):
     """
     This method looks at the schedule for the given season and writes pbp for scraped games to file.
     It also adds the strength at each pbp event to the log. It only includes games that have both PBP *and* TOI.
 
     :param season: int, the season
+    :param games, list of int.
     :param force_overwrite: bool, whether to generate from scratch
-    :param force_games: None or iterable of games to force_overwrite specifically
 
     :return: nothing
     """
+    # Create team dbs if need be
+    allteams = {schedules.get_home_team(season, game) for game in games} \
+        .union({schedules.get_road_team(season, game) for game in games})
+    for team in allteams:
+        try:
+            _ = get_team_pbp(season, team)
+        except pd.io.sql.DatabaseError:
+            _create_team_pbp_table(team)
+        try:
+            _ = get_team_toi(season, team)
+        except pd.io.sql.DatabaseError:
+            _create_team_toi_table(team)
 
-    # For each team
+    for game in tqdm(games, desc = 'Adding games to team logs'):
+        hteam = schedules.get_home_team(season, game)
+        rteam = schedules.get_road_team(season, game)
 
-    sch = schedules.get_season_schedule(season).query('Status == "Final"')
-    new_games_to_do = sch[(sch.Game >= 20001) & (sch.Game <= 30417)]
 
-    if force_games is not None:
-        new_games_to_do = pd.concat([new_games_to_do,
-                                     sch.merge(pd.DataFrame({'Game': list(force_games)}),
-                                               how='inner', on='Game')]) \
-            .sort_values('Game')
 
-    allteams = sorted(list(new_games_to_do.Home.append(new_games_to_do.Road).unique()))
+
+def update_team_logs_backup():
 
     for team in tqdm(allteams, desc = 'Updating team logs'):
         #print('Updating team log for {0:d} {1:s}'.format(season, team_info.team_as_str(team)))
@@ -247,6 +294,27 @@ def update_team_logs(season, force_overwrite=False, force_games=None):
         #    season, team_info.team_as_str(team), teami + 1, len(allteams)))
 
 
+def get_team_log_filename(team):
+    """
+    Returns db filename
+
+    :param team: int or str
+    :return:
+    """
+    return os.path.join(organization.get_team_data_folder(), '{0:s}{1:d}.sqlite'.format(
+        team_info.team_as_str(team), team_info.team_as_id(team))) # Use both because some duplicate abbrevs
+
+
+def get_team_log_connection(team):
+    """
+    Gets connections to team pbplog db.
+
+    :param team: str or int
+    :return: dict
+    """
+    return sqlite3.connect(get_team_log_filename(team))
+
+
 def team_setup():
     """
     Creates team log-related folders.
@@ -258,5 +326,12 @@ def team_setup():
     for season in range(2005, schedules.get_current_season() + 1):
         organization.check_create_folder(organization.get_season_team_toi_folder(season))
 
+    allteams = {x[0] for x in schedules._SCH_CURSOR.execute('SELECT DISTINCT Home FROM Schedule').fetchall()} \
+        .union({x[0] for x in schedules._SCH_CURSOR.execute('SELECT DISTINCT Road FROM Schedule').fetchall()})
+    global _TL_CONNS, _TL_CURSORS
+    _TL_CONNS = {team: get_team_log_connection(team) for team in allteams}
+    _TL_CURSORS = {team: conn.cursor() for team, conn in _TL_CONNS.items()}
 
+_TL_CONNS = {}
+_TL_CURSORS = {}
 team_setup()
