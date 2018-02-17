@@ -154,7 +154,7 @@ def update_player_ids_file(playerids, team, force_overwrite=False):
         return
     #for playerid in tqdm(to_scrape, desc="Parsing players in play by play"):
     for playerid in playerids:
-        if player_as_str(playerid) is not None and not force_overwrite:
+        if player_as_str(playerid, silent=True) is not None and not force_overwrite:
             continue
         playerinfo = get_player_info_from_url(playerid)
         update_player_info(PlayerID=str(helpers.try_to_access_dict(playerinfo, 'ID')),
@@ -241,13 +241,14 @@ def get_player_handedness(player):
 
 
 @functools.lru_cache(maxsize=128, typed=False)
-def player_as_id(playername, team=None, dob=None):
+def player_as_id(playername, team=None, dob=None, silent=False):
     """
     A helper method. If player entered is int, returns that. If player is str, returns integer id of that player.
 
     :param playername: int, or str, the player whose names you want to retrieve
     :param team: int
     :param dob: yyyy-mm-dd, use to help when multiple players have the same name
+    :param silent: bool
 
     :return: int, the player ID
     """
@@ -267,17 +268,20 @@ def player_as_id(playername, team=None, dob=None):
         # Fuzzy match
         result = helpers.fuzzy_match_player(playername, get_player_info_file())
         if len(result) == 0:
-            warnings.warn('No results for ' + playername)
+            if not silent:
+                warnings.warn('No results for ' + playername)
             return None
         elif len(result) == 1:
             return result.Name.iloc[0]
         else:
-            warnings.warn('Multiple results for ' + playername + '\nPlease specify a team')
+            if not silent:
+                warnings.warn('Multiple results for ' + playername + '\nPlease specify a team')
             return None
     if len(result) == 1:
         return result.Name.iloc[0]
     else:
-        warnings.warn('Multiple results for ' + playername + '\nPlease specify a team')
+        if not silent:
+            warnings.warn('Multiple results for ' + playername + '\nPlease specify a team')
         return None
 
 
@@ -307,12 +311,13 @@ def playerlst_as_id(playerlst, exact=False, filterdf=None):
 
 
 @functools.lru_cache(maxsize=128, typed=False)
-def player_as_str(playerid, team=None):
+def player_as_str(playerid, team=None, silent=False):
     """
     A helper method. If player is int, returns string name of that player. Else returns standardized name.
 
     :param playerid: int, or str, player whose name you want to retrieve
     :param team: a team. In case there are multiple matches (e.g. Sebastian Aho), can separate them.
+    :param silent: bool
 
     :return: str, the player name
     """
@@ -325,12 +330,14 @@ def player_as_str(playerid, team=None):
     result = pd.read_sql_query(query, _PLAYER_CONN)
 
     if len(result) == 0:
-        warnings.warn('No results for ' + playerid)
+        if not silent:
+            warnings.warn('No results for ' + playerid)
         return None
     if len(result) == 1:
         return result.Name.iloc[0]
     else:
-        warnings.warn('Multiple results for ' + playerid + '\nPlease specify a team')
+        if not silent:
+            warnings.warn('Multiple results for ' + playerid + '\nPlease specify a team')
         return None
 
 
