@@ -11,7 +11,6 @@ import sqlite3
 import re
 import warnings
 
-import feather
 import pandas as pd
 
 import scrapenhl2.scrape.general_helpers as helpers

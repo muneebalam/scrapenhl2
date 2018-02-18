@@ -23,9 +23,9 @@ def _get_team_pbp_log_colnames_coltypes():
     - MinSec CHAR
     - Event CHAR
     - Team INT
-    - Actor INT
+    - Actor CHAR
     - ActorRole CHAR
-    - Recipient INT
+    - Recipient CHAR
     - RecipientRole CHAR
     - FocusTeam INT
     - Home INT
@@ -44,7 +44,7 @@ def _get_team_pbp_log_colnames_coltypes():
 
     return [('Season', 'INT'), ('Game', 'INT'), ('EventIndex', 'INT'),
             ('Period', 'INT'), ('MinSec', 'CHAR'), ('Event', 'CHAR'), ('Team', 'INT'),
-            ('Actor', 'INT'), ('ActorRole', 'CHAR'), ('Recipient', 'INT'), ('RecipientRole', 'CHAR',),
+            ('Actor', 'CHAR'), ('ActorRole', 'CHAR'), ('Recipient', 'CHAR'), ('RecipientRole', 'CHAR',),
             ('FocusTeam', 'INT'), ('Home', 'INT'), ('Road', 'INT'), ('Note', 'CHAR'),
             ('TeamScore', 'INT'), ('OppScore', 'INT'), ('TeamStrength', 'CHAR'), ('OppStrength', 'CHAR'),
             ('Time', 'INT'), ('X', 'INT'), ('Y', 'INT')]
@@ -86,20 +86,20 @@ def _get_team_toi_log_colnames_coltypes():
     - Time INT PRIMARY KEY
     - Home INT
     - Road INT
-    - Team1 INT
-    - Team2 INT
-    - Team3 INT
-    - Team4 INT
-    - Team5 INT
-    - Team6 INT
-    - TeamG INT
-    - Opp1 INT
-    - Opp2 INT
-    - Opp3 INT
-    - Opp4 INT
-    - Opp5 INT
-    - Opp6 INT
-    - OppG INT
+    - Team1 CHAR
+    - Team2 CHAR
+    - Team3 CHAR
+    - Team4 CHAR
+    - Team5 CHAR
+    - Team6 CHAR
+    - TeamG CHAR
+    - Opp1 CHAR
+    - Opp2 CHAR
+    - Opp3 CHAR
+    - Opp4 CHAR
+    - Opp5 CHAR
+    - Opp6 CHAR
+    - OppG CHAR
     - TeamScore INT
     - TeamStrength CHAR
     - OppScore INT
@@ -110,10 +110,10 @@ def _get_team_toi_log_colnames_coltypes():
     """
 
     return [('Season', 'INT'), ('Game', 'INT'), ('Time', 'INT'), ('Home', 'INT'), ('Road', 'OMT'),
-            ('Team1', 'INT'), ('Team2', 'INT'), ('Team3', 'INT'), ('Team4', 'INT'), ('Team5', 'INT'),
-            ('Team6', 'INT'), ('TeamG', 'INT'), ('TeamScore', 'INT'), ('TeamStrength', 'CHAR'),
-            ('Opp1', 'INT'), ('Opp2', 'INT'), ('Opp3', 'INT'), ('Opp4', 'INT'), ('Opp5', 'INT'),
-            ('Opp6', 'INT'), ('OppG', 'INT'), ('OppScore', 'INT'), ('OppStrength', 'CHAR')]
+            ('Team1', 'CHAR'), ('Team2', 'CHAR'), ('Team3', 'CHAR'), ('Team4', 'CHAR'), ('Team5', 'CHAR'),
+            ('Team6', 'CHAR'), ('TeamG', 'CHAR'), ('TeamScore', 'CHAR'), ('TeamStrength', 'CHAR'),
+            ('Opp1', 'CHAR'), ('Opp2', 'CHAR'), ('Opp3', 'CHAR'), ('Opp4', 'CHAR'), ('Opp5', 'CHAR'),
+            ('Opp6', 'CHAR'), ('OppG', 'CHAR'), ('OppScore', 'INT'), ('OppStrength', 'CHAR')]
 
 
 def _create_team_toi_table(team):
@@ -147,6 +147,7 @@ def update_team_logs(season, games, from_scratch=False):
     """
     This method looks at the schedule for the given season and writes pbp for scraped games to file.
     It also adds the strength at each pbp event to the log. It only includes games that have both PBP *and* TOI.
+    If games provided are already included in team logs, will overwrite ("force_overwrite" is always True in that sense).
 
     :param season: int, the season
     :param games, list of int.
@@ -176,30 +177,43 @@ def update_team_logs(season, games, from_scratch=False):
         hteam = schedules.get_home_team(season, game)
         rteam = schedules.get_road_team(season, game)
 
-        pbp = parse_pbp.get_parsed_pbp(season, game)
+        pbp = parse_pbp.get_parsed_pbp(season, game).rename(columns={'Index': 'EventIndex'})
         toi = parse_toi.get_parsed_toi(season, game)
 
         # Want both pbp and toi to exist
         if pbp is None or toi is None or len(pbp) == 0 or len(toi) == 0:
             continue
 
-        # Add scores to TOI
-        pbp = pbp.merge(toi[['Time', 'HomeStrength', 'RoadStrength']], how='left', on='Time')
+        # Going to be joining on time, make sure both are type int
+        pbp.loc[:, 'Time'] = pbp.Time.astype(int)
+        toi.loc[:, 'Time'] = toi.Time.astype(int)
+
         # Add strength to PBP
+        pbp = pbp.merge(toi[['Time', 'HomeStrength', 'RoadStrength']], how='left', on='Time')
+        # Add scores to TOI
         toi = toi.merge(pbp[['Time', 'HomeScore', 'RoadScore']], how='left', on='Time')
         # Forward fill score
         toi = toi.assign(HomeScore = toi.HomeScore.fillna(method='ffill'),
                          RoadScore = toi.RoadScore.fillna(method='ffill'))
+        # Time zero was 5v5
+        pbp.loc[pbp.Time == 0, 'HomeStrength':'RoadStrength'] = '5'
 
         # Add game
         pbp = pbp.assign(Game = game)
         toi = toi.assign(Game = game)
 
         # Rename columns for home team and road team
-        hpbp = pbp.rename(columns={x.replace('Home', 'Team').replace('Road', 'Opp') for x in pbp.columns})
-        htoi = toi.rename(columns={x.replace('Home', 'Team').replace('Road', 'Opp') for x in toi.columns})
-        rpbp = pbp.rename(columns={x.replace('Home', 'Opp').replace('Road', 'Team') for x in pbp.columns})
-        rtoi = toi.rename(columns={x.replace('Home', 'Opp').replace('Road', 'Team') for x in toi.columns})
+        hpbp = pbp.rename(columns={x: x.replace('Home', 'Team').replace('Road', 'Opp') for x in pbp.columns})
+        rpbp = pbp.rename(columns={x: x.replace('Home', 'Opp').replace('Road', 'Team') for x in pbp.columns})
+        htoi = toi.rename(columns={x: x.replace('Home', 'Team').replace('Road', 'Opp') for x in toi.columns})
+        rtoi = toi.rename(columns={x: x.replace('Home', 'Opp').replace('Road', 'Team') for x in toi.columns})
+
+        # Some cols have just H and R
+        toicols = list(toi.columns)
+        htoi = htoi.rename(columns={x: x.replace('H', 'Team').replace('R', 'Opp') for x in
+                                   toicols[toicols.index('H1'):toicols.index('RG') + 1]})
+        rtoi = rtoi.rename(columns={x: x.replace('H', 'Opp').replace('R', 'Team') for x in
+                                   toicols[toicols.index('H1'):toicols.index('RG') + 1]})
 
         # Add home and road (would have gotten renamed above)
         hpbp = hpbp.assign(Home = hteam, Road = rteam)
@@ -208,9 +222,12 @@ def update_team_logs(season, games, from_scratch=False):
         rtoi = rtoi.assign(Home = hteam, Road = rteam)
 
         hpbp.to_sql('Pbp', _TL_CONNS[hteam], if_exists = 'append', index = False)
-        #htoi.to_sql('Toi', _TL_CONNS[hteam], if_exists = 'append', index = False)
-        #rpbp.to_sql('Pbp', _TL_CONNS[rteam], if_exists = 'append', index = False)
-        #rtoi.to_sql('Toi', _TL_CONNS[rteam], if_exists = 'append', index = False)
+        htoi.to_sql('Toi', _TL_CONNS[hteam], if_exists = 'append', index = False)
+        rpbp.to_sql('Pbp', _TL_CONNS[rteam], if_exists = 'append', index = False)
+        rtoi.to_sql('Toi', _TL_CONNS[rteam], if_exists = 'append', index = False)
+
+    for team in allteams:
+        _TL_CONNS[team].commit()
 
 
 def update_pbplog(team, **kwargs):
@@ -231,126 +248,6 @@ def update_toilog(team, **kwargs):
     :return:
     """
     helpers.replace_into_table(_TL_CURSORS[team_info.team_as_id(team)], 'Toi', **kwargs)
-
-
-def update_team_logs_backup():
-
-    for team in tqdm(allteams, desc = 'Updating team logs'):
-        #print('Updating team log for {0:d} {1:s}'.format(season, team_info.team_as_str(team)))
-
-        # Compare existing log to schedule to find missing games
-        newgames = new_games_to_do[(new_games_to_do.Home == team) | (new_games_to_do.Road == team)]
-        if force_overwrite:
-            pbpdf = None
-            toidf = None
-        else:
-            # Read currently existing ones for each team and anti join to schedule to find missing games
-            try:
-                pbpdf = get_team_pbp(season, team)
-                if force_games is not None:
-                    pbpdf = helpers.anti_join(pbpdf, pd.DataFrame({'Game': list(force_games)}), on='Game')
-                newgames = newgames.merge(pbpdf[['Game']].drop_duplicates(), how='outer', on='Game', indicator=True)
-                newgames = newgames[newgames._merge == "left_only"].drop('_merge', axis=1)
-            except OSError:
-                pbpdf = None
-            except OSError:  # pyarrow (feather) FileNotFoundError equivalent
-                pbpdf = None
-
-            try:
-                toidf = get_team_toi(season, team)
-                if force_games is not None:
-                    toidf = helpers.anti_join(toidf, pd.DataFrame({'Game': list(force_games)}), on='Game')
-            except OSError:
-                toidf = None
-            except OSError:  # pyarrow (feather) FileNotFoundError equivalent
-                toidf = None
-
-        for i, gamerow in newgames.iterrows():
-            game = gamerow[1]
-            home = gamerow[2]
-            road = gamerow[4]
-
-            # load parsed pbp and toi
-            try:
-                try:
-                    gamepbp = None
-                    gamepbp = parse_pbp.get_parsed_pbp(season, game)
-                except OSError:
-                    print("Check PBP for", season, game)
-                try:
-                    gametoi = None
-                    gametoi = parse_toi.get_parsed_toi(season, game)
-                except OSError:
-                    # try html
-                    scrape_toi.scrape_game_toi_from_html(season, game)
-                    parse_toi.parse_game_toi_from_html(season, game)
-                    manipulate_schedules.update_schedule_with_toi_scrape(season, game)
-                    try:
-                        gametoi = parse_toi.get_parsed_toi(season, game)
-                    except OSError:
-                        print('Check TOI for', season, game)
-
-                if gamepbp is not None and gametoi is not None and len(gamepbp) > 0 and len(gametoi) > 0:
-                    # Rename score and strength columns from home/road to team/opp
-                    if team == home:
-                        gametoi = gametoi.assign(TeamStrength=gametoi.HomeStrength, OppStrength=gametoi.RoadStrength) \
-                            .drop({'HomeStrength', 'RoadStrength'}, axis=1)
-                        gamepbp = gamepbp.assign(TeamScore=gamepbp.HomeScore, OppScore=gamepbp.RoadScore) \
-                            .drop({'HomeScore', 'RoadScore'}, axis=1)
-                    else:
-                        gametoi = gametoi.assign(TeamStrength=gametoi.RoadStrength, OppStrength=gametoi.HomeStrength) \
-                            .drop({'HomeStrength', 'RoadStrength'}, axis=1)
-                        gamepbp = gamepbp.assign(TeamScore=gamepbp.RoadScore, OppScore=gamepbp.HomeScore) \
-                            .drop({'HomeScore', 'RoadScore'}, axis=1)
-
-                    # add scores to toi and strengths to pbp
-                    gamepbp = gamepbp.merge(gametoi[['Time', 'TeamStrength', 'OppStrength']], how='left', on='Time')
-                    gametoi = gametoi.merge(gamepbp[['Time', 'TeamScore', 'OppScore']], how='left', on='Time')
-                    gametoi.loc[:, 'TeamScore'] = gametoi.TeamScore.fillna(method='ffill')
-                    gametoi.loc[:, 'OppScore'] = gametoi.OppScore.fillna(method='ffill')
-
-                    # Switch TOI column labeling from H1/R1 to Team1/Opp1 as appropriate
-                    cols_to_change = list(gametoi.columns)
-                    cols_to_change = [x for x in cols_to_change if len(x) == 2]  # e.g. H1
-                    if team == home:
-                        swapping_dict = {'H': 'Team', 'R': 'Opp'}
-                        colchanges = {c: swapping_dict[c[0]] + c[1] for c in cols_to_change}
-                    else:
-                        swapping_dict = {'H': 'Opp', 'R': 'Team'}
-                        colchanges = {c: swapping_dict[c[0]] + c[1] for c in cols_to_change}
-                    gametoi = gametoi.rename(columns=colchanges)
-
-                    # finally, add game, home, and road to both dfs
-                    gamepbp.loc[:, 'Game'] = game
-                    gamepbp.loc[:, 'Home'] = home
-                    gamepbp.loc[:, 'Road'] = road
-                    gametoi.loc[:, 'Game'] = game
-                    gametoi.loc[:, 'Home'] = home
-                    gametoi.loc[:, 'Road'] = road
-
-                    # concat toi and pbp
-                    if pbpdf is None:
-                        pbpdf = gamepbp
-                    else:
-                        pbpdf = pd.concat([pbpdf, gamepbp])
-                    if toidf is None:
-                        toidf = gametoi
-                    else:
-                        toidf = pd.concat([toidf, gametoi])
-
-            except FileNotFoundError:
-                pass
-
-        # write to file
-        if pbpdf is not None:
-            pbpdf.loc[:, 'FocusTeam'] = team
-        if toidf is not None:
-            toidf.loc[:, 'FocusTeam'] = team
-
-        write_team_pbp(pbpdf, season, team)
-        write_team_toi(toidf, season, team)
-        #print('Done with team logs for {0:d} {1:s} ({2:d}/{3:d})'.format(
-        #    season, team_info.team_as_str(team), teami + 1, len(allteams)))
 
 
 def get_team_log_filename(team):

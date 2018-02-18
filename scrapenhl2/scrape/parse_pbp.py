@@ -139,7 +139,7 @@ def _create_pbp_df_json(pbp, gameinfo):
     p1role_sw = [p1role[i] if event[i] != "Blocked Shot" else p2role[i] for i in range(len(p1role))]
     p2role_sw = [p2role[i] if event[i] != "Blocked Shot" else p1role[i] for i in range(len(p2role))]
 
-    pbpdf = pd.DataFrame({'Index': index, 'Period': period, 'MinSec': times, 'Event': event,
+    pbpdf = pd.DataFrame({'EventIndex': index, 'Period': period, 'MinSec': times, 'Event': event,
                           'Team': team_sw, 'Actor': p1_sw, 'ActorRole': p1role_sw, 'Recipient': p2_sw,
                           'RecipientRole': p2role_sw, 'X': xs, 'Y': ys, 'Note': note})
     return pbpdf
@@ -175,8 +175,8 @@ def _add_scores_to_pbp(pbpdf, gameinfo):
     # Make the first row show 0 for both teams
     # TODO does this work for that one game that got stopped?
     # Maybe I should fill forward first, then replace remaining NA with 0
-    pbpdf.loc[pbpdf.Index == 0, 'HomeScore'] = 0
-    pbpdf.loc[pbpdf.Index == 0, 'RoadScore'] = 0
+    pbpdf.loc[pbpdf.EventIndex == 0, 'HomeScore'] = 0
+    pbpdf.loc[pbpdf.EventIndex == 0, 'RoadScore'] = 0
 
     # And now forward fill
     pbpdf.loc[:, "HomeScore"] = pbpdf.HomeScore.fillna(method='ffill')
