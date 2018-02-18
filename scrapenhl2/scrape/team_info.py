@@ -121,7 +121,7 @@ def update_team_info(**kwargs):
 
     :return:
     """
-    helpers._replace_into_table(_TEAM_CURSOR, 'Teams', **kwargs)
+    helpers.replace_into_table(_TEAM_CURSOR, 'Teams', **kwargs)
 
 
 def write_team_ids_file(teamids=None):

@@ -6,6 +6,7 @@ import os.path
 import re
 
 import pandas as pd
+from tqdm import tqdm
 
 import scrapenhl2.scrape.general_helpers as helpers
 import scrapenhl2.scrape.organization as organization
@@ -30,26 +31,11 @@ def parse_season_toi(season, force_overwrite=False):
     sch = schedules.get_season_schedule(season)
     games = sch[sch.Status == "Final"].Game.values
     games.sort()
-    intervals = helpers.intervals(games)
-    interval_j = 0
-    for i, game in enumerate(games):
+    for game in tqdm(games, desc = "Reparsing TOI for {0:d}".format(season)):
         try:
-            if season >= 2010:
-                parse_game_toi(season, game, force_overwrite)
-            else:
-                parse_game_toi_from_html(season, game, force_overwrite)
-            if len(get_parsed_toi(season, game)) < 3600:
-                parse_game_toi_from_html(season, game, force_overwrite)
+            parse_game_toi_from_html(season, game, force_overwrite)
         except Exception as e:
-            try:
-                parse_game_toi_from_html(season, game, force_overwrite)
-            except Exception as e:
-                pass  # ed.print_and_log('{0:d} {1:d} {2:s}'.format(season, game, str(e)), 'warn')
-        if interval_j < len(intervals):
-            if i == intervals[interval_j][0]:
-                print('Done parsing toi through {0:d} {1:d} ({2:d}%)'.format(
-                    season, game, round(intervals[interval_j][0] / len(games) * 100)))
-                interval_j += 1
+                pass
 
 
 def parse_game_toi(season, game, force_overwrite=False):
@@ -100,8 +86,7 @@ def parse_game_toi_from_html(season, game, force_overwrite=False):
     # TODO force_overwrite support
     filenames = (scrape_toi.get_home_shiftlog_filename(season, game),
                  scrape_toi.get_road_shiftlog_filename(season, game))
-    if force_overwrite is False and os.path.exists(scrape_toi.get_home_shiftlog_filename(season, game)) and \
-            os.path.exists(scrape_toi.get_home_shiftlog_filename(season, game)):
+    if force_overwrite is False and os.path.exists(get_game_parsed_toi_filename(season, game)):
         return False
 
     gameinfo = schedules.get_game_data_from_schedule(season, game)
@@ -111,6 +96,7 @@ def parse_game_toi_from_html(season, game, force_overwrite=False):
                                                 gameinfo['Home'], gameinfo['Road'],
                                                 season, game)
     except ValueError as ve:
+        print(ve, ve.args)
         # ed.print_and_log('Error with {0:d} {1:d}'.format(season, game), 'warning')
         # ed.print_and_log(str(ve), 'warning')
         parsedtoi = None
@@ -145,7 +131,8 @@ def save_parsed_toi(toi, season, game):
     if toi is None:
         print('None for TOI for', season, game)
         return
-    toi = toi.drop_duplicates()  # TODO why do I need this? E.g. see 20008 second 329
+    toi = toi.drop_duplicates() # TODO why do I need this? E.g. see 20008 second 329
+    toi = toi.astype(str) # All columns should be str
     toi.to_hdf(get_game_parsed_toi_filename(season, game),
                key='T{0:d}0{1:d}'.format(season, game),
                mode='w', complib='zlib')
@@ -166,18 +153,18 @@ def read_shifts_from_html_pages(rawtoi1, rawtoi2, teamid1, teamid2, season, game
     """
 
     from html_table_extractor.extractor import Extractor
-    dflst = []
+    dflst = [None for _ in range(2)]
     for rawtoi, teamid in zip((rawtoi1, rawtoi2), (teamid1, teamid2)):
         extractor = Extractor(rawtoi)
         extractor.parse()
         tables = extractor.return_list()
 
-        ids = []
-        periods = []
-        starts = []
-        ends = []
-        durationtime = []
-        teams = []
+        ids = [None for _ in range(len(tables))]
+        periods = [None for _ in range(len(tables))]
+        starts = [None for _ in range(len(tables))]
+        ends = [None for _ in range(len(tables))]
+        durationtime = [None for _ in range(len(tables))]
+        teams = [None for _ in range(len(tables))]
         i = 0
         while i < len(tables):
             # A convenient artefact of this package: search for [p, p, p, p, p, p, p, p]
@@ -190,18 +177,25 @@ def read_shifts_from_html_pages(rawtoi1, rawtoi2, teamid1, teamid2, season, game
                     # print(tables[i])
                     shiftnum, per, start, end, dur, ev = tables[i]
                     # print(pname, pid, shiftnum, per, start, end)
-                    ids.append(pid)
+                    ids[i] = pid
                     if per == 'OT':
                         per = 4
-                    periods.append(int(per))
-                    starts.append(start[:start.index('/')].strip())
-                    ends.append(end[:end.index('/')].strip())
-                    durationtime.append(helpers.mmss_to_secs(dur))
-                    teams.append(teamid)
+                    periods[i] = int(per)
+                    starts[i] = start[:start.index('/')].strip()
+                    ends[i] = end[:end.index('/')].strip()
+                    durationtime[i] = helpers.mmss_to_secs(dur)
+                    teams[i] = teamid
                     i += 1
                 i += 1
             else:
                 i += 1
+
+        ids = [x for x in ids if x is not None]
+        periods = [x for x in periods if x is not None]
+        starts = [x for x in starts if x is not None]
+        ends = [x for x in ends if x is not None]
+        durationtime = [x for x in durationtime if x is not None]
+        teams = [x for x in teams if x is not None]
 
         startmin = [x[:x.index(':')] for x in starts]
         startsec = [x[x.index(':') + 1:] for x in starts]
@@ -216,7 +210,7 @@ def read_shifts_from_html_pages(rawtoi1, rawtoi2, teamid1, teamid2, season, game
 
         df = pd.DataFrame({'PlayerID': ids, 'Period': periods, 'Start': starttimes, 'End': endtimes,
                            'Team': teams, 'Duration': durationtime})
-        dflst.append(df)
+        dflst[i] = df
 
     return _finish_toidf_manipulations(pd.concat(dflst), season, game)
 
@@ -309,30 +303,18 @@ def _finish_toidf_manipulations(df, season, game):
 
     # Let's filter out goalies for now. We can add them back in later.
     # This will make it easier to get the strength later
-    pids = players.get_player_info_file()
-    tempdf = tempdf.merge(pids[['ID', 'Pos']], how='left', left_on='PlayerID', right_on='ID')
+    pids = players.get_player_attrs('PlayerID', 'Pos')
+    tempdf = tempdf.merge(pids[['PlayerID', 'Pos']], how='left', on='PlayerID')
 
     # toi = pd.DataFrame({'Time': [i for i in range(0, max(df.End) + 1)]})
     toi = pd.DataFrame({'Time': [i for i in range(0, int(round(max(df.End))))]})
-
-    # Originally used a hacky way to fill in times between shift start and end: increment tempdf by one, filter, join
-    # Faster to work with base structures
-    # Or what if I join each player to full df, fill backward on start and end, and filter out rows where end > time
-    # toidict = toi.to_dict(orient='list')
-    # players_by_sec = [[] for _ in range(min(toidict['Start'], toidict['End'] + 1))]
-    # for i in range(len(players_by_sec)):
-    #    for j in range(toidict['Start'][i], toidict['End'][i] + 1):
-    #        players_by_sec[j].append(toidict['PlayerID'][i])
-    # Maybe I can create a matrix with rows = time and columns = players
-    # Loop over start and end, and use iloc[] to set booleans en masse.
-    # Then melt and filter
 
     # Create one row per second
     alltimes = toi.Time
     newdf = pd.DataFrame(index=alltimes)
 
     # Add rows and set times to True simultaneously
-    for i, (pid, start, end, team, duration, time, pid, pos) in tempdf.iterrows():
+    for i, (pid, start, end, team, duration, time, pos) in tempdf.iterrows():
         newdf.loc[start:end, pid] = True
 
     # Fill NAs to False
@@ -344,24 +326,10 @@ def _finish_toidf_manipulations(df, season, game):
                                 var_name='PlayerID', value_name='OnIce')
     newdf = newdf[newdf.OnIce].drop('OnIce', axis=1)
     newdf = newdf.merge(tempdf.drop('Time', axis=1), how='left', on='PlayerID') \
-        .query("Time <= End & Time >= Start") \
-        .drop('ID', axis=1)
+        .query("Time <= End & Time >= Start")
 
     # In case there were rows that were all missing, join onto TOI
     tempdf = toi.merge(newdf, how='left', on='Time')
-    # TODO continue here--does newdf match tempdf after sort_values?
-
-    # Old method
-    # toidfs = []
-    # while len(tempdf.index) > 0:
-    #    temptoi = toi.merge(tempdf, how='inner', on='Time')
-    #    toidfs.append(temptoi)
-
-    #    tempdf = tempdf.assign(Time=tempdf.Time + 1)
-    #    tempdf = tempdf.query('Time <= End')
-
-    # tempdf = pd.concat(toidfs)
-    # tempdf = tempdf.sort_values(by='Time')
 
     goalies = tempdf[tempdf.Pos == 'G'].drop({'Pos'}, axis=1)
     tempdf = tempdf[tempdf.Pos != 'G'].drop({'Pos'}, axis=1)

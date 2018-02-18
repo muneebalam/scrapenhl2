@@ -143,14 +143,14 @@ def get_team_toi(season, team):
                              _TL_CONNS[team_info.team_as_id(team)])
 
 
-def update_team_logs(season, games, force_overwrite=False):
+def update_team_logs(season, games, from_scratch=False):
     """
     This method looks at the schedule for the given season and writes pbp for scraped games to file.
     It also adds the strength at each pbp event to the log. It only includes games that have both PBP *and* TOI.
 
     :param season: int, the season
     :param games, list of int.
-    :param force_overwrite: bool, whether to generate from scratch
+    :param from_scratch: bool, whether to generate from scratch
 
     :return: nothing
     """
@@ -167,11 +167,70 @@ def update_team_logs(season, games, force_overwrite=False):
         except pd.io.sql.DatabaseError:
             _create_team_toi_table(team)
 
+    if from_scratch:
+        for team in allteams:
+            _TL_CURSORS[team].execute('DELETE FROM Pbp WHERE Season = {0:d}'.format(season))
+            _TL_CURSORS[team].execute('DELETE FROM Toi WHERE Season = {0:d}'.format(season))
+
     for game in tqdm(games, desc = 'Adding games to team logs'):
         hteam = schedules.get_home_team(season, game)
         rteam = schedules.get_road_team(season, game)
 
+        pbp = parse_pbp.get_parsed_pbp(season, game)
+        toi = parse_toi.get_parsed_toi(season, game)
 
+        # Want both pbp and toi to exist
+        if pbp is None or toi is None or len(pbp) == 0 or len(toi) == 0:
+            continue
+
+        # Add scores to TOI
+        pbp = pbp.merge(toi[['Time', 'HomeStrength', 'RoadStrength']], how='left', on='Time')
+        # Add strength to PBP
+        toi = toi.merge(pbp[['Time', 'HomeScore', 'RoadScore']], how='left', on='Time')
+        # Forward fill score
+        toi = toi.assign(HomeScore = toi.HomeScore.fillna(method='ffill'),
+                         RoadScore = toi.RoadScore.fillna(method='ffill'))
+
+        # Add game
+        pbp = pbp.assign(Game = game)
+        toi = toi.assign(Game = game)
+
+        # Rename columns for home team and road team
+        hpbp = pbp.rename(columns={x.replace('Home', 'Team').replace('Road', 'Opp') for x in pbp.columns})
+        htoi = toi.rename(columns={x.replace('Home', 'Team').replace('Road', 'Opp') for x in toi.columns})
+        rpbp = pbp.rename(columns={x.replace('Home', 'Opp').replace('Road', 'Team') for x in pbp.columns})
+        rtoi = toi.rename(columns={x.replace('Home', 'Opp').replace('Road', 'Team') for x in toi.columns})
+
+        # Add home and road (would have gotten renamed above)
+        hpbp = hpbp.assign(Home = hteam, Road = rteam)
+        htoi = htoi.assign(Home = hteam, Road = rteam)
+        rpbp = rpbp.assign(Home = hteam, Road = rteam)
+        rtoi = rtoi.assign(Home = hteam, Road = rteam)
+
+        hpbp.to_sql('Pbp', _TL_CONNS[hteam], if_exists = 'append', index = False)
+        #htoi.to_sql('Toi', _TL_CONNS[hteam], if_exists = 'append', index = False)
+        #rpbp.to_sql('Pbp', _TL_CONNS[rteam], if_exists = 'append', index = False)
+        #rtoi.to_sql('Toi', _TL_CONNS[rteam], if_exists = 'append', index = False)
+
+
+def update_pbplog(team, **kwargs):
+    """
+
+    :param team:
+    :param kwargs:
+    :return:
+    """
+    helpers.replace_into_table(_TL_CURSORS[team_info.team_as_id(team)], 'Pbp', **kwargs)
+
+
+def update_toilog(team, **kwargs):
+    """
+
+    :param team:
+    :param kwargs:
+    :return:
+    """
+    helpers.replace_into_table(_TL_CURSORS[team_info.team_as_id(team)], 'Toi', **kwargs)
 
 
 def update_team_logs_backup():

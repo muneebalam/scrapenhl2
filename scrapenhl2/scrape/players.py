@@ -37,7 +37,7 @@ def get_player_info_connection():
 
 
 def _create_player_info_table():
-    """Creates Info DOB, Hand, Height, PlayerID, Name, Nationality, Pos, Weight"""
+    """Creates Info DOB, Hand, Height, PlayerID, Team, Name, Nationality, Pos, Weight"""
     cols = ',\n'.join(['PlayerID CHAR', 'Team INT', 'DOB Date', 'Hand CHAR(1)', 'Weight INT',
                        'Height CHAR', 'Name CHAR', 'Nationality CHAR', 'Pos CHAR(1)'])
     query = 'CREATE TABLE Info (\n{0:s},\nPRIMARY KEY (PlayerID, Team))'.format(cols)
@@ -60,6 +60,22 @@ def get_player_info_file():
     :return: df
     """
     return pd.read_sql_query('SELECT * FROM Info', _PLAYER_CONN)
+
+
+def get_player_attrs(*args):
+    """
+    Returns distinct query on columns provided.
+
+    Select from DOB, Hand, Height, PlayerID, Team, Name, Nationality, Pos, Weight
+
+    :param args: str, column names
+    :return:
+    """
+    for arg in args:
+        assert arg in {'DOB', 'Hand', 'Weight', 'PlayerID', 'Team', 'Name', 'Nationality', 'Pos', 'Weight'}
+
+    query = 'SELECT DISTINCT {0:s} FROM Info'.format(', '.join(args))
+    return pd.read_sql_query(query, _PLAYER_CONN)
 
 
 def get_player_status_file():
@@ -122,10 +138,10 @@ def get_player_url(playerid):
 
 
 def update_player_info(**kwargs):
-    helpers._replace_into_table(_PLAYER_CURSOR, 'Info', **kwargs)
+    helpers.replace_into_table(_PLAYER_CURSOR, 'Info', **kwargs)
 
 def update_player_status(**kwargs):
-    helpers._replace_into_table(_PLAYER_CURSOR, 'Status', **kwargs)
+    helpers.replace_into_table(_PLAYER_CURSOR, 'Status', **kwargs)
 
 
 def update_player_ids_file(playerids, team, force_overwrite=False):
@@ -230,7 +246,7 @@ def get_player_handedness(player):
     :return: str, player hand (L or R)
     """
 
-    df = get_player_ids_file()
+    df = get_player_info_file()
     df = df[df.ID == player_as_id(player)]
     if len(df) == 1:
         return df.Hand.iloc[0]
@@ -265,19 +281,15 @@ def player_as_id(playername, team=None, dob=None, silent=False):
 
     if len(result) == 0:
         # Fuzzy match
-        result = helpers.fuzzy_match_player(playername, get_player_info_file())
-        if len(result) == 0:
+        result = helpers.fuzzy_match_player(playername, get_player_attrs('Name').Name)
+        if result is None:
             if not silent:
                 warnings.warn('No results for ' + playername)
             return None
-        elif len(result) == 1:
-            return int(result.Name.iloc[0])
         else:
-            if not silent:
-                warnings.warn('Multiple results for ' + playername + '\nPlease specify a team')
-            return None
-    if len(result) == 1:
-        return result.Name.iloc[0]
+            return player_as_id(result)
+    elif len(result) == 1:
+        return result.PlayerID.iloc[0]
     else:
         if not silent:
             warnings.warn('Multiple results for ' + playername + '\nPlease specify a team')

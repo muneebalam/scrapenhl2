@@ -480,9 +480,9 @@ def update_schedule(update_or_replace, **kwargs):
         pkeys = {k: v for k, v in kwargs.items() if k in {'Season', 'Game'}}
         for key in pkeys:
             kwargs.pop(key)
-        helpers._update_table(_SCH_CURSOR, 'Schedule', pkeys, **kwargs)
+        helpers.update_table(_SCH_CURSOR, 'Schedule', pkeys, **kwargs)
     else:
-        helpers._replace_into_table(_SCH_CURSOR, 'Schedule', **kwargs)
+        helpers.replace_into_table(_SCH_CURSOR, 'Schedule', **kwargs)
 
 
 def attach_game_dates_to_dateframe(df):

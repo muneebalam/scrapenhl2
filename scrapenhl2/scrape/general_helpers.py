@@ -428,7 +428,7 @@ def fill_join(df1, df2, **kwargs):
     return df1
 
 
-def _replace_into_table(cursor, tblname, **kwargs):
+def replace_into_table(cursor, tblname, **kwargs):
     """
     Replaces into tblname. DOES NOT COMMIT.
     :param cursor:
@@ -442,7 +442,7 @@ def _replace_into_table(cursor, tblname, **kwargs):
     cursor.execute(query)
 
 
-def _update_table(cursor, tblname, primarykeydict, **kwargs):
+def update_table(cursor, tblname, primarykeydict, **kwargs):
     """
     Updates tblname based on primary keys. Does not commit.
     
