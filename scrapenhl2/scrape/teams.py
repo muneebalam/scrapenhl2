@@ -18,7 +18,7 @@ def _get_team_pbp_log_colnames_coltypes():
 
     - Season INT PRIMARY KEY
     - Game INT PRIMARY KEY
-    - Index INT PRIMARY KEY
+    - EventIndex INT PRIMARY KEY
     - Period INT
     - MinSec CHAR
     - Event CHAR
@@ -156,8 +156,13 @@ def update_team_logs(season, games, from_scratch=False):
     :return: nothing
     """
     # Create team dbs if need be
-    allteams = {schedules.get_home_team(season, game) for game in games} \
-        .union({schedules.get_road_team(season, game) for game in games})
+    allteams = set()
+    for game in games:
+        try:
+            allteams.add(schedules.get_home_team(season, game))
+            allteams.add(schedules.get_road_team(season, game))
+        except IndexError:
+            pass
     for team in allteams:
         try:
             _ = get_team_pbp(season, team)
@@ -174,8 +179,11 @@ def update_team_logs(season, games, from_scratch=False):
             _TL_CURSORS[team].execute('DELETE FROM Toi WHERE Season = {0:d}'.format(season))
 
     for game in tqdm(games, desc = 'Adding games to team logs'):
-        hteam = schedules.get_home_team(season, game)
-        rteam = schedules.get_road_team(season, game)
+        try:
+            hteam = schedules.get_home_team(season, game)
+            rteam = schedules.get_road_team(season, game)
+        except IndexError:
+            continue
 
         pbp = parse_pbp.get_parsed_pbp(season, game).rename(columns={'Index': 'EventIndex'})
         toi = parse_toi.get_parsed_toi(season, game)
@@ -277,10 +285,8 @@ def team_setup():
 
     :return: nothing
     """
-    for season in range(2005, schedules.get_current_season() + 1):
-        organization.check_create_folder(organization.get_season_team_pbp_folder(season))
-    for season in range(2005, schedules.get_current_season() + 1):
-        organization.check_create_folder(organization.get_season_team_toi_folder(season))
+    if not os.path.exists(organization.get_team_data_folder()):
+        organization.check_create_folder(organization.get_team_data_folder())
 
     allteams = {x[0] for x in schedules._SCH_CURSOR.execute('SELECT DISTINCT Home FROM Schedule').fetchall()} \
         .union({x[0] for x in schedules._SCH_CURSOR.execute('SELECT DISTINCT Road FROM Schedule').fetchall()})

@@ -4,6 +4,7 @@ This module contains methods for parsing TOI.
 
 import os.path
 import re
+import warnings
 
 import pandas as pd
 from tqdm import tqdm
@@ -115,7 +116,11 @@ def get_parsed_toi(season, game):
 
     :return: json, the json shifts
     """
-    return pd.read_hdf(get_game_parsed_toi_filename(season, game))
+    try:
+        return pd.read_hdf(get_game_parsed_toi_filename(season, game))
+    except FileNotFoundError:
+        warnings.warn("No parsed TOI found for {0:d} {1:d}".format(season, game))
+        return None
 
 
 def save_parsed_toi(toi, season, game):
@@ -154,7 +159,7 @@ def read_shifts_from_html_pages(rawtoi1, rawtoi2, teamid1, teamid2, season, game
     """
 
     from html_table_extractor.extractor import Extractor
-    dflst = [None for _ in range(2)]
+    dflst = []
     for rawtoi, teamid in zip((rawtoi1, rawtoi2), (teamid1, teamid2)):
         extractor = Extractor(rawtoi)
         extractor.parse()
@@ -211,7 +216,7 @@ def read_shifts_from_html_pages(rawtoi1, rawtoi2, teamid1, teamid2, season, game
 
         df = pd.DataFrame({'PlayerID': ids, 'Period': periods, 'Start': starttimes, 'End': endtimes,
                            'Team': teams, 'Duration': durationtime})
-        dflst[i] = df
+        dflst.append(df)
 
     return _finish_toidf_manipulations(pd.concat(dflst), season, game)
 

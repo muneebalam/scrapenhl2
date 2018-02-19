@@ -6,6 +6,7 @@ import os.path
 
 import numpy as np
 import pandas as pd
+import warnings
 
 from scrapenhl2.scrape import general_helpers as helpers, manipulate_schedules, organization, players, schedules, \
     scrape_pbp, parse_toi
@@ -49,7 +50,11 @@ def get_parsed_pbp(season, game):
 
     :return: json, the json pbp
     """
-    return pd.read_hdf(get_game_parsed_pbp_filename(season, game))
+    try:
+        return pd.read_hdf(get_game_parsed_pbp_filename(season, game))
+    except FileNotFoundError:
+        warnings.warn('Could not find parsed pbp for {0:d} {1:d}'.format(season, game))
+        return None
 
 
 def save_parsed_pbp(pbp, season, game):
@@ -62,6 +67,9 @@ def save_parsed_pbp(pbp, season, game):
 
     :return: nothing
     """
+    for col in ['Actor', 'ActorRole', 'Event', 'MinSec', 'Note', 'Recipient', 'RecipientRole',
+                 'TeamStrength', 'OppStrength']:
+        pbp.loc[:, col] = pbp[col].astype(str)
     pbp.to_hdf(get_game_parsed_pbp_filename(season, game),
                key='P{0:d}0{1:d}'.format(season, game),
                mode='w', complib='zlib')

@@ -107,28 +107,6 @@ def get_season_parsed_toi_folder(season):
     return os.path.join(get_parsed_data_folder(), 'toi', str(season))
 
 
-def get_season_team_pbp_folder(season):
-    """
-    Returns the folder containing team pbp logs for given season
-
-    :param season: int, current season
-
-    :return: str, /scrape/data/teams/pbp/[season]/
-    """
-    return os.path.join(get_team_data_folder(), 'pbp', str(season))
-
-
-def get_season_team_toi_folder(season):
-    """
-    Returns the folder containing team toi logs for given season
-
-    :param season: int, current season
-
-    :return: str, /scrape/data/teams/toi/[season]/
-    """
-    return os.path.join(get_team_data_folder(), 'toi', str(season))
-
-
 def organization_setup():
     """
     Creates other folder if need be
