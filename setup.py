@@ -25,8 +25,6 @@ setuptools.setup(
                       'matplotlib',  # graphing
                       'seaborn',  # graphing; a little nicer than MPL
                       'pandas',  # for handling and manipulating data
-                      'pyarrow',  # used by feather
-                      'feather-format',  # fast read-write format that plays nicely with R
                       'halo',  # for spinners
                       'scikit-learn',  # not currently used, but will be for machine learning
                       'flask',  # for front end
@@ -47,7 +45,7 @@ setuptools.setup(
                       'pytest',  # Testrunner
                       'pytest-cov',  # Coverage reports
                       'pytest-mock',  # Test mocking framework
-                      'numba'
+                      'numba'  # for speeding up code
                       ],
     long_description=read('README.rst'),
     classifiers=[

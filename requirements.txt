@@ -3,8 +3,6 @@ scipy
 matplotlib
 seaborn
 pandas
-pyarrow
-feather-format
 halo
 scikit-learn
 flask
